@@ -1,0 +1,52 @@
+{
+  "profile": "anthropic",
+  "model": "claude-sonnet-4-6",
+  "exchanges": [
+    {
+      "request": {
+        "url": "https://api.anthropic.com/v1/messages",
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "content-type": "application/json",
+          "x-api-key": "<redacted>"
+        },
+        "body": {
+          "json": {
+            "max_tokens": 8192,
+            "messages": [
+              {
+                "content": [
+                  {
+                    "text": "hi",
+                    "type": "text"
+                  }
+                ],
+                "role": "user"
+              }
+            ],
+            "model": "this-model-does-not-exist"
+          }
+        }
+      },
+      "response": {
+        "status": 404,
+        "headers": {
+          "content-type": "application/json",
+          "date": "Wed, 19 Aug 2026 22:59:23 GMT",
+          "request-id": "req_011CeCwHcaKy5PDtY2BetpPK",
+          "x-should-retry": "false"
+        },
+        "body": {
+          "json": {
+            "error": {
+              "message": "model: this-model-does-not-exist",
+              "type": "not_found_error"
+            },
+            "request_id": "req_011CeCwHcaKy5PDtY2BetpPK",
+            "type": "error"
+          }
+        }
+      }
+    }
+  ]
+}

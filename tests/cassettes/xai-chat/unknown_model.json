@@ -1,0 +1,39 @@
+{
+  "profile": "xai-chat",
+  "model": "grok-4.3",
+  "exchanges": [
+    {
+      "request": {
+        "url": "https://api.x.ai/v1/chat/completions",
+        "headers": {
+          "authorization": "<redacted>",
+          "content-type": "application/json"
+        },
+        "body": {
+          "json": {
+            "messages": [
+              {
+                "content": "hi",
+                "role": "user"
+              }
+            ],
+            "model": "this-model-does-not-exist"
+          }
+        }
+      },
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-type": "application/json",
+          "date": "Tue, 18 Aug 2026 21:49:47 GMT"
+        },
+        "body": {
+          "json": {
+            "code": "invalid-argument",
+            "error": "Model not found: this-model-does-not-exist"
+          }
+        }
+      }
+    }
+  ]
+}

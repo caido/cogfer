@@ -1,0 +1,45 @@
+{
+  "profile": "gemini",
+  "model": "gemini-3.6-flash",
+  "exchanges": [
+    {
+      "request": {
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/this-model-does-not-exist:generateContent",
+        "headers": {
+          "content-type": "application/json",
+          "x-goog-api-key": "<redacted>"
+        },
+        "body": {
+          "json": {
+            "contents": [
+              {
+                "parts": [
+                  {
+                    "text": "hi"
+                  }
+                ],
+                "role": "user"
+              }
+            ]
+          }
+        }
+      },
+      "response": {
+        "status": 404,
+        "headers": {
+          "content-type": "application/json; charset=UTF-8",
+          "date": "Tue, 18 Aug 2026 21:45:44 GMT"
+        },
+        "body": {
+          "json": {
+            "error": {
+              "code": 404,
+              "message": "models/this-model-does-not-exist is not found for API version v1beta, or is not supported for generateContent. Call ModelService.ListModels to see the list of available models and their supported methods.",
+              "status": "NOT_FOUND"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

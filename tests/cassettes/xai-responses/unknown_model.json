@@ -1,0 +1,49 @@
+{
+  "profile": "xai-responses",
+  "model": "grok-4.5",
+  "exchanges": [
+    {
+      "request": {
+        "url": "https://api.x.ai/v1/responses",
+        "headers": {
+          "authorization": "<redacted>",
+          "content-type": "application/json"
+        },
+        "body": {
+          "json": {
+            "include": [
+              "reasoning.encrypted_content"
+            ],
+            "input": [
+              {
+                "content": [
+                  {
+                    "text": "hi",
+                    "type": "input_text"
+                  }
+                ],
+                "role": "user",
+                "type": "message"
+              }
+            ],
+            "model": "this-model-does-not-exist",
+            "store": false
+          }
+        }
+      },
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-type": "application/json",
+          "date": "Tue, 18 Aug 2026 21:49:33 GMT"
+        },
+        "body": {
+          "json": {
+            "code": "invalid-argument",
+            "error": "Model not found: this-model-does-not-exist"
+          }
+        }
+      }
+    }
+  ]
+}

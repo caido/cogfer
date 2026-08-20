@@ -1,0 +1,207 @@
+{
+  "profile": "gemini",
+  "model": "gemini-3.6-flash",
+  "exchanges": [
+    {
+      "request": {
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:streamGenerateContent?alt=sse",
+        "headers": {
+          "content-type": "application/json",
+          "x-goog-api-key": "<redacted>"
+        },
+        "body": {
+          "json": {
+            "contents": [
+              {
+                "parts": [
+                  {
+                    "text": "What time is it in Paris right now?"
+                  }
+                ],
+                "role": "user"
+              }
+            ],
+            "generationConfig": {
+              "maxOutputTokens": 3000,
+              "thinkingConfig": {
+                "thinkingLevel": "low"
+              }
+            },
+            "systemInstruction": {
+              "parts": [
+                {
+                  "text": "You are a helpful assistant. Use the get_current_time tool to answer time questions; afterwards answer from its result."
+                }
+              ]
+            },
+            "tools": [
+              {
+                "functionDeclarations": [
+                  {
+                    "description": "Returns the current time for a city.",
+                    "name": "get_current_time",
+                    "parametersJsonSchema": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "city": {
+                          "description": "City name",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "city"
+                      ],
+                      "type": "object"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "text/event-stream",
+          "date": "Tue, 18 Aug 2026 21:45:38 GMT"
+        },
+        "body": {
+          "chunks": [
+            "data: {\"candidates\": [{\"content\": {\"parts\": [{\"functionCall\": {\"name\": \"get_current_time\",\"args\": {\"city\": \"Paris\"},\"id\": \"call_4864772\"},\"thoughtSignature\": \"Er0CCroCARFNMg+tqUsE+QQ46DP0836hMA9pgj+MSbqWzC0c2McWoRrjvcNEhbuY0dNpu+9SFibqzYk8eKAZGeVbEdD/cXRD3mYu4RA2qhhEfPdRBfR5qYYGs+oshXIHBIAAbyE9JoMUWrHcKYpoAToKiVuwhwle1OpM+RLL2LwbA6zW1+Ll+k8ZbbUTWwAPO89Ynndky+0mbOVcltnDk8w9P5Put5gndWDEeH6TQlfkxT9Rs9BbFCfH5270YIRbVVDxufvca7+SjrU5jpL3UNXwhmB3dOyhmqdnPbt+lemro0KrC+om/IHLjWI8pEB3TxRiUSclaUWqPMbJ1xkzD8M7RpUavqDBC0sS4t123dMO+tkKpsyHFF8Gm7RzGJaPDSfJX64zjUPxqwNzvXRsvoKCWS8JawTldblzfzfIU/Q=\"}],\"role\": \"model\"},\"index\": 0}],\"usageMetadata\": {\"promptTokenCount\": 89,\"candidatesTokenCount\": 18,\"totalTokenCount\": 154,\"promptTokensDetails\": [{\"modality\": \"TEXT\",\"tokenCount\": 89}],\"thoughtsTokenCount\": 47,\"serviceTier\": \"standard\"},\"modelVersion\": \"gemini-3.6-flash\",\"responseId\": \"gdKEauqLJOPpnsEP7LTzuQw\"}\r\n\r\n",
+            "data: {\"candidates\": [{\"content\": {\"parts\": [{\"text\": \"\"}],\"role\": \"model\"},\"finishReason\": \"STOP\",\"index\": 0}],\"usageMetadata\": {\"promptTokenCount\": 89,\"candidatesTokenCount\": 18,\"totalTokenCount\": 154,\"promptTokensDetails\": [{\"modality\": \"TEXT\",\"tokenCount\": 89}],\"thoughtsTokenCount\": 47,\"serviceTier\": \"standard\"},\"modelVersion\": \"gemini-3.6-flash\",\"responseId\": \"gdKEauqLJOPpnsEP7LTzuQw\"}\r\n\r\n"
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent",
+        "headers": {
+          "content-type": "application/json",
+          "x-goog-api-key": "<redacted>"
+        },
+        "body": {
+          "json": {
+            "contents": [
+              {
+                "parts": [
+                  {
+                    "text": "What time is it in Paris right now?"
+                  }
+                ],
+                "role": "user"
+              },
+              {
+                "parts": [
+                  {
+                    "functionCall": {
+                      "args": {
+                        "city": "Paris"
+                      },
+                      "id": "call_4864772",
+                      "name": "get_current_time"
+                    },
+                    "thoughtSignature": "Er0CCroCARFNMg+tqUsE+QQ46DP0836hMA9pgj+MSbqWzC0c2McWoRrjvcNEhbuY0dNpu+9SFibqzYk8eKAZGeVbEdD/cXRD3mYu4RA2qhhEfPdRBfR5qYYGs+oshXIHBIAAbyE9JoMUWrHcKYpoAToKiVuwhwle1OpM+RLL2LwbA6zW1+Ll+k8ZbbUTWwAPO89Ynndky+0mbOVcltnDk8w9P5Put5gndWDEeH6TQlfkxT9Rs9BbFCfH5270YIRbVVDxufvca7+SjrU5jpL3UNXwhmB3dOyhmqdnPbt+lemro0KrC+om/IHLjWI8pEB3TxRiUSclaUWqPMbJ1xkzD8M7RpUavqDBC0sS4t123dMO+tkKpsyHFF8Gm7RzGJaPDSfJX64zjUPxqwNzvXRsvoKCWS8JawTldblzfzfIU/Q="
+                  }
+                ],
+                "role": "model"
+              },
+              {
+                "parts": [
+                  {
+                    "functionResponse": {
+                      "id": "call_4864772",
+                      "name": "get_current_time",
+                      "response": {
+                        "result": "It is exactly 12:00 noon."
+                      }
+                    }
+                  }
+                ],
+                "role": "user"
+              }
+            ],
+            "generationConfig": {
+              "maxOutputTokens": 3000,
+              "thinkingConfig": {
+                "thinkingLevel": "low"
+              }
+            },
+            "systemInstruction": {
+              "parts": [
+                {
+                  "text": "You are a helpful assistant. Use the get_current_time tool to answer time questions; afterwards answer from its result."
+                }
+              ]
+            },
+            "tools": [
+              {
+                "functionDeclarations": [
+                  {
+                    "description": "Returns the current time for a city.",
+                    "name": "get_current_time",
+                    "parametersJsonSchema": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "city": {
+                          "description": "City name",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "city"
+                      ],
+                      "type": "object"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=UTF-8",
+          "date": "Tue, 18 Aug 2026 21:45:39 GMT"
+        },
+        "body": {
+          "json": {
+            "candidates": [
+              {
+                "content": {
+                  "parts": [
+                    {
+                      "text": "It is currently 12:00 PM (noon) in Paris.",
+                      "thoughtSignature": "EtQBCtEBARFNMg/mrI490sXhi3d4HDnz4vcpekEUqoZmwpSmMXBNHbTB50YDt1G24qQ9AWmqZKd7N/yOdOl6WsInQTVhVD6xsBWLKMSuiqklM8iHjgKtSBM1nE9v7v8Rcv+lG5ncu97cLvBxn/H4HfmZbu1/GC4SS0AA9GWOe97zZrIpkdcsusC6zlDKQ4oqAIS4oTD0PAIUeVVm4rCs9lfwA1B0yO+fjrtZ/hvA/lVYvU7CluQeBMhsP8+s7CpLWLhRzU+CdYNCGWOXSwa0uu/bj4LAa9w="
+                    }
+                  ],
+                  "role": "model"
+                },
+                "finishReason": "STOP",
+                "index": 0
+              }
+            ],
+            "modelVersion": "gemini-3.6-flash",
+            "responseId": "gtKEat7dN-ygnsEPjrvQiAk",
+            "usageMetadata": {
+              "candidatesTokenCount": 16,
+              "promptTokenCount": 180,
+              "promptTokensDetails": [
+                {
+                  "modality": "TEXT",
+                  "tokenCount": 180
+                }
+              ],
+              "serviceTier": "standard",
+              "thoughtsTokenCount": 28,
+              "totalTokenCount": 224
+            }
+          }
+        }
+      }
+    }
+  ]
+}

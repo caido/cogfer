@@ -1,0 +1,42 @@
+{
+  "profile": "openrouter",
+  "model": "openai/gpt-5.6-luna",
+  "exchanges": [
+    {
+      "request": {
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "headers": {
+          "authorization": "<redacted>",
+          "content-type": "application/json"
+        },
+        "body": {
+          "json": {
+            "messages": [
+              {
+                "content": "hi",
+                "role": "user"
+              }
+            ],
+            "model": "this-model-does-not-exist"
+          }
+        }
+      },
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-type": "application/json",
+          "date": "Tue, 18 Aug 2026 21:51:29 GMT"
+        },
+        "body": {
+          "json": {
+            "error": {
+              "code": 400,
+              "message": "this-model-does-not-exist is not a valid model ID"
+            },
+            "user_id": "<redacted>"
+          }
+        }
+      }
+    }
+  ]
+}

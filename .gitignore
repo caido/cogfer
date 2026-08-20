@@ -1,0 +1,11 @@
+/target
+.env
+coding_agent.log
+# Local-only desktop app + agent engine; never shipped.
+/app/
+# Agent tooling dropped by Codex / Claude Code runs; not part of the library.
+/.agents/
+/.claude/
+/skills-lock.json
+CLAUDE.md
+AGENTS.md

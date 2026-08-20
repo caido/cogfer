@@ -1,0 +1,89 @@
+{
+  "profile": "gemini",
+  "model": "gemini-3.6-flash",
+  "exchanges": [
+    {
+      "request": {
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent",
+        "headers": {
+          "content-type": "application/json",
+          "x-goog-api-key": "<redacted>"
+        },
+        "body": {
+          "json": {
+            "contents": [
+              {
+                "parts": [
+                  {
+                    "text": "Give the city and country of the Eiffel Tower."
+                  }
+                ],
+                "role": "user"
+              }
+            ],
+            "generationConfig": {
+              "responseJsonSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "city": {
+                    "type": "string"
+                  },
+                  "country": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "city",
+                  "country"
+                ],
+                "type": "object"
+              },
+              "responseMimeType": "application/json"
+            }
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=UTF-8",
+          "date": "Tue, 18 Aug 2026 21:45:42 GMT"
+        },
+        "body": {
+          "json": {
+            "candidates": [
+              {
+                "content": {
+                  "parts": [
+                    {
+                      "text": "{\"city\":\"Paris\",\"country\":\"France\"}",
+                      "thoughtSignature": "EuAHCt0HARFNMg9cUw0zmURLJfEfdSE0QUpDmDifU3F1J0ZDzFK17Q4QO/2oHBgefJrS9ELvfSMwUUsF0PMzmdUgROpY7WlhWWNDC7qyEBq9ewo2u+jLiVB77DVvmtpOv5YxsuZuixkzG7sjQ+DATvLeFoX8wU/C48DFCUPf9XXzpridkUV19Ki0QpNqP7vSaRBGfStBIaCRvNbn4B6eHHGZOEx70dmz2msRUMTiYvEoo9b4HlBE9w2tHrE0y8NvmORswjhLHz0VQYAL/CvdeEpEALippi7MQPOROlz/Ofthp6b4FWlvHg3cmQu1FQELFzOCAiKDzQ2X/i4ij394OeYQGfYuEGdIpO/21rdSQXALJjNxxsKs4tgyp+P73VCdodg5LkO+aEhRILuT254uzoWOPHyitnGbDhMxWE8x/iwrQrLpzO8i8pCZd35U4RVSSvEsC51z78sDa8teKbVQ1+dLsz+0hZjqzkXqHmgy1NIeahrA4pLjh2+prkgZ+TZgehYTaFB4RjRQ5s+H4IEM0+xNvtQNiGCxkG97sb2DTyxai9t3pZ7X2Nwah7buWOM7C6E/63/wU2YU1ziOC+8EAFS8bEBy6VEYeTqtjWH6VvtxANF9ObzEPFMBn2XuvK9+kK1Ta9jsKvj0cMS+QMoJgliwIslk3LQCNU4VQepgiOy90HIMJCkQgzEWVQVZWB7FMnmea5wphan8obJKmxnxYJcjQbM3GKXD9mvRzYgthaRF3M6Fg3GmOcPRPDTSzZPCgT5dncipDuf/I1bZigBBui+Q4lJyHuzuLkaaHmTjcOnLtN+RgRdYz9AucpOWKbQwDcizv6zIX2XnkZl9/0awm17h8sP4hIM7TgVIsPuPGTFWLHqj+gSAPqa0HCeGeOU9EN+pwgrvweihWhs3apHOz3OYlLyUqnr31F3Z0tP504sV08qtnsExsjCdhsmZySwTGekYisaaL3fUH1tPBspivE5Pb2AOEcOoPStfwHaey+H0LpJQbYNDRuQK5YjC3Zsk6F1iowu99O7SGxu/6O/7QXflIwQL/u/CMt5ZV8BQu9X+6fe0S+bBxyVNNvEtTH66bgPcPBUttEMEW2DVVNsdhr9thVPzJW77QcOf5bV6NP9FvSmXTUtbSDN3H7tQ++KthABrPaUk0LqNc5RCdNMEZP28YeZCbSMoLMLc1M6a1hFGcWzlZ2kh9qi4pfFhE+igVP8r8kmRJtGmL8/6pwM4Ad82top1yVIQllFLUxTVQ+DaZGmLmwnt/J6ZlyvqLozwlYlbqdGaMYdqHrrfc6DcocX+7iqyg+bSXVOej6OVRbBv7ss="
+                    }
+                  ],
+                  "role": "model"
+                },
+                "finishReason": "STOP",
+                "index": 0
+              }
+            ],
+            "modelVersion": "gemini-3.6-flash",
+            "responseId": "g9KEasHxPNCtnsEPoMjH6Qg",
+            "usageMetadata": {
+              "candidatesTokenCount": 9,
+              "promptTokenCount": 11,
+              "promptTokensDetails": [
+                {
+                  "modality": "TEXT",
+                  "tokenCount": 11
+                }
+              ],
+              "serviceTier": "standard",
+              "thoughtsTokenCount": 251,
+              "totalTokenCount": 271
+            }
+          }
+        }
+      }
+    }
+  ]
+}

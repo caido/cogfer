@@ -1,0 +1,300 @@
+{
+  "profile": "openai-responses",
+  "model": "gpt-5.6-luna",
+  "exchanges": [
+    {
+      "request": {
+        "url": "https://api.openai.com/v1/responses",
+        "headers": {
+          "authorization": "<redacted>",
+          "content-type": "application/json"
+        },
+        "body": {
+          "json": {
+            "include": [
+              "reasoning.encrypted_content"
+            ],
+            "input": [
+              {
+                "content": [
+                  {
+                    "text": "You are a helpful assistant. Use the get_current_time tool to answer time questions; afterwards answer from its result.",
+                    "type": "input_text"
+                  }
+                ],
+                "role": "system",
+                "type": "message"
+              },
+              {
+                "content": [
+                  {
+                    "text": "What time is it in Paris right now?",
+                    "type": "input_text"
+                  }
+                ],
+                "role": "user",
+                "type": "message"
+              }
+            ],
+            "max_output_tokens": 3000,
+            "model": "gpt-5.6-luna",
+            "reasoning": {
+              "effort": "low"
+            },
+            "store": false,
+            "stream": true,
+            "stream_options": {
+              "include_obfuscation": false
+            },
+            "tools": [
+              {
+                "description": "Returns the current time for a city.",
+                "name": "get_current_time",
+                "parameters": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "city": {
+                      "description": "City name",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "city"
+                  ],
+                  "type": "object"
+                },
+                "type": "function"
+              }
+            ]
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "text/event-stream; charset=utf-8",
+          "date": "Tue, 18 Aug 2026 21:45:13 GMT",
+          "x-request-id": "req_6dbedfbc4c1544f3aeb753ccdabc736f"
+        },
+        "body": {
+          "chunks": [
+            "event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_07525e5475db12bb016a84d269503881a0bded8d18fbabc3b3\",\"object\":\"r",
+            "esponse\",\"created_at\":1787089513,\"status\":\"in_progress\",\"background\":false,\"completed_at\":null,\"error\":null,\"frequency_penalty\":0.0,\"incomplete_details\":null,\"instructions\":null,\"max_output_tokens\":3000,\"max_tool_calls\":null,\"model\":\"gpt-5.6-luna\",\"moderation\":null,\"output\":[],\"parallel_tool_calls\":true,\"presence_penalty\":0.0,\"previous_response_id\":null,\"prompt_cache_key\":null,\"prompt_cache_retention\":\"24h\",\"reasoning\":{\"context\":\"all_turns\",\"effort\":\"low\",\"mode\":\"standard\",\"summary\":null},\"safety_identifier\":null,\"service_tier\":\"auto\",\"store\":false,\"temperature\":1.0,\"text\":{\"format\":{\"type\":\"text\"},\"verbosity\":\"medium\"},\"tool_choice\":\"auto\",\"tool_usage\":{\"image_gen\":{\"input_tokens\":0,\"input_tokens_details\":{\"image_tokens\":0,\"text_tokens\":0},\"output_tokens\":0,\"output_tokens_details\":{\"image_tokens\":0,\"text_tokens\":0},\"total_tokens\":0},\"web_search\":{\"num_requests\":0}},\"tools\":[{\"type\":\"function\",\"description\":\"Returns the current time for a city.\",\"name\":\"get_current_time\",\"output_schema\":null,\"parameters\":{\"additionalProperties\":false,\"properties\":{\"city\":{\"description\":\"City name\",\"type\":\"string\"}},\"required\":[\"city\"],\"type\":\"object\"},\"strict\":true}],\"top_logprobs\":0,\"top_p\":0.98,\"truncation\":\"disabled\",\"usage\":null,\"user\":null,\"metadata\":{}},\"sequence_number\":0}\n\nevent: response.in_progress\ndata: {\"type\":\"response.in_progress\",\"response\":{\"id\":\"",
+            "resp_07525e5475db12bb016a84d269503881a0bded8d18fbabc3b3\",\"object\":\"response\",\"created_at\":1787089513,\"status\":\"in_progress\",\"background\":false,\"completed_at\":null,\"error\":null,\"frequency_penalty\":0.0,\"incomplete_details\":null,\"instructions\":null,\"max_output_tokens\":3000,\"max_tool_calls\":null,\"model\":\"gpt-5.6-luna\",\"moderation\":null,\"output\":[],\"parallel_tool_calls\":true,\"presence_penalty\":0.0,\"previous_response_id\":null,\"prompt_cache_key\":null,\"prompt_cache_retention\":\"24h\",\"reasoning\":{\"context\":\"all_turns\",\"effort\":\"low\",\"mode\":\"standard\",\"summary\":null},\"safety_identifier\":null,\"service_tier\":\"auto\",\"store\":false,\"temperature\":1.0,\"text\":{\"format\":{\"type\":\"text\"},\"verbosity\":\"medium\"},\"tool_choice\":\"auto\",\"tool_usage\":{\"image_gen\":{\"input_tokens\":0,\"input_tokens_details\":{\"image_tokens\":0,\"text_tokens\":0},\"output_tokens\":0,\"output_tokens_details\":{\"image_tokens\":0,\"text_tokens\":0},\"total_tokens\":0},\"web_search\":{\"num_requests\":0}},\"tools\":[{\"type\":\"function\",\"description\":\"Returns the current time for a city.\",\"name\":\"get_current_time\",\"output_schema\":null,\"parameters\":{\"additionalProperties\":false,\"properties\":{\"city\":{\"description\":\"City name\",\"type\":\"string\"}},\"required\":[\"city\"],\"type\":\"object\"},\"strict\":true}],\"top_logprobs\":0,\"top_p\":0.98,\"truncation\":\"disabled\",\"usage\":null,\"user\":null,\"metadata\":{}},\"sequence_number\":1}\n\n",
+            "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"item\":{\"id\":\"fc_07525e5475db12bb016a84d269d77081a085bed39b2af14b83\",\"type\":\"function_call\",\"status\":\"in_progress\",\"arguments\":\"\",\"call_id\":\"call_q0wmH2k62abasg2zsSIrvniX\",\"name\":\"get_current_time\"},\"output_index\":0,\"sequence_number\":2}\n\n",
+            "event: response.function_cal",
+            "l_arguments.delta\ndata: {\"type\":\"response.function_call_arguments.delta\",\"delta\":\"{\\\"\",\"item_id\":\"fc_07525e5475db12bb016a84d269d77081a085bed39b2af14b83\",\"output_index\":0,\"sequence_number\":3}\n\n",
+            "event: response.function_call_arguments.delta\ndata: {\"type\":\"response.function_call_arguments.delta\",\"delta\":\"city\",\"item_id\":\"fc_07525e5475db12bb016a84d269d77081a085bed39b2af14b83\",\"output_index\":0,\"sequence_number\":4}\n\n",
+            "event: response.function_call_arguments.delta\ndata: {\"type\":\"response.function_call_arguments.delta\",\"delta\":\"\\\":\\\"\",\"item_id\":\"fc_07525e5475db12bb016a84d269d77081a085bed39b2af14b83\",\"output_index\":0,\"sequence_number\":5}\n\nevent: response.function_call_arguments.delta\ndata: {\"type\":\"response.function_call_arguments.delta\",\"delta\":\"Paris\",\"item_id\":\"fc_07525e5475db12bb016a84d269d77081a085bed39b2af14b83\",\"output_index\":0,\"sequence_number\":6}\n\n",
+            "event: response.function_call_arguments.delta\ndata: {\"type\":\"response.function_call_arguments.delta\",\"delta\":\"\\\"}\",\"item_id\":\"fc_07525e5475db12bb016a84d269d77081a085bed39b2af14b83\",\"output_index\":0,\"sequence_number\":7}\n\n",
+            "event: response.function_call_arguments.done\ndata: {\"type\":\"response.function_call_arguments.done\",\"arguments\":\"{\\\"city\\\":\\\"Paris\\\"}\",\"item_id\":\"fc_07525e5475db12bb016a84d269d77081a085bed39b2af14b83\",\"output_index\":0,\"sequence_number\":8}\n\n",
+            "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"item\":{\"id\":\"fc_07525e5475db12bb016a84d269d77081a085bed39b2af14b83\",\"type\":\"function_call\",\"status\":\"completed\",\"arguments\":\"{\\\"city\\\":\\\"Paris\\\"}\",\"call_id\":\"call_q0wmH2k62abasg2zsSIrvniX\",\"name\":\"get_current_time\"},\"output_index\":0,\"sequence_number\":9}\n\n",
+            "event: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_07525e5475db12bb016a84d269503881a0bded8d18fbabc3b3\",\"object\":\"response\",\"created_at\":1787089513,\"status\":\"completed\",\"background\":false,\"completed_at\":1787089513,\"error\":null,\"frequency_penalty\":0.0,\"incomplete_details\":null,\"instructions\":null,\"max_output_tokens\":3000,\"max_tool_calls\":null,\"model\":\"gpt-5.6-luna\",\"moderation\":null,\"output\":[{\"id\":\"fc_07525e5475db12bb016a84d269d77081a085bed39b2af14b83\",\"type\":\"function_call\",\"status\":\"completed\",\"arguments\":\"{\\\"city\\\":\\\"Paris\\\"}\",\"call_id\":\"call_q0wmH2k62abasg2zsSIrvniX\",\"name\":\"get_current_time\"}],\"parallel_tool_calls\":true,\"presence_penalty\":0.0,\"previous_response_id\":null,\"prompt_cache_key\":null,\"prompt_cache_retention\":\"24h\",\"reasoning\":{\"context\":\"all_turns\",\"effort\":\"low\",\"mode\":\"standard\",\"summary\":null},\"safety_identifier\":null,\"service_tier\":\"default\",\"store\":false,\"temperature\":1.0,\"text\":{\"format\":{\"type\":\"text\"},\"verbosity\":\"medium\"},\"tool_choice\":\"auto\",\"tool_usage\":{\"image_gen\":{\"input_tokens\":0,\"input_tokens_details\":{\"image_tokens\":0,\"text_tokens\":0},\"output_tokens\":0,\"output_tokens_details\":{\"image_tokens\":0,\"text_tokens\":0},\"total_tokens\":0},\"web_search\":{\"num_requests\":0}},\"tools\":[{\"type\":\"function\",\"description\":\"Returns the current time for a city.\",\"name\":\"get_current_time\",\"output_schema",
+            "\":null,\"parameters\":{\"additionalProperties\":false,\"properties\":{\"city\":{\"description\":\"City name\",\"type\":\"string\"}},\"required\":[\"city\"],\"type\":\"object\"},\"strict\":true}],\"top_logprobs\":0,\"top_p\":0.98,\"truncation\":\"disabled\",\"usage\":{\"input_tokens\":85,\"input_tokens_details\":{\"cache_write_tokens\":0,\"cached_tokens\":0},\"output_tokens\":19,\"output_tokens_details\":{\"reasoning_tokens\":0},\"total_tokens\":104},\"user\":null,\"metadata\":{}},\"sequence_number\":10}\n\n"
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "url": "https://api.openai.com/v1/responses",
+        "headers": {
+          "authorization": "<redacted>",
+          "content-type": "application/json"
+        },
+        "body": {
+          "json": {
+            "include": [
+              "reasoning.encrypted_content"
+            ],
+            "input": [
+              {
+                "content": [
+                  {
+                    "text": "You are a helpful assistant. Use the get_current_time tool to answer time questions; afterwards answer from its result.",
+                    "type": "input_text"
+                  }
+                ],
+                "role": "system",
+                "type": "message"
+              },
+              {
+                "content": [
+                  {
+                    "text": "What time is it in Paris right now?",
+                    "type": "input_text"
+                  }
+                ],
+                "role": "user",
+                "type": "message"
+              },
+              {
+                "arguments": "{\"city\":\"Paris\"}",
+                "call_id": "call_q0wmH2k62abasg2zsSIrvniX",
+                "id": "fc_07525e5475db12bb016a84d269d77081a085bed39b2af14b83",
+                "name": "get_current_time",
+                "type": "function_call"
+              },
+              {
+                "call_id": "call_q0wmH2k62abasg2zsSIrvniX",
+                "output": "It is exactly 12:00 noon.",
+                "type": "function_call_output"
+              }
+            ],
+            "max_output_tokens": 3000,
+            "model": "gpt-5.6-luna",
+            "reasoning": {
+              "effort": "low"
+            },
+            "store": false,
+            "tools": [
+              {
+                "description": "Returns the current time for a city.",
+                "name": "get_current_time",
+                "parameters": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "city": {
+                      "description": "City name",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "city"
+                  ],
+                  "type": "object"
+                },
+                "type": "function"
+              }
+            ]
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "date": "Tue, 18 Aug 2026 21:45:15 GMT",
+          "x-request-id": "req_f2259afd9e0e429b8ff030388162dc4b"
+        },
+        "body": {
+          "json": {
+            "background": false,
+            "billing": {
+              "payer": "developer"
+            },
+            "completed_at": 1787089515,
+            "created_at": 1787089514,
+            "error": null,
+            "frequency_penalty": 0.0,
+            "id": "resp_07525e5475db12bb016a84d26a361c81a0ae2498d7933dd3aa",
+            "incomplete_details": null,
+            "instructions": null,
+            "max_output_tokens": 3000,
+            "max_tool_calls": null,
+            "metadata": {},
+            "model": "gpt-5.6-luna",
+            "moderation": null,
+            "object": "response",
+            "output": [
+              {
+                "content": [
+                  {
+                    "annotations": [],
+                    "logprobs": [],
+                    "text": "It’s currently **12:00 PM in Paris**.",
+                    "type": "output_text"
+                  }
+                ],
+                "id": "msg_07525e5475db12bb016a84d26af0a881a0adceb4e8029c42ae",
+                "phase": "final_answer",
+                "role": "assistant",
+                "status": "completed",
+                "type": "message"
+              }
+            ],
+            "parallel_tool_calls": true,
+            "presence_penalty": 0.0,
+            "previous_response_id": null,
+            "prompt_cache_key": null,
+            "prompt_cache_retention": "24h",
+            "reasoning": {
+              "context": "all_turns",
+              "effort": "low",
+              "mode": "standard",
+              "summary": null
+            },
+            "safety_identifier": null,
+            "service_tier": "default",
+            "status": "completed",
+            "store": false,
+            "temperature": 1.0,
+            "text": {
+              "format": {
+                "type": "text"
+              },
+              "verbosity": "medium"
+            },
+            "tool_choice": "auto",
+            "tool_usage": {
+              "image_gen": {
+                "input_tokens": 0,
+                "input_tokens_details": {
+                  "image_tokens": 0,
+                  "text_tokens": 0
+                },
+                "output_tokens": 0,
+                "output_tokens_details": {
+                  "image_tokens": 0,
+                  "text_tokens": 0
+                },
+                "total_tokens": 0
+              },
+              "web_search": {
+                "num_requests": 0
+              }
+            },
+            "tools": [
+              {
+                "description": "Returns the current time for a city.",
+                "name": "get_current_time",
+                "output_schema": null,
+                "parameters": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "city": {
+                      "description": "City name",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "city"
+                  ],
+                  "type": "object"
+                },
+                "strict": true,
+                "type": "function"
+              }
+            ],
+            "top_logprobs": 0,
+            "top_p": 0.98,
+            "truncation": "disabled",
+            "usage": {
+              "input_tokens": 125,
+              "input_tokens_details": {
+                "cache_write_tokens": 0,
+                "cached_tokens": 0
+              },
+              "output_tokens": 16,
+              "output_tokens_details": {
+                "reasoning_tokens": 0
+              },
+              "total_tokens": 141
+            },
+            "user": null
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,150 @@
+{
+  "profile": "openai-responses",
+  "model": "gpt-5.6-luna",
+  "exchanges": [
+    {
+      "request": {
+        "url": "https://api.openai.com/v1/responses",
+        "headers": {
+          "authorization": "<redacted>",
+          "content-type": "application/json"
+        },
+        "body": {
+          "json": {
+            "include": [
+              "reasoning.encrypted_content"
+            ],
+            "input": [
+              {
+                "content": [
+                  {
+                    "text": "Answer with exactly one word.",
+                    "type": "input_text"
+                  }
+                ],
+                "role": "system",
+                "type": "message"
+              },
+              {
+                "content": [
+                  {
+                    "text": "Say OK.",
+                    "type": "input_text"
+                  }
+                ],
+                "role": "user",
+                "type": "message"
+              }
+            ],
+            "model": "gpt-5.6-luna",
+            "store": false
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "date": "Tue, 18 Aug 2026 21:45:12 GMT",
+          "x-request-id": "req_0c2cbe14d76645fe83445175d6074755"
+        },
+        "body": {
+          "json": {
+            "background": false,
+            "billing": {
+              "payer": "developer"
+            },
+            "completed_at": 1787089512,
+            "created_at": 1787089511,
+            "error": null,
+            "frequency_penalty": 0.0,
+            "id": "resp_025850c86f680136016a84d26700b487d2aaccdb1939d27fed",
+            "incomplete_details": null,
+            "instructions": null,
+            "max_output_tokens": null,
+            "max_tool_calls": null,
+            "metadata": {},
+            "model": "gpt-5.6-luna",
+            "moderation": null,
+            "object": "response",
+            "output": [
+              {
+                "content": [
+                  {
+                    "annotations": [],
+                    "logprobs": [],
+                    "text": "OK",
+                    "type": "output_text"
+                  }
+                ],
+                "id": "msg_025850c86f680136016a84d267ed3887d2a56233d48fdf447c",
+                "phase": "final_answer",
+                "role": "assistant",
+                "status": "completed",
+                "type": "message"
+              }
+            ],
+            "parallel_tool_calls": true,
+            "presence_penalty": 0.0,
+            "previous_response_id": null,
+            "prompt_cache_key": null,
+            "prompt_cache_retention": "24h",
+            "reasoning": {
+              "context": "all_turns",
+              "effort": "medium",
+              "mode": "standard",
+              "summary": null
+            },
+            "safety_identifier": null,
+            "service_tier": "default",
+            "status": "completed",
+            "store": false,
+            "temperature": 1.0,
+            "text": {
+              "format": {
+                "type": "text"
+              },
+              "verbosity": "medium"
+            },
+            "tool_choice": "auto",
+            "tool_usage": {
+              "image_gen": {
+                "input_tokens": 0,
+                "input_tokens_details": {
+                  "image_tokens": 0,
+                  "text_tokens": 0
+                },
+                "output_tokens": 0,
+                "output_tokens_details": {
+                  "image_tokens": 0,
+                  "text_tokens": 0
+                },
+                "total_tokens": 0
+              },
+              "web_search": {
+                "num_requests": 0
+              }
+            },
+            "tools": [],
+            "top_logprobs": 0,
+            "top_p": 0.98,
+            "truncation": "disabled",
+            "usage": {
+              "input_tokens": 19,
+              "input_tokens_details": {
+                "cache_write_tokens": 0,
+                "cached_tokens": 0
+              },
+              "output_tokens": 5,
+              "output_tokens_details": {
+                "reasoning_tokens": 0
+              },
+              "total_tokens": 24
+            },
+            "user": null
+          }
+        }
+      }
+    }
+  ]
+}

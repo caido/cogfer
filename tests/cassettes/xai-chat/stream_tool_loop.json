@@ -1,0 +1,192 @@
+{
+  "profile": "xai-chat",
+  "model": "grok-4.3",
+  "exchanges": [
+    {
+      "request": {
+        "url": "https://api.x.ai/v1/chat/completions",
+        "headers": {
+          "authorization": "<redacted>",
+          "content-type": "application/json"
+        },
+        "body": {
+          "json": {
+            "max_completion_tokens": 3000,
+            "messages": [
+              {
+                "content": "You are a helpful assistant. Use the get_current_time tool to answer time questions; afterwards answer from its result.",
+                "role": "system"
+              },
+              {
+                "content": "What time is it in Paris right now?",
+                "role": "user"
+              }
+            ],
+            "model": "grok-4.3",
+            "reasoning_effort": "low",
+            "stream": true,
+            "stream_options": {
+              "include_obfuscation": false,
+              "include_usage": true
+            },
+            "tools": [
+              {
+                "function": {
+                  "description": "Returns the current time for a city.",
+                  "name": "get_current_time",
+                  "parameters": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "city": {
+                        "description": "City name",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "city"
+                    ],
+                    "type": "object"
+                  }
+                },
+                "type": "function"
+              }
+            ]
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "text/event-stream",
+          "date": "Tue, 18 Aug 2026 21:49:38 GMT",
+          "x-request-id": "a0721fdb-3006-9639-92e0-a9be705351e5"
+        },
+        "body": {
+          "chunks": [
+            "data: {\"id\":\"a0721fdb-3006-9639-92e0-a9be705351e5\",\"object\":\"chat.completion.chunk\",\"created\":1787089778,\"model\":\"grok-4.3\",\"choices\":[{\"index\":0,\"delta\":{\"reasoning_content\":\"The\",\"role\":\"assistant\"}}],\"system_fingerprint\":\"fp_eb3c003fc66c14ed\",\"service_tier\":\"default\"}\n\ndata: {\"id\":\"a0721fdb-3006-9639-92e0-a9be705351e5\",\"object\":\"chat.completion.chunk\",\"created\":1787089778,\"model\":\"grok-4.3\",\"choices\":[{\"index\":0,\"delta\":{\"reasoning_content\":\" question\"}}],\"system_fingerprint\":\"fp_eb3c003fc66c14ed\",\"service_tier\":\"default\"}\n\ndata: {\"id\":\"a0721fdb-3006-9639-92e0-a9be705351e5\",\"object\":\"chat.completion.chunk\",\"created\":1787089778,\"model\":\"grok-4.3\",\"choices\":[{\"index\":0,\"delta\":{\"reasoning_content\":\" is\"}}],\"system_fingerprint\":\"fp_eb3c003fc66c14ed\",\"service_tier\":\"default\"}\n\n",
+            "data: {\"id\":\"a0721fdb-3006-9639-92e0-a9be705351e5\",\"object\":\"chat.completion.chunk\",\"created\":1787089778,\"model\":\"grok-4.3\",\"choices\":[{\"index\":0,\"delta\":{\"reasoning_content\":\":\"}}],\"system_fingerprint\":\"fp_eb3c003fc66c14ed\",\"service_tier\":\"default\"}\n\ndata: {\"id\":\"a0721fdb-3006-9639-92e0-a9be705351e5\",\"object\":\"chat.completion.chunk\",\"created\":1787089778,\"model\":\"grok-4.3\",\"choices\":[{\"index\":0,\"delta\":{\"reasoning_content\":\" \\\"\"}}],\"system_fingerprint\":\"fp_eb3c003fc66c14ed\",\"service_tier\":\"default\"}\n\ndata: {\"id\":\"a0721fdb-3006-9639-92e0-a9be705351e5\",\"object\":\"chat.completion.chunk\",\"created\":1787089778,\"model\":\"grok-4.3\",\"choices\":[{\"index\":0,\"delta\":{\"reasoning_content\":\"What\"}}],\"system_fingerprint\":\"fp_eb3c003fc66c14ed\",\"service_tier\":\"default\"}\n\ndata: {\"id\":\"a0721fdb-3006-9639-92e0-a9be705351e5\",\"object\":\"chat.completion.chunk\",\"created\":1787089778,\"model\":\"grok-4.3\",\"choices\":[{\"index\":0,\"delta\":{\"reasoning_content\":\" time\"}}],\"system_fingerprint\":\"fp_eb3c003fc66c14ed\",\"service_tier\":\"default\"}\n\n",
+            "data: {\"id\":\"a0721fdb-3006-9639-92e0-a9be705351e5\",\"object\":\"chat.completion.chunk\",\"created\":1787089778,\"model\":\"grok-4.3\",\"choices\":[{\"index\":0,\"delta\":{\"reasoning_content\":\" is\"}}],\"system_fingerprint\":\"fp_eb3c003fc66c14ed\",\"service_tier\":\"default\"}\n\ndata: {\"id\":\"a0721fdb-3006-9639-92e0-a9be705351e5\",\"object\":\"chat.completion.chunk\",\"created\":1787089778,\"model\":\"grok-4.3\",\"choices\":[{\"index\":0,\"delta\":{\"reasoning_content\":\" it\"}}],\"system_fingerprint\":\"fp_eb3c003fc66c14ed\",\"service_tier\":\"default\"}\n\ndata: {\"id\":\"a0721fdb-3006-9639-92e0-a9be705351e5\",\"object\":\"chat.completion.chunk\",\"created\":1787089778,\"model\":\"grok-4.3\",\"choices\":[{\"index\":0,\"delta\":{\"reasoning_content\":\" in\"}}],\"system_fingerprint\":\"fp_eb3c003fc66c14ed\",\"service_tier\":\"default\"}\n\ndata: {\"id\":\"a0721fdb-3006-9639-92e0-a9be705351e5\",\"object\":\"chat.completion.chunk\",\"created\":1787089778,\"model\":\"grok-4.3\",\"choices\":[{\"index\":0,\"delta\":{\"reasoning_content\":\" Paris\"}}],\"system_fingerprint\":\"fp_eb3c003fc66c14ed\",\"service_tier\":\"default\"}\n\n",
+            "data: {\"id\":\"a0721fdb-3006-9639-92e0-a9be705351e5\",\"object\":\"chat.completion.chunk\",\"created\":1787089778,\"model\":\"grok-4.3\",\"choices\":[{\"index\":0,\"delta\":{\"reasoning_content\":\" right\"}}],\"system_fingerprint\":\"fp_eb3c003fc66c14ed\",\"service_tier\":\"default\"}\n\ndata: {\"id\":\"a0721fdb-3006-9639-92e0-a9be705351e5\",\"object\":\"chat.completion.chunk\",\"created\":1787089778,\"model\":\"grok-4.3\",\"choices\":[{\"index\":0,\"delta\":{\"reasoning_content\":\" now\"}}],\"system_fingerprint\":\"fp_eb3c003fc66c14ed\",\"service_tier\":\"default\"}\n\ndata: {\"id\":\"a0721fdb-3006-9639-92e0-a9be705351e5\",\"object\":\"chat.completion.chunk\",\"created\":1787089778,\"model\":\"grok-4.3\",\"choices\":[{\"index\":0,\"delta\":{\"reasoning_content\":\"?\\\"\\n\"}}],\"system_fingerprint\":\"fp_eb3c003fc66c14ed\",\"service_tier\":\"default\"}\n\n",
+            "data: {\"id\":\"a0721fdb-3006-9639-92e0-a9be705351e5\",\"object\":\"chat.completion.chunk\",\"created\":1787089779,\"model\":\"grok-4.3\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"id\":\"call-55227324-2477-4953-a189-8f7993859727-0\",\"function\":{\"name\":\"get_current_time\",\"arguments\":\"{\\\"city\\\":\\\"Paris\\\"}\"},\"index\":0,\"type\":\"function\"}]}}],\"system_fingerprint\":\"fp_eb3c003fc66c14ed\",\"service_tier\":\"default\"}\n\ndata: {\"id\":\"a0721fdb-3006-9639-92e0-a9be705351e5\",\"object\":\"chat.completion.chunk\",\"created\":1787089779,\"model\":\"grok-4.3\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"tool_calls\"}],\"system_fingerprint\":\"fp_eb3c003fc66c14ed\",\"service_tier\":\"default\"}\n\ndata: {\"id\":\"a0721fdb-3006-9639-92e0-a9be705351e5\",\"object\":\"chat.completion.chunk\",\"created\":1787089779,\"model\":\"grok-4.3\",\"choices\":[],\"usage\":{\"prompt_tokens\":318,\"completion_tokens\":12,\"total_tokens\":410,\"prompt_tokens_details\":{\"text_tokens\":318,\"audio_tokens\":0,\"image_tokens\":0,\"cached_tokens\":192},\"completion_tokens_details\":{\"reasoning_tokens\":80,\"audio_tokens\":0,\"accepted_prediction_tokens\":0,\"rejected_prediction_tokens\":0},\"num_sources_used\":0,\"cost_in_usd_ticks\":4259000},\"system_fingerprint\":\"fp_eb3c003fc66c14ed\",\"service_tier\":\"default\"}\n\ndata: [DONE]\n\n"
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "url": "https://api.x.ai/v1/chat/completions",
+        "headers": {
+          "authorization": "<redacted>",
+          "content-type": "application/json"
+        },
+        "body": {
+          "json": {
+            "max_completion_tokens": 3000,
+            "messages": [
+              {
+                "content": "You are a helpful assistant. Use the get_current_time tool to answer time questions; afterwards answer from its result.",
+                "role": "system"
+              },
+              {
+                "content": "What time is it in Paris right now?",
+                "role": "user"
+              },
+              {
+                "content": null,
+                "role": "assistant",
+                "tool_calls": [
+                  {
+                    "function": {
+                      "arguments": "{\"city\":\"Paris\"}",
+                      "name": "get_current_time"
+                    },
+                    "id": "call-55227324-2477-4953-a189-8f7993859727-0",
+                    "type": "function"
+                  }
+                ]
+              },
+              {
+                "content": "It is exactly 12:00 noon.",
+                "role": "tool",
+                "tool_call_id": "call-55227324-2477-4953-a189-8f7993859727-0"
+              }
+            ],
+            "model": "grok-4.3",
+            "reasoning_effort": "low",
+            "tools": [
+              {
+                "function": {
+                  "description": "Returns the current time for a city.",
+                  "name": "get_current_time",
+                  "parameters": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "city": {
+                        "description": "City name",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "city"
+                    ],
+                    "type": "object"
+                  }
+                },
+                "type": "function"
+              }
+            ]
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "date": "Tue, 18 Aug 2026 21:49:40 GMT",
+          "x-request-id": "19313d3e-a155-9a4c-bdb0-964dcd630457"
+        },
+        "body": {
+          "json": {
+            "choices": [
+              {
+                "finish_reason": "stop",
+                "index": 0,
+                "message": {
+                  "content": "It is exactly 12:00 noon.",
+                  "reasoning_content": "The tool returned: \"It is exactly 12:00 noon.\"\n",
+                  "refusal": null,
+                  "role": "assistant"
+                }
+              }
+            ],
+            "created": 1787089780,
+            "id": "19313d3e-a155-9a4c-bdb0-964dcd630457",
+            "model": "grok-4.3",
+            "object": "chat.completion",
+            "service_tier": "default",
+            "system_fingerprint": "fp_eb3c003fc66c14ed",
+            "usage": {
+              "completion_tokens": 9,
+              "completion_tokens_details": {
+                "accepted_prediction_tokens": 0,
+                "audio_tokens": 0,
+                "reasoning_tokens": 89,
+                "rejected_prediction_tokens": 0
+              },
+              "cost_in_usd_ticks": 4721500,
+              "num_sources_used": 0,
+              "prompt_tokens": 343,
+              "prompt_tokens_details": {
+                "audio_tokens": 0,
+                "cached_tokens": 192,
+                "image_tokens": 0,
+                "text_tokens": 343
+              },
+              "total_tokens": 441
+            }
+          }
+        }
+      }
+    }
+  ]
+}

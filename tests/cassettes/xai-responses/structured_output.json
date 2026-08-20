@@ -1,0 +1,172 @@
+{
+  "profile": "xai-responses",
+  "model": "grok-4.5",
+  "exchanges": [
+    {
+      "request": {
+        "url": "https://api.x.ai/v1/responses",
+        "headers": {
+          "authorization": "<redacted>",
+          "content-type": "application/json"
+        },
+        "body": {
+          "json": {
+            "include": [
+              "reasoning.encrypted_content"
+            ],
+            "input": [
+              {
+                "content": [
+                  {
+                    "text": "Give the city and country of the Eiffel Tower.",
+                    "type": "input_text"
+                  }
+                ],
+                "role": "user",
+                "type": "message"
+              }
+            ],
+            "model": "grok-4.5",
+            "store": false,
+            "text": {
+              "format": {
+                "name": "landmark",
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "city": {
+                      "type": "string"
+                    },
+                    "country": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "city",
+                    "country"
+                  ],
+                  "type": "object"
+                },
+                "strict": true,
+                "type": "json_schema"
+              }
+            }
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "date": "Tue, 18 Aug 2026 21:49:30 GMT",
+          "x-request-id": "8ddbab57-c34a-9039-a580-fe49b23f3ced"
+        },
+        "body": {
+          "json": {
+            "background": false,
+            "completed_at": 1787089769,
+            "created_at": 1787089768,
+            "error": null,
+            "frequency_penalty": 0.0,
+            "id": "8ddbab57-c34a-9039-a580-fe49b23f3ced",
+            "incomplete_details": null,
+            "instructions": null,
+            "max_output_tokens": null,
+            "max_tool_calls": null,
+            "metadata": {
+              "system_fingerprint": "fp_a39489019fa99b6e"
+            },
+            "model": "grok-4.5",
+            "object": "response",
+            "output": [
+              {
+                "encrypted_content": "md2wgRIRVXXPsfSpGEEuUxxFiXWaSUCzrIN5xTccbFc0s1fUn1cTVDNZAYAQePfv4BnxU2plGsez1bKQgwecWcHrrQzls4hBBZGjs8D9QbKQjbPmYZsdoxz+JlLip0UwJHCSqSIGdMciPAYgiSnYpUxKzkN/FNu95pQoe3be8cdIYlnth7L6S7sHDV2+G4+BDkrgFlK0lWNX9p8B9c6GpwwJKRX6/F+23WE9ANkWRZ0uBG+eQpQ3cKTDZ9stNyaj8YeyGU/MA8OzMAOgPY9L5mbaTKz6pljrl8nFdHBtHqPRAyDMoRn3ZG6yThJSCWdOzU/TPU6rQFc/LzVgvbiyker3kEQO83kBKgn/KmVMT7TJVw4eXx0PORMtIW52s8vSNTdtc5Vsik4qr/YLalgbvKpqfgvKw5NaaEZGzCc+46/tMT5BDG/7QbUL0oSZEBQpXyPRUxKNVlpLLqOUvJIaLGFJQh1acDFGgvQ7l9IyEUcFJKBkt3rjUfB5m3Eb4h7beY7j8PmY1/C6sCv7hfvu",
+                "id": "rs_8ddbab57-c34a-9039-a580-fe49b23f3ced",
+                "status": "completed",
+                "summary": [
+                  {
+                    "text": "The user wants the city and country of the Eiffel Tower. That's Paris, France.\n",
+                    "type": "summary_text"
+                  }
+                ],
+                "type": "reasoning"
+              },
+              {
+                "content": [
+                  {
+                    "annotations": [],
+                    "logprobs": [],
+                    "text": "{\"city\":\"Paris\",\"country\":\"France\"}",
+                    "type": "output_text"
+                  }
+                ],
+                "id": "msg_8ddbab57-c34a-9039-a580-fe49b23f3ced",
+                "role": "assistant",
+                "status": "completed",
+                "type": "message"
+              }
+            ],
+            "parallel_tool_calls": true,
+            "presence_penalty": 0.0,
+            "previous_response_id": null,
+            "prompt_cache_key": null,
+            "reasoning": {
+              "effort": "high",
+              "summary": "detailed"
+            },
+            "safety_identifier": null,
+            "service_tier": "default",
+            "status": "completed",
+            "store": false,
+            "temperature": 0.7,
+            "text": {
+              "format": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "city": {
+                      "type": "string"
+                    },
+                    "country": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "city",
+                    "country"
+                  ],
+                  "type": "object"
+                },
+                "type": "json_schema"
+              }
+            },
+            "tool_choice": "auto",
+            "tools": [],
+            "top_logprobs": 0,
+            "top_p": 0.95,
+            "truncation": "disabled",
+            "usage": {
+              "context_details": {
+                "input_tokens": 568,
+                "output_tokens": 106
+              },
+              "cost_in_usd_ticks": 3805280,
+              "input_tokens": 568,
+              "input_tokens_details": {
+                "cached_tokens": 384
+              },
+              "num_server_side_tools_used": 0,
+              "num_sources_used": 0,
+              "output_tokens": 106,
+              "output_tokens_details": {
+                "reasoning_tokens": 95
+              },
+              "total_tokens": 674
+            },
+            "user": null
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,48 @@
+{
+  "profile": "openai-chat",
+  "model": "gpt-5.6-luna",
+  "exchanges": [
+    {
+      "request": {
+        "url": "https://api.openai.com/v1/chat/completions",
+        "headers": {
+          "authorization": "<redacted>",
+          "content-type": "application/json"
+        },
+        "body": {
+          "json": {
+            "messages": [
+              {
+                "content": "Compute 47 * 83 + 19. Think it through step by step, then answer with just the number.",
+                "role": "user"
+              }
+            ],
+            "model": "gpt-5.6-luna",
+            "reasoning_effort": "medium",
+            "stream": true,
+            "stream_options": {
+              "include_obfuscation": false,
+              "include_usage": true
+            }
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "text/event-stream; charset=utf-8",
+          "date": "Tue, 18 Aug 2026 21:48:25 GMT",
+          "x-request-id": "req_1e49f210c3f24e54bcae76094a9a41b9"
+        },
+        "body": {
+          "chunks": [
+            "data: {\"id\":\"chatcmpl-EELxQLH5efrOGqE4mYFOXmXcNasDl\",\"object\":\"chat.completion.chunk\",\"created\":1787089704,\"model\":\"gpt-5.6-luna\",\"service_tier\":\"default\",\"system_fingerprint\":null,\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"\",\"refusal\":null},\"finish_reason\":null}],\"usage\":null}\n\n",
+            "data: {\"id\":\"chatcmpl-EELxQLH5efrOGqE4mYFOXmXcNasDl\",\"object\":\"chat.completion.chunk\",\"created\":1787089704,\"model\":\"gpt-5.6-luna\",\"service_tier\":\"default\",\"system_fingerprint\":null,\"choices\":[{\"index\":0,\"delta\":{\"content\":\"392\"},\"finish_reason\":null}],\"usage\":null}\n\ndata: {\"id\":\"chatcmpl-EELxQLH5efrOGqE4mYFOXmXcNasDl\",\"object\":\"chat.completion.chunk\",\"created\":1787089704,\"model\":\"gpt-5.6-luna\",\"service_tier\":\"default\",\"system_fingerprint\":null,\"choices\":[{\"index\":0,\"delta\":{\"content\":\"0\"},\"finish_reason\":null}],\"usage\":null}\n\n",
+            "data: {\"id\":\"chatcmpl-EELxQLH5efrOGqE4mYFOXmXcNasDl\",\"object\":\"chat.completion.chunk\",\"created\":1787089704,\"model\":\"gpt-5.6-luna\",\"service_tier\":\"default\",\"system_fingerprint\":null,\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}],\"usage\":null}\n\ndata: {\"id\":\"chatcmpl-EELxQLH5efrOGqE4mYFOXmXcNasDl\",\"object\":\"chat.completion.chunk\",\"created\":1787089704,\"model\":\"gpt-5.6-luna\",\"service_tier\":\"default\",\"system_fingerprint\":null,\"choices\":[],\"usage\":{\"prompt_tokens\":30,\"completion_tokens\":42,\"total_tokens\":72,\"prompt_tokens_details\":{\"cached_tokens\":0,\"cache_write_tokens\":0,\"audio_tokens\":0},\"completion_tokens_details\":{\"reasoning_tokens\":31,\"audio_tokens\":0,\"accepted_prediction_tokens\":0,\"rejected_prediction_tokens\":0}}}\n\n",
+            "data: [DONE]\n\n"
+          ]
+        }
+      }
+    }
+  ]
+}

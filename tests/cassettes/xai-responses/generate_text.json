@@ -1,0 +1,143 @@
+{
+  "profile": "xai-responses",
+  "model": "grok-4.5",
+  "exchanges": [
+    {
+      "request": {
+        "url": "https://api.x.ai/v1/responses",
+        "headers": {
+          "authorization": "<redacted>",
+          "content-type": "application/json"
+        },
+        "body": {
+          "json": {
+            "include": [
+              "reasoning.encrypted_content"
+            ],
+            "input": [
+              {
+                "content": [
+                  {
+                    "text": "Answer with exactly one word.",
+                    "type": "input_text"
+                  }
+                ],
+                "role": "system",
+                "type": "message"
+              },
+              {
+                "content": [
+                  {
+                    "text": "Say OK.",
+                    "type": "input_text"
+                  }
+                ],
+                "role": "user",
+                "type": "message"
+              }
+            ],
+            "model": "grok-4.5",
+            "store": false
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "date": "Tue, 18 Aug 2026 21:49:23 GMT",
+          "x-request-id": "3fc08cf6-e14f-9d5b-b1fa-a499f4ef8355"
+        },
+        "body": {
+          "json": {
+            "background": false,
+            "completed_at": 1787089763,
+            "created_at": 1787089762,
+            "error": null,
+            "frequency_penalty": 0.0,
+            "id": "3fc08cf6-e14f-9d5b-b1fa-a499f4ef8355",
+            "incomplete_details": null,
+            "instructions": null,
+            "max_output_tokens": null,
+            "max_tool_calls": null,
+            "metadata": {
+              "system_fingerprint": "fp_a39489019fa99b6e"
+            },
+            "model": "grok-4.5",
+            "object": "response",
+            "output": [
+              {
+                "encrypted_content": "u0EAv2B+V+jlVL/aWKbBUxfBS3Qss3pY0+hT13dtO3g7Xi7pJi1/NNTMs8MmI7jjw8F8X2w/zxgbHcvnR93ZZaJx1crxn1xm16oLpZpT0xKtirxBqdGaG0GDyZ2k3sUl8TK6b1RPQubqVIC1DvQV5t0dpCnncl+FfSd1+pQ/Rc3WAnwXG6EIyVvM0Kt39bpzQGvFpBcHzxYJKSwtVpvQcnFzJa10hElVfh5U3pOcKuIR91UQx5dQt1Vg7CuKinps0oidZo1WWQ",
+                "id": "rs_3fc08cf6-e14f-9d5b-b1fa-a499f4ef8355",
+                "status": "completed",
+                "summary": [
+                  {
+                    "text": "The user says: \"Answer with exactly one word.\" and then \"Say OK.\"\n",
+                    "type": "summary_text"
+                  }
+                ],
+                "type": "reasoning"
+              },
+              {
+                "content": [
+                  {
+                    "annotations": [],
+                    "logprobs": [],
+                    "text": "OK",
+                    "type": "output_text"
+                  }
+                ],
+                "id": "msg_3fc08cf6-e14f-9d5b-b1fa-a499f4ef8355",
+                "role": "assistant",
+                "status": "completed",
+                "type": "message"
+              }
+            ],
+            "parallel_tool_calls": true,
+            "presence_penalty": 0.0,
+            "previous_response_id": null,
+            "prompt_cache_key": null,
+            "reasoning": {
+              "effort": "high",
+              "summary": "detailed"
+            },
+            "safety_identifier": null,
+            "service_tier": "default",
+            "status": "completed",
+            "store": false,
+            "temperature": 0.7,
+            "text": {
+              "format": {
+                "type": "text"
+              }
+            },
+            "tool_choice": "auto",
+            "tools": [],
+            "top_logprobs": 0,
+            "top_p": 0.95,
+            "truncation": "disabled",
+            "usage": {
+              "context_details": {
+                "input_tokens": 506,
+                "output_tokens": 45
+              },
+              "cost_in_usd_ticks": 2139280,
+              "input_tokens": 506,
+              "input_tokens_details": {
+                "cached_tokens": 384
+              },
+              "num_server_side_tools_used": 0,
+              "num_sources_used": 0,
+              "output_tokens": 45,
+              "output_tokens_details": {
+                "reasoning_tokens": 44
+              },
+              "total_tokens": 551
+            },
+            "user": null
+          }
+        }
+      }
+    }
+  ]
+}

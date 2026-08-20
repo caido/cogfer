@@ -1,0 +1,56 @@
+{
+  "profile": "chatgpt",
+  "model": "gpt-5.6-sol",
+  "exchanges": [
+    {
+      "request": {
+        "url": "https://chatgpt.com/backend-api/codex/responses",
+        "headers": {
+          "accept": "text/event-stream",
+          "authorization": "<redacted>",
+          "chatgpt-account-id": "<redacted>",
+          "content-type": "application/json",
+          "originator": "caido-ai",
+          "session_id": "<redacted>",
+          "user-agent": "caido-ai/0.1.0"
+        },
+        "body": {
+          "json": {
+            "include": [
+              "reasoning.encrypted_content"
+            ],
+            "input": [
+              {
+                "content": [
+                  {
+                    "text": "hi",
+                    "type": "input_text"
+                  }
+                ],
+                "role": "user",
+                "type": "message"
+              }
+            ],
+            "instructions": "You are ChatGPT, a helpful AI assistant.",
+            "model": "this-model-does-not-exist",
+            "store": false,
+            "stream": true
+          }
+        }
+      },
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-type": "application/json",
+          "date": "Tue, 18 Aug 2026 22:11:39 GMT",
+          "x-oai-request-id": "8a65eb19-9510-4039-a8bc-914832461345"
+        },
+        "body": {
+          "json": {
+            "detail": "The 'this-model-does-not-exist' model is not supported when using Codex with a ChatGPT account."
+          }
+        }
+      }
+    }
+  ]
+}

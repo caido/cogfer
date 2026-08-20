@@ -1,0 +1,44 @@
+{
+  "profile": "openai-chat",
+  "model": "gpt-5.6-luna",
+  "exchanges": [
+    {
+      "request": {
+        "url": "https://api.openai.com/v1/chat/completions",
+        "headers": {
+          "authorization": "<redacted>",
+          "content-type": "application/json"
+        },
+        "body": {
+          "json": {
+            "messages": [
+              {
+                "content": "hi",
+                "role": "user"
+              }
+            ],
+            "model": "this-model-does-not-exist"
+          }
+        }
+      },
+      "response": {
+        "status": 404,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "date": "Tue, 18 Aug 2026 21:46:40 GMT",
+          "x-request-id": "req_a3c0f5dc30b54497a1c2e0d6290ed73c"
+        },
+        "body": {
+          "json": {
+            "error": {
+              "code": "model_not_found",
+              "message": "The model `this-model-does-not-exist` does not exist or you do not have access to it.",
+              "param": null,
+              "type": "invalid_request_error"
+            }
+          }
+        }
+      }
+    }
+  ]
+}
