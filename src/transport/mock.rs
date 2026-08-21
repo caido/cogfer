@@ -24,6 +24,7 @@ enum CannedReply {
 /// See the [module docs](self).
 #[derive(Debug, Default)]
 pub struct MockTransport {
+    // Sync locks: every guard is dropped within one statement, before any await.
     replies: Mutex<VecDeque<CannedReply>>,
     requests: Mutex<Vec<HttpRequest>>,
 }

@@ -53,6 +53,9 @@ pub(crate) struct OAuthAuthenticator<T, R> {
     /// Refresh this long before expiry so a token cannot lapse mid-request.
     expiry_skew: Duration,
     refresher: R,
+    /// An async lock because every accessor is `async`. It is `futures_util`'s
+    /// rather than tokio's since tokio is an optional transport dependency.
+    /// The guard is released before awaiting an in-flight refresh.
     state: futures_util::lock::Mutex<RefreshState<T>>,
     token_store: Option<Arc<dyn TokenStore<T>>>,
 }
