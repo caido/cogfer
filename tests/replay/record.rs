@@ -25,6 +25,7 @@ impl RecordSession {
         live: impl FnOnce(&Client) -> Option<Provider>,
         model: &'static str,
     ) -> Option<Self> {
+        caido_ai::transport::install_default_crypto_provider();
         let recorder = Arc::new(RecordingTransport::new(Arc::new(
             ReqwestTransport::new().expect("reqwest transport builds"),
         )));

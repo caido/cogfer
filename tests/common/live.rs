@@ -10,6 +10,7 @@ use caido_ai::{Client, Credentials, Provider, ProviderConfig, TokenStore};
 
 pub(crate) fn live_client() -> Client {
     let _ = dotenvy::dotenv();
+    caido_ai::transport::install_default_crypto_provider();
     Client::builder().build().expect("client builds")
 }
 

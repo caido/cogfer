@@ -9,6 +9,8 @@
 //! # async fn demo() -> Result<(), caido_ai::Error> {
 //! use caido_ai::{Client, Credentials, ProviderConfig, Request, Message};
 //!
+//! // Once per process, unless the host already installed a Rustls provider.
+//! caido_ai::transport::install_default_crypto_provider();
 //! let client = Client::builder().build()?;
 //! let provider = client.provider(
 //!     ProviderConfig::openai_responses(Credentials::api_key("sk-...")),

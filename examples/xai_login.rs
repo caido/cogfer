@@ -26,6 +26,7 @@ fn auth_file() -> Option<PathBuf> {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    caido_ai::transport::install_default_crypto_provider();
     let export = std::env::args().any(|arg| arg == "--export");
 
     let oauth = XaiOAuth::with_default_transport()?;

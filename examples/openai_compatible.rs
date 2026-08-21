@@ -23,6 +23,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Err(_) => Credentials::none(),
     };
 
+    caido_ai::transport::install_default_crypto_provider();
+
     let client = Client::builder().build()?;
     let provider = client.provider(
         ProviderConfig::openai_chat(credentials)

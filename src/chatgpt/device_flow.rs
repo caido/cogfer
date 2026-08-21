@@ -91,7 +91,9 @@ impl ChatGptOAuth {
     ///
     /// # Errors
     ///
-    /// Returns an error if the reqwest transport cannot be initialized.
+    /// Returns an error if the reqwest transport cannot be initialized, for
+    /// example when no Rustls crypto provider is installed (see
+    /// [`install_default_crypto_provider`](crate::transport::install_default_crypto_provider)).
     #[cfg(feature = "reqwest-transport")]
     pub fn with_default_transport() -> Result<Self> {
         Ok(Self::new(Arc::new(

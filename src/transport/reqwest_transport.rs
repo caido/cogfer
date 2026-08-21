@@ -10,15 +10,18 @@ use super::{HttpByteStream, HttpRequest, HttpResponse, HttpTransport};
 use crate::error::{Error, ErrorKind, Result};
 
 /// Install ring as the process-wide Rustls crypto provider unless one is
-/// already installed.
+/// already installed. Returns whether this call installed it.
 ///
 /// This crate enables reqwest's `rustls-no-provider` feature, so building any
 /// reqwest client panics inside reqwest when the process has no provider.
-/// [`ReqwestTransport::new`] calls this automatically. Hosts that build their
-/// own client for [`ReqwestTransport::from_client`] must install a provider
-/// (this one or their own) first. Installation is first-wins.
-pub fn install_default_crypto_provider() {
-    let _ = rustls::crypto::ring::default_provider().install_default();
+/// Selecting a provider is a process-wide decision, so the transport never
+/// makes it implicitly: call this (or install another provider) once at
+/// startup, before [`ReqwestTransport::new`] or building a client for
+/// [`ReqwestTransport::from_client`]. Installation is first-wins.
+pub fn install_default_crypto_provider() -> bool {
+    rustls::crypto::ring::default_provider()
+        .install_default()
+        .is_ok()
 }
 
 /// [`HttpTransport`] implementation using `reqwest`.
@@ -52,18 +55,25 @@ impl fmt::Debug for ReqwestTransport {
 }
 
 impl ReqwestTransport {
-    /// Build a Rustls client with a 30-second connect timeout, installing ring if needed.
+    /// Build a Rustls client with a 30-second connect timeout.
     ///
-    /// Ring is installed as the process-wide provider only when no provider is
-    /// already installed. Redirects are disabled because reqwest strips
-    /// `Authorization` across origins but not provider-specific headers such as
-    /// `x-api-key` and `x-goog-api-key`, which could leak credentials and prompts.
+    /// Redirects are disabled because reqwest strips `Authorization` across
+    /// origins but not provider-specific headers such as `x-api-key` and
+    /// `x-goog-api-key`, which could leak credentials and prompts.
     ///
     /// # Errors
     ///
-    /// Returns an error if the HTTP client cannot be built.
+    /// Returns [`ErrorKind::Configuration`] when no process-wide Rustls crypto
+    /// provider is installed (see [`install_default_crypto_provider`]), or if
+    /// the HTTP client cannot be built.
     pub fn new() -> Result<Self> {
-        install_default_crypto_provider();
+        if rustls::crypto::CryptoProvider::get_default().is_none() {
+            return Err(Error::configuration(
+                "no process-wide rustls crypto provider is installed; call \
+                 caido_ai::transport::install_default_crypto_provider() or install \
+                 your own before building the transport",
+            ));
+        }
         let client = reqwest::Client::builder()
             .connect_timeout(Duration::from_secs(30))
             .redirect(reqwest::redirect::Policy::none())
@@ -79,11 +89,10 @@ impl ReqwestTransport {
     /// buffered bodies are capped at 16 MiB until changed with the builder
     /// methods below.
     ///
-    /// Call [`install_default_crypto_provider`] (or install another Rustls
-    /// provider) before building `client`. See that function for why. Prefer
-    /// a client without a total `timeout` so streams are bounded only by the
-    /// idle-read timeout, and disable redirects or restrict them to trusted
-    /// same-origin targets.
+    /// Install a Rustls crypto provider before building `client`; see
+    /// [`install_default_crypto_provider`] for why. Prefer a client without a
+    /// total `timeout` so streams are bounded only by the idle-read timeout,
+    /// and disable redirects or restrict them to trusted same-origin targets.
     pub fn from_client(client: reqwest::Client) -> Self {
         Self {
             client,
@@ -358,6 +367,7 @@ mod tests {
         });
         let url =
             url::Url::parse(&format!("http://{addr}/v1?api_key=transport-query-secret")).unwrap();
+        install_default_crypto_provider();
         let transport = ReqwestTransport::new().unwrap();
 
         let error = transport
@@ -385,6 +395,7 @@ mod tests {
             b"HTTP/1.1 200 OK\r\nContent-Length: 8\r\nConnection: close\r\n\r\n12345678",
         )
         .await;
+        install_default_crypto_provider();
         let transport = ReqwestTransport::new()
             .unwrap()
             .with_max_response_body_bytes(7);
@@ -407,6 +418,7 @@ mod tests {
             b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n4\r\n1234\r\n4\r\n5678\r\n0\r\n\r\n",
         )
         .await;
+        install_default_crypto_provider();
         let transport = ReqwestTransport::new()
             .unwrap()
             .with_max_response_body_bytes(7);
@@ -435,6 +447,7 @@ mod tests {
                 }
             }
         });
+        install_default_crypto_provider();
         let transport = ReqwestTransport::new()
             .unwrap()
             .with_idle_read_timeout(Duration::from_millis(200));

@@ -25,8 +25,9 @@ uuid = { version = "1", features = ["v4"] }
 
 reqwest = { version = "0.13.4", optional = true, default-features = false, features = ["rustls-no-provider", "stream"] }
 # Reqwest leaves provider selection to the process. Keep this compatible with
-# reqwest's Rustls version so ReqwestTransport::new can install ring into the
-# same crate instance without pulling AWS-LC.
+# reqwest's Rustls version so install_default_crypto_provider installs ring
+# into, and ReqwestTransport::new checks, the same process-wide slot without
+# pulling AWS-LC.
 rustls = { version = "0.23", optional = true, default-features = false, features = ["ring", "std"] }
 tokio = { version = "1.49", optional = true, default-features = false, features = ["time"] }
 

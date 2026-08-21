@@ -74,6 +74,14 @@ impl ClientBuilder {
 
     /// Build the configured SDK client.
     ///
+    #[cfg_attr(
+        feature = "reqwest-transport",
+        doc = "Without an injected transport this builds a \
+               [`ReqwestTransport`](crate::transport::ReqwestTransport), which needs a \
+               process-wide Rustls crypto provider; see \
+               [`install_default_crypto_provider`](crate::transport::install_default_crypto_provider)."
+    )]
+    ///
     /// # Errors
     ///
     /// Returns an error when the default HTTP client cannot be constructed,
