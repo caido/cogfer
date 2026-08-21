@@ -131,19 +131,6 @@ impl ReqwestTransport {
         builder
     }
 
-    fn map_error(error: reqwest::Error) -> Error {
-        let kind = if error.is_timeout() {
-            ErrorKind::Timeout
-        } else if error.is_builder() {
-            // Invalid headers and similar caller input are not network errors.
-            ErrorKind::InvalidRequest
-        } else {
-            ErrorKind::Transport
-        };
-        let error = error.without_url();
-        Error::new(kind, error.to_string()).with_source(error)
-    }
-
     fn response_body_too_large(&self) -> Error {
         Error::new(
             ErrorKind::MalformedResponse,
@@ -166,13 +153,35 @@ impl ReqwestTransport {
         let mut body = Vec::new();
         let mut stream = response.bytes_stream();
         while let Some(chunk) = stream.next().await {
-            let chunk = chunk.map_err(Self::map_error)?;
+            let chunk = chunk.map_transport_err()?;
             if chunk.len() > self.max_response_body_bytes.saturating_sub(body.len()) {
                 return Err(self.response_body_too_large());
             }
             body.extend_from_slice(&chunk);
         }
         Ok(Bytes::from(body))
+    }
+}
+
+/// Classify reqwest failures into transport errors that never echo the URL.
+trait ReqwestResultExt<T> {
+    fn map_transport_err(self) -> Result<T>;
+}
+
+impl<T> ReqwestResultExt<T> for std::result::Result<T, reqwest::Error> {
+    fn map_transport_err(self) -> Result<T> {
+        self.map_err(|error| {
+            let kind = if error.is_timeout() {
+                ErrorKind::Timeout
+            } else if error.is_builder() {
+                // Invalid headers and similar caller input are not network errors.
+                ErrorKind::InvalidRequest
+            } else {
+                ErrorKind::Transport
+            };
+            let error = error.without_url();
+            Error::new(kind, error.to_string()).with_source(error)
+        })
     }
 }
 
@@ -196,7 +205,7 @@ impl HttpTransport for ReqwestTransport {
             .build(request, false)
             .send()
             .await
-            .map_err(Self::map_error)?;
+            .map_transport_err()?;
         let status = response.status().as_u16();
         let headers = collect_headers(&response);
         let body = self.collect_response_body(response).await?;
@@ -218,7 +227,7 @@ impl HttpTransport for ReqwestTransport {
                         format!("no response headers within {:?}", self.idle_read_timeout),
                     )
                 })?
-                .map_err(Self::map_error)?;
+                .map_transport_err()?;
         let status = response.status().as_u16();
         let headers = collect_headers(&response);
         let idle = self.idle_read_timeout;
@@ -273,9 +282,7 @@ where
         match this.inner.poll_next(cx) {
             std::task::Poll::Ready(item) => {
                 this.sleep.set(None);
-                std::task::Poll::Ready(
-                    item.map(|result| result.map_err(ReqwestTransport::map_error)),
-                )
+                std::task::Poll::Ready(item.map(ReqwestResultExt::map_transport_err))
             }
             std::task::Poll::Pending => {
                 if this.sleep.as_mut().as_pin_mut().is_none() {
