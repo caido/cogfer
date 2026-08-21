@@ -15,9 +15,7 @@ pub(crate) mod validate;
 
 pub(crate) mod anthropic;
 pub(crate) mod gemini;
-pub(crate) mod openai_chat;
-pub(crate) mod openai_responses;
-mod openai_wire;
+pub(crate) mod openai;
 
 pub(crate) use self::error::{
     content_policy_kind, fallback_provider_error, fallback_provider_error_message,

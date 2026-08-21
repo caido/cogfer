@@ -53,12 +53,12 @@ pub(crate) trait StreamDecoder: Send {
 
 pub(crate) fn handler(profile: ApiProfile) -> &'static dyn ProtocolHandler {
     match profile {
-        ApiProfile::OpenAiResponses => &super::openai_responses::OPENAI_HANDLER,
-        ApiProfile::XaiResponses => &super::openai_responses::XAI_HANDLER,
-        ApiProfile::OpenAiChatCompletions => &super::openai_chat::OPENAI_HANDLER,
-        ApiProfile::XaiChatCompletions => &super::openai_chat::XAI_HANDLER,
-        ApiProfile::OpenRouter => &super::openai_chat::OPENROUTER_HANDLER,
-        ApiProfile::ChatGptResponses => &super::openai_responses::CHATGPT_HANDLER,
+        ApiProfile::OpenAiResponses => &super::openai::responses::OPENAI_HANDLER,
+        ApiProfile::XaiResponses => &super::openai::responses::XAI_HANDLER,
+        ApiProfile::OpenAiChatCompletions => &super::openai::chat::OPENAI_HANDLER,
+        ApiProfile::XaiChatCompletions => &super::openai::chat::XAI_HANDLER,
+        ApiProfile::OpenRouter => &super::openai::chat::OPENROUTER_HANDLER,
+        ApiProfile::ChatGptResponses => &super::openai::responses::CHATGPT_HANDLER,
         ApiProfile::AnthropicMessages => &super::anthropic::Handler,
         ApiProfile::GeminiGenerateContent => &super::gemini::Handler,
     }

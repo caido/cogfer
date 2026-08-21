@@ -2,8 +2,11 @@
 
 use url::Url;
 
-use super::{ApiProfile, LoweredRequest, ProtocolContext, ProtocolHandler, StreamDecoder};
 use crate::error::{Error, Result};
+use crate::protocols::openai::shared::decode_openai_error;
+use crate::protocols::{
+    ApiProfile, LoweredRequest, ProtocolContext, ProtocolHandler, StreamDecoder,
+};
 use crate::response::GenerateResult;
 use crate::transport::HttpResponse;
 
@@ -109,12 +112,7 @@ impl ProtocolHandler for Handler {
     fn decode_error(&self, status: u16, headers: &[(String, String)], body: &[u8]) -> Error {
         match self.dialect {
             ChatDialect::OpenRouter => decode_openrouter_error(status, headers, body),
-            _ => super::openai_responses::decode_openai_error(
-                self.dialect.profile(),
-                status,
-                headers,
-                body,
-            ),
+            _ => decode_openai_error(self.dialect.profile(), status, headers, body),
         }
     }
 

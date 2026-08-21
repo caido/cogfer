@@ -4,7 +4,7 @@ use super::ChatDialect;
 use crate::error::Result;
 use crate::http::join_url;
 use crate::message::{AssistantPart, Message, ReasoningContent, ReasoningPart, UserPart};
-use crate::protocols::openai_wire::{ToolShape, insert_tools, json_schema_format};
+use crate::protocols::openai::shared::{ToolShape, insert_tools, json_schema_format};
 use crate::protocols::{LoweredRequest, ProtocolContext, foreign_origin};
 use crate::request::{ReasoningConfig, ReasoningOutput, Request};
 use crate::response::Warning;

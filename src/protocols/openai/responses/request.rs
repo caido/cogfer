@@ -5,7 +5,7 @@ use serde_json::{Value, json};
 use super::ResponsesDialect;
 use crate::error::{Error, ErrorKind, Result};
 use crate::message::{AssistantPart, Message, ReasoningContent, UserPart};
-use crate::protocols::openai_wire::{ToolShape, insert_tools, json_schema_format};
+use crate::protocols::openai::shared::{ToolShape, insert_tools, json_schema_format};
 use crate::protocols::{ApiProfile, ProtocolContext, foreign_origin};
 use crate::request::{ReasoningConfig, ReasoningOutput};
 use crate::response::Warning;

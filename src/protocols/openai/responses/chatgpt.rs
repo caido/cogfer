@@ -11,9 +11,10 @@ use serde_json::Value;
 use super::ResponsesDialect;
 use super::request::lower_body;
 use super::stream::ResponsesStreamDecoder;
-use super::types::{ResponseObject, StreamErrorEvent, decode_openai_error, decode_response_object};
+use super::types::{ResponseObject, StreamErrorEvent, decode_response_object};
 use crate::error::{Error, ErrorKind, Result};
 use crate::http::join_url;
+use crate::protocols::openai::shared::decode_openai_error;
 use crate::protocols::{
     ApiProfile, LoweredRequest, ProtocolContext, ProtocolHandler, StreamDecoder,
 };

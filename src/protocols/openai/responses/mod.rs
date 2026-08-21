@@ -1,8 +1,11 @@
 //! OpenAI Responses API and the backends that speak its wire format.
 
-use super::{ApiProfile, LoweredRequest, ProtocolContext, ProtocolHandler, StreamDecoder};
 use crate::error::{Error, Result};
 use crate::http::join_url;
+use crate::protocols::openai::shared::decode_openai_error;
+use crate::protocols::{
+    ApiProfile, LoweredRequest, ProtocolContext, ProtocolHandler, StreamDecoder,
+};
 use crate::response::GenerateResult;
 use crate::transport::{HttpRequest, HttpResponse};
 
@@ -13,7 +16,6 @@ mod types;
 
 use self::request::lower_body;
 use self::stream::ResponsesStreamDecoder;
-pub(crate) use self::types::decode_openai_error;
 use self::types::decode_openai_response;
 
 /// Which backend speaks the Responses wire format.
