@@ -1,15 +1,20 @@
 //! Incremental protocol-neutral Server-Sent Events framing.
 //!
-//! Implements the WHATWG framing used by provider streams: `event:` and
-//! `data:` fields, multi-line data, comments, optional spaces after colons,
-//! LF/CRLF/CR endings, an optional leading UTF-8 BOM, and a final partial-frame
-//! flush. `id:` and `retry:` are ignored, and frames without data are omitted.
+//! Implements the WHATWG framing used by provider streams: `data:` fields,
+//! multi-line data, comments, optional spaces after colons, LF/CRLF/CR
+//! endings, an optional leading UTF-8 BOM, and a final partial-frame flush.
+//! Every provider dispatches on the JSON payload, so `event:` is dropped along
+//! with `id:` and `retry:`, and frames without data are omitted.
+//!
+//! This is hand-rolled rather than an off-the-shelf parser because provider
+//! streams need behavior the general-purpose crates do not offer: bounded line
+//! and frame buffers, failing as soon as a line with invalid UTF-8 completes
+//! rather than at end of stream, dispatching a final frame that lacks its
+//! terminating blank line, and errors that never echo response bytes.
 
 /// One parsed SSE frame.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct SseFrame {
-    /// Optional `event:` value used by Anthropic and OpenAI Responses.
-    pub(crate) event: Option<String>,
     /// The joined `data:` payload.
     pub(crate) data: String,
 }
@@ -37,8 +42,6 @@ pub(crate) struct SseParser {
     /// Joined byte length of the accumulated `data:` lines, including the
     /// newlines inserted between them at dispatch.
     data_bytes: usize,
-    /// `event:` field for the frame in progress.
-    event: Option<String>,
     /// Whether the runner should report malformed UTF-8.
     invalid_utf8: bool,
     /// Set when a line or accumulated frame exceeded its configured limit.
@@ -167,43 +170,39 @@ impl SseParser {
             Some((field, value)) => (field, value.strip_prefix(' ').unwrap_or(value)),
             None => (line, ""),
         };
-        match field {
-            "data" => {
-                let separator = usize::from(self.has_data);
-                let next_bytes = self
-                    .data_bytes
-                    .saturating_add(separator)
-                    .saturating_add(value.len());
-                if next_bytes > MAX_FRAME_BYTES {
-                    self.overflowed = true;
-                    self.data.clear();
-                    self.has_data = false;
-                    self.data_bytes = 0;
-                    self.event = None;
-                    return None;
-                }
-                self.data_bytes = next_bytes;
-                if self.has_data {
-                    self.data.push('\n');
-                }
-                self.data.push_str(value);
-                self.has_data = true;
-            }
-            "event" => self.event = Some(value.to_string()),
-            _ => {}
+        // `event:`, `id:` and `retry:` are ignored.
+        if field != "data" {
+            return None;
         }
+        let separator = usize::from(self.has_data);
+        let next_bytes = self
+            .data_bytes
+            .saturating_add(separator)
+            .saturating_add(value.len());
+        if next_bytes > MAX_FRAME_BYTES {
+            self.overflowed = true;
+            self.data.clear();
+            self.has_data = false;
+            self.data_bytes = 0;
+            return None;
+        }
+        self.data_bytes = next_bytes;
+        if self.has_data {
+            self.data.push('\n');
+        }
+        self.data.push_str(value);
+        self.has_data = true;
         None
     }
 
     fn dispatch(&mut self) -> Option<SseFrame> {
-        let event = self.event.take();
         if !self.has_data {
             return None;
         }
         self.data_bytes = 0;
         self.has_data = false;
         let data = std::mem::take(&mut self.data);
-        Some(SseFrame { event, data })
+        Some(SseFrame { data })
     }
 }
 
@@ -226,18 +225,16 @@ mod tests {
         assert_eq!(frames.len(), 2);
         assert_eq!(frames[0].data, "{\"a\":1}");
         assert_eq!(frames[1].data, "{\"b\":2}");
-        assert_eq!(frames[0].event, None);
     }
 
     #[test]
-    fn parses_named_events_and_crlf() {
+    fn ignores_event_field_and_parses_crlf() {
         let mut parser = SseParser::new();
         let frames = collect(
             &mut parser,
             b"event: message_start\r\ndata: {\"type\":\"message_start\"}\r\n\r\n",
         );
         assert_eq!(frames.len(), 1);
-        assert_eq!(frames[0].event.as_deref(), Some("message_start"));
         assert_eq!(frames[0].data, "{\"type\":\"message_start\"}");
     }
 
@@ -249,14 +246,8 @@ mod tests {
         assert_eq!(
             frames,
             vec![
-                SseFrame {
-                    event: None,
-                    data: "one".into(),
-                },
-                SseFrame {
-                    event: None,
-                    data: "two".into(),
-                },
+                SseFrame { data: "one".into() },
+                SseFrame { data: "two".into() },
             ]
         );
     }
@@ -317,13 +308,7 @@ mod tests {
     fn flushes_frame_dispatched_by_trailing_carriage_return() {
         let mut parser = SseParser::new();
         let frames = collect(&mut parser, b"data: hi\r\n\r");
-        assert_eq!(
-            frames,
-            vec![SseFrame {
-                event: None,
-                data: "hi".into()
-            }]
-        );
+        assert_eq!(frames, vec![SseFrame { data: "hi".into() }]);
     }
 
     #[test]

@@ -395,12 +395,7 @@ impl StreamState {
                 Some(Ok(chunk)) => {
                     let frames = self.parser.push(&chunk);
                     for frame in frames {
-                        log::trace!(
-                            target: TARGET,
-                            "sse frame: event={:?} data_bytes={}",
-                            frame.event.as_deref().unwrap_or("message"),
-                            frame.data.len(),
-                        );
+                        log::trace!(target: TARGET, "sse frame: data_bytes={}", frame.data.len());
                         if let Err(error) =
                             self.decoder.on_frame(frame, &mut self.normalizer, &mut out)
                         {
@@ -434,8 +429,7 @@ impl StreamState {
                     if let Some(frame) = &final_frame {
                         log::trace!(
                             target: TARGET,
-                            "sse frame (final): event={:?} data_bytes={}",
-                            frame.event.as_deref().unwrap_or("message"),
+                            "sse frame (final): data_bytes={}",
                             frame.data.len(),
                         );
                     }
