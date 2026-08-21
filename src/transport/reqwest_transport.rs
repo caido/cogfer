@@ -239,80 +239,39 @@ impl HttpTransport for ReqwestTransport {
                 .map_transport_err()?;
         let status = response.status().as_u16();
         let headers = collect_headers(&response);
-        let idle = self.idle_read_timeout;
-        let mut bytes_stream = response.bytes_stream();
-        let stream = futures_util::stream::poll_fn(move |cx| bytes_stream.poll_next_unpin(cx));
-        let with_timeout = IdleTimeoutStream::new(stream, idle);
         Ok(HttpByteStream {
             status,
             headers,
-            bytes: Box::pin(with_timeout),
+            bytes: Box::pin(idle_timeout_stream(
+                response.bytes_stream(),
+                self.idle_read_timeout,
+            )),
         })
     }
 }
 
-pin_project_lite::pin_project! {
-    /// Wraps a byte stream, failing if the gap between items exceeds `idle`.
-    struct IdleTimeoutStream<S> {
-        #[pin]
-        inner: S,
-        idle: Duration,
-        #[pin]
-        sleep: Option<tokio::time::Sleep>,
-        timed_out: bool,
-    }
-}
-
-impl<S> IdleTimeoutStream<S> {
-    fn new(inner: S, idle: Duration) -> Self {
-        Self {
-            inner,
-            idle,
-            sleep: None,
-            timed_out: false,
-        }
-    }
-}
-
-impl<S> futures_util::Stream for IdleTimeoutStream<S>
-where
-    S: futures_util::Stream<Item = std::result::Result<Bytes, reqwest::Error>>,
-{
-    type Item = Result<Bytes>;
-
-    fn poll_next(
-        self: std::pin::Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<Option<Self::Item>> {
-        let mut this = self.project();
-        if *this.timed_out {
-            return std::task::Poll::Ready(None);
-        }
-        match this.inner.poll_next(cx) {
-            std::task::Poll::Ready(item) => {
-                this.sleep.set(None);
-                std::task::Poll::Ready(item.map(ReqwestResultExt::map_transport_err))
-            }
-            std::task::Poll::Pending => {
-                if this.sleep.as_mut().as_pin_mut().is_none() {
-                    this.sleep.set(Some(tokio::time::sleep(*this.idle)));
+/// Forward `bytes`, ending the stream with [`ErrorKind::Timeout`] when the gap
+/// between chunks exceeds `idle`. The stream also ends after a transport error.
+fn idle_timeout_stream(
+    bytes: impl futures_util::Stream<Item = std::result::Result<Bytes, reqwest::Error>> + Send,
+    idle: Duration,
+) -> impl futures_util::Stream<Item = Result<Bytes>> + Send {
+    async_stream::stream! {
+        let mut bytes = std::pin::pin!(bytes);
+        loop {
+            match tokio::time::timeout(idle, bytes.next()).await {
+                Ok(Some(Ok(chunk))) => yield Ok(chunk),
+                Ok(Some(Err(error))) => {
+                    yield Err(error).map_transport_err();
+                    break;
                 }
-                match this
-                    .sleep
-                    .as_mut()
-                    .as_pin_mut()
-                    .expect("sleep just set")
-                    .poll(cx)
-                {
-                    std::task::Poll::Ready(()) => {
-                        *this.timed_out = true;
-                        this.sleep.set(None);
-                        std::task::Poll::Ready(Some(Err(Error::new(
-                            ErrorKind::Timeout,
-                            format!("stream idle for longer than {:?} between chunks", this.idle),
-                        ))))
-                    }
-                    std::task::Poll::Pending => std::task::Poll::Pending,
+                Ok(None) => break,
+                Err(_) => {
+                    yield Err(Error::new(
+                        ErrorKind::Timeout,
+                        format!("stream idle for longer than {idle:?} between chunks"),
+                    ));
+                    break;
                 }
             }
         }
@@ -433,6 +392,49 @@ mod tests {
             .expect_err("decoded body is larger than the limit");
 
         assert_eq!(error.kind(), ErrorKind::MalformedResponse);
+    }
+
+    #[tokio::test]
+    async fn stream_times_out_between_chunks() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        tokio::spawn(async move {
+            let (mut socket, _) = listener.accept().await.unwrap();
+            socket
+                .write_all(b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n5\r\nfirst\r\n")
+                .await
+                .unwrap();
+            // Hold the connection open without sending the next chunk.
+            std::future::pending::<()>().await;
+        });
+        install_default_crypto_provider();
+        let transport = ReqwestTransport::new()
+            .unwrap()
+            .with_idle_read_timeout(Duration::from_millis(200));
+        let url = url::Url::parse(&format!("http://{addr}/v1")).unwrap();
+
+        let mut stream = transport
+            .stream(HttpRequest {
+                url,
+                headers: Vec::new(),
+                body: None,
+            })
+            .await
+            .expect("headers arrive");
+
+        let first = stream.bytes.next().await.expect("first chunk").unwrap();
+        assert_eq!(first.as_ref(), b"first");
+        let error = stream
+            .bytes
+            .next()
+            .await
+            .expect("timeout is reported as an item")
+            .expect_err("second chunk never arrives");
+        assert_eq!(error.kind(), ErrorKind::Timeout);
+        assert!(
+            stream.bytes.next().await.is_none(),
+            "stream ends after the timeout"
+        );
     }
 
     #[tokio::test]
