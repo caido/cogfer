@@ -7,7 +7,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use caido_ai::xai::{XaiAuthenticator, XaiOAuth};
+use caido_ai::oauth::xai::{XaiAuthenticator, XaiOAuth};
 use caido_ai::{Client, Credentials, Message, ProviderConfig, Request};
 
 #[path = "support/token_file.rs"]

@@ -5,23 +5,6 @@ use std::fmt;
 use crate::error::Result;
 use crate::transport::HttpRequest;
 
-/// Observable lifecycle of a refreshable OAuth credential.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[non_exhaustive]
-pub enum OAuthStatus {
-    /// The current token set can be used.
-    Ready,
-    /// A refresh is in progress.
-    Refreshing,
-    /// The last refresh failed transiently and can be retried.
-    TransientFailure,
-    /// Fresh tokens exist in memory but their durable save failed.
-    PersistenceFailed,
-    /// The refresh token is permanently unusable. Replace the authenticator
-    /// after the user signs in again.
-    ReauthRequired,
-}
-
 /// A credential string with redacted `Debug` and `Display` output.
 ///
 /// This type deliberately does not implement Serde traits. Persist credentials

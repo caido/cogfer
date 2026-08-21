@@ -8,7 +8,8 @@ use std::time::{Duration, Instant};
 
 use futures_util::future::{BoxFuture, FutureExt, Shared};
 
-use crate::auth::{OAuthStatus, TokenStore};
+use super::OAuthStatus;
+use crate::auth::TokenStore;
 use crate::error::{Error, ErrorKind, Result};
 
 pub(super) type SharedRefresh<T> = Shared<BoxFuture<'static, RefreshOutcome<T>>>;

@@ -3,7 +3,7 @@
 
 use std::sync::{Arc, Mutex};
 
-use caido_ai::chatgpt::{ChatGptAuthenticator, ChatGptOAuth, ChatGptTokens};
+use caido_ai::oauth::chatgpt::{ChatGptAuthenticator, ChatGptOAuth, ChatGptTokens};
 use caido_ai::transport::mock::MockTransport;
 use caido_ai::{
     Credentials, DevicePoll, Error, ErrorKind, FinishReason, Message, OAuthStatus, ProviderConfig,

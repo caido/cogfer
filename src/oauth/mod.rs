@@ -1,10 +1,18 @@
-//! Shared OAuth machinery: client configuration, token expiry, the device-flow
-//! and refresh helpers the provider clients use, and the authenticator the
-//! provider-specific token types plug into.
+//! OAuth device-flow sign-in and token refresh.
+//!
+//! The [`chatgpt`] and [`xai`] clients obtain and refresh subscription tokens
+//! and produce a [`RequestAuthenticator`](crate::RequestAuthenticator) for
+//! [`ProviderConfig::with_authenticator`](crate::ProviderConfig::with_authenticator).
+//! They share [`OAuthClientConfig`] for the client identity, [`DevicePoll`]
+//! for device-flow polling, and [`OAuthStatus`] for observing refreshes; the
+//! device-flow and refresh machinery underneath is crate-private.
 
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use crate::error::{Error, Result};
+
+pub mod chatgpt;
+pub mod xai;
 
 mod authenticator;
 mod device_flow;
@@ -17,6 +25,23 @@ pub(crate) use self::device_flow::{
     auth_error, decode_auth_json, ensure_device_code_is_valid, oauth_error_parts, post_form,
     refresh_error, require_response_field,
 };
+
+/// Observable lifecycle of a refreshable OAuth credential.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum OAuthStatus {
+    /// The current token set can be used.
+    Ready,
+    /// A refresh is in progress.
+    Refreshing,
+    /// The last refresh failed transiently and can be retried.
+    TransientFailure,
+    /// Fresh tokens exist in memory but their durable save failed.
+    PersistenceFailed,
+    /// The refresh token is permanently unusable. Replace the authenticator
+    /// after the user signs in again.
+    ReauthRequired,
+}
 
 /// Public OAuth client identity used for device authorization and refresh.
 ///

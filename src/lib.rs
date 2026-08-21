@@ -28,7 +28,7 @@
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]
 
-pub use self::auth::{Credentials, OAuthStatus, RequestAuthenticator, SecretString, TokenStore};
+pub use self::auth::{Credentials, RequestAuthenticator, SecretString, TokenStore};
 pub use self::client::{Client, ClientBuilder};
 pub use self::error::{Error, ErrorKind, Result};
 pub use self::message::{
@@ -37,7 +37,7 @@ pub use self::message::{
 };
 pub use self::metadata::ProviderMetadata;
 pub use self::model::LanguageModel;
-pub use self::oauth::{DevicePoll, OAuthClientConfig};
+pub use self::oauth::{DevicePoll, OAuthClientConfig, OAuthStatus};
 pub use self::protocols::ApiProfile;
 pub use self::provider::{Provider, ProviderConfig};
 pub use self::request::{
@@ -50,9 +50,8 @@ pub use self::response::{
 pub use self::stream::{Citation, EventStream, StreamAccumulator, StreamEvent};
 pub use self::usage::Usage;
 
-pub mod chatgpt;
+pub mod oauth;
 pub mod transport;
-pub mod xai;
 
 mod auth;
 mod client;
@@ -61,7 +60,6 @@ mod http;
 mod message;
 mod metadata;
 mod model;
-mod oauth;
 mod protocols;
 mod provider;
 mod request;

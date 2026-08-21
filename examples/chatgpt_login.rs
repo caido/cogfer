@@ -7,7 +7,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use caido_ai::chatgpt::{ChatGptAuthenticator, ChatGptOAuth};
+use caido_ai::oauth::chatgpt::{ChatGptAuthenticator, ChatGptOAuth};
 use caido_ai::{Client, Credentials, Message, ProviderConfig, Request};
 
 #[path = "support/token_file.rs"]

@@ -4,9 +4,9 @@
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+use caido_ai::oauth::xai::{XaiAuthenticator, XaiOAuth, XaiTokens};
 use caido_ai::transport::HttpRequest;
 use caido_ai::transport::mock::MockTransport;
-use caido_ai::xai::{XaiAuthenticator, XaiOAuth, XaiTokens};
 use caido_ai::{
     ApiProfile, Credentials, DevicePoll, Error, ErrorKind, FinishReason, OAuthStatus,
     ProviderConfig, RequestAuthenticator, TokenStore,

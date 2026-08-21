@@ -4,8 +4,8 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use caido_ai::chatgpt::{ChatGptAuthenticator, ChatGptTokens};
-use caido_ai::xai::{XaiAuthenticator, XaiTokens};
+use caido_ai::oauth::chatgpt::{ChatGptAuthenticator, ChatGptTokens};
+use caido_ai::oauth::xai::{XaiAuthenticator, XaiTokens};
 use caido_ai::{Client, Credentials, Provider, ProviderConfig, TokenStore};
 
 pub(crate) fn live_client() -> Client {
