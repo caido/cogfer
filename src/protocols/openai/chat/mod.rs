@@ -80,20 +80,20 @@ fn is_openai_endpoint(base_url: &Url) -> bool {
         .any(|suffix| host.to_ascii_lowercase().ends_with(suffix))
 }
 
-pub(crate) static OPENAI_HANDLER: Handler = Handler {
-    dialect: ChatDialect::OpenAi,
-};
-
-pub(crate) static XAI_HANDLER: Handler = Handler {
-    dialect: ChatDialect::Xai,
-};
-
-pub(crate) static OPENROUTER_HANDLER: Handler = Handler {
-    dialect: ChatDialect::OpenRouter,
-};
-
 pub(crate) struct Handler {
     dialect: ChatDialect,
+}
+
+impl Handler {
+    pub(crate) const OPENAI: Self = Self {
+        dialect: ChatDialect::OpenAi,
+    };
+    pub(crate) const XAI: Self = Self {
+        dialect: ChatDialect::Xai,
+    };
+    pub(crate) const OPENROUTER: Self = Self {
+        dialect: ChatDialect::OpenRouter,
+    };
 }
 
 impl ProtocolHandler for Handler {

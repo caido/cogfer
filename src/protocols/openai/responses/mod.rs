@@ -9,7 +9,7 @@ use crate::protocols::{
 use crate::response::GenerateResult;
 use crate::transport::{HttpRequest, HttpResponse};
 
-mod chatgpt;
+pub(crate) mod chatgpt;
 mod request;
 mod stream;
 mod types;
@@ -43,18 +43,17 @@ impl ResponsesDialect {
     }
 }
 
-pub(crate) static OPENAI_HANDLER: Handler = Handler {
-    dialect: ResponsesDialect::OpenAi,
-};
-
-pub(crate) static XAI_HANDLER: Handler = Handler {
-    dialect: ResponsesDialect::Xai,
-};
-
-pub(crate) static CHATGPT_HANDLER: chatgpt::Handler = chatgpt::Handler;
-
 pub(crate) struct Handler {
     dialect: ResponsesDialect,
+}
+
+impl Handler {
+    pub(crate) const OPENAI: Self = Self {
+        dialect: ResponsesDialect::OpenAi,
+    };
+    pub(crate) const XAI: Self = Self {
+        dialect: ResponsesDialect::Xai,
+    };
 }
 
 impl ProtocolHandler for Handler {
