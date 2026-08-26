@@ -1,16 +1,16 @@
 //! The AWS event stream encoding (`application/vnd.amazon.eventstream`).
 //!
-//! Each message is a prelude (total length, headers length, prelude CRC),
-//! typed headers, a payload, and a CRC over everything before it. Bedrock
+//! Each message is a prelude (total length, headers length), its CRC, typed
+//! headers, a payload, and a CRC over everything before it. Bedrock
 //! marks messages with `:message-type` (`event`, `exception`, or `error`) and
 //! names them with `:event-type` or `:exception-type`. Events become
-//! [`StreamFrame`]s carrying the payload; exceptions and errors become frames
+//! [`StreamFrame`]s carrying the payload. Exceptions and errors become frames
 //! with [`StreamFrame::exception`] set so the decoder can fail the stream.
 
 use super::framing::{FrameSource, StreamFrame};
 use crate::util::crc32;
 
-/// Maximum accepted message size. Bedrock payloads are far smaller; the limit
+/// Maximum accepted message size. Bedrock payloads are far smaller. The limit
 /// bounds buffering when the length prelude is corrupt.
 const MAX_MESSAGE_BYTES: u32 = 16 * 1024 * 1024;
 
@@ -18,12 +18,12 @@ const MAX_MESSAGE_BYTES: u32 = 16 * 1024 * 1024;
 const OVERHEAD: usize = 16;
 
 #[derive(Debug, Default)]
-pub(crate) struct EventStreamParser {
+pub(crate) struct AwsEventStreamParser {
     buffer: Vec<u8>,
     corruption: Option<&'static str>,
 }
 
-impl EventStreamParser {
+impl AwsEventStreamParser {
     pub(crate) fn new() -> Self {
         Self::default()
     }
@@ -34,7 +34,7 @@ impl EventStreamParser {
     }
 }
 
-impl FrameSource for EventStreamParser {
+impl FrameSource for AwsEventStreamParser {
     fn push(&mut self, bytes: &[u8]) -> Vec<StreamFrame> {
         let mut frames = Vec::new();
         if self.corruption.is_some() {
@@ -128,7 +128,7 @@ fn decode_message(message: &[u8]) -> Result<Option<StreamFrame>, &'static str> {
     Ok(Some(frame))
 }
 
-/// Parse the header block. Only string values are meaningful here; the other
+/// Parse the header block. Only string values are meaningful here. The other
 /// types are skipped by their fixed or prefixed sizes.
 fn decode_headers(mut bytes: &[u8]) -> Result<Vec<(String, String)>, &'static str> {
     const MALFORMED: &str =
@@ -208,7 +208,7 @@ mod tests {
     fn decodes_events_split_across_chunks() {
         let message = event(r#"{"bytes":"e30="}"#);
         let (head, tail) = message.split_at(20);
-        let mut parser = EventStreamParser::new();
+        let mut parser = AwsEventStreamParser::new();
 
         assert!(parser.push(head).is_empty());
         let frames = parser.push(tail);
@@ -223,7 +223,7 @@ mod tests {
         let mut bytes = event("1");
         bytes.extend(event("2"));
 
-        let frames = EventStreamParser::new().push(&bytes);
+        let frames = AwsEventStreamParser::new().push(&bytes);
 
         assert_eq!(frames, vec![StreamFrame::data("1"), StreamFrame::data("2")]);
     }
@@ -239,7 +239,7 @@ mod tests {
             br#"{"message":"slow down"}"#,
         );
 
-        let frames = EventStreamParser::new().push(&message);
+        let frames = AwsEventStreamParser::new().push(&message);
 
         assert_eq!(
             frames,
@@ -278,7 +278,7 @@ mod tests {
         message.extend_from_slice(b"{}");
         message.extend_from_slice(&crc32(&message).to_be_bytes());
 
-        let frames = EventStreamParser::new().push(&message);
+        let frames = AwsEventStreamParser::new().push(&message);
 
         assert_eq!(frames, vec![StreamFrame::data("{}")]);
     }
@@ -288,7 +288,7 @@ mod tests {
         let mut message = event("{}");
         let last = message.len() - 1;
         message[last] ^= 0xFF;
-        let mut parser = EventStreamParser::new();
+        let mut parser = AwsEventStreamParser::new();
 
         assert!(parser.push(&message).is_empty());
         assert!(parser.corruption().unwrap().contains("checksum"));
@@ -299,7 +299,7 @@ mod tests {
     fn a_bad_prelude_is_corruption_before_the_body_arrives() {
         let mut message = event("{}");
         message[0..4].copy_from_slice(&(MAX_MESSAGE_BYTES + 1).to_be_bytes());
-        let mut parser = EventStreamParser::new();
+        let mut parser = AwsEventStreamParser::new();
 
         assert!(parser.push(&message[..OVERHEAD]).is_empty());
         assert!(parser.corruption().unwrap().contains("length"));
@@ -312,7 +312,7 @@ mod tests {
         let last = broken.len() - 1;
         broken[last] ^= 0xFF;
         bytes.extend(broken);
-        let mut parser = EventStreamParser::new();
+        let mut parser = AwsEventStreamParser::new();
 
         let frames = parser.push(&bytes);
 
@@ -324,6 +324,6 @@ mod tests {
     fn messages_without_a_type_are_skipped() {
         let message = encode_message(&[(":content-type", "application/json")], b"{}");
 
-        assert!(EventStreamParser::new().push(&message).is_empty());
+        assert!(AwsEventStreamParser::new().push(&message).is_empty());
     }
 }

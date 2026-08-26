@@ -72,7 +72,6 @@ impl SseParser {
             Some((field, value)) => (field, value.strip_prefix(' ').unwrap_or(value)),
             None => (line, ""),
         };
-        // `event:`, `id:` and `retry:` are ignored.
         if field != "data" {
             return None;
         }

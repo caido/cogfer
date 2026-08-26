@@ -369,8 +369,7 @@ pub(crate) fn lower_anthropic_request(
         AnthropicDialect::Direct => {
             object.insert("model".into(), json!(ctx.model));
         }
-        // Bedrock names the model in the URL and versions the body instead
-        // of the request.
+        // Bedrock takes the model from the URL and the API version from the body.
         AnthropicDialect::Bedrock => {
             object.insert(
                 "anthropic_version".into(),
@@ -387,6 +386,14 @@ pub(crate) fn lower_anthropic_request(
     lower_request_reasoning(request, reasoning, max_tokens, object)?;
     lower_tool_choice(request, budget_thinking, object)?;
     let beta_features = lower_compaction(request, object);
+    // The compaction beta is an anthropic.com feature. Bedrock rejects the
+    // beta and the `compaction` blocks a replayed history would carry.
+    if dialect == AnthropicDialect::Bedrock && !beta_features.is_empty() {
+        return Err(Error::new(
+            ErrorKind::UnsupportedContent,
+            "history contains compaction blocks; bedrock cannot replay them",
+        ));
+    }
     lower_sampling(request, budget_thinking, object, &mut warnings);
     if !request.stop_sequences.is_empty() {
         object.insert("stop_sequences".into(), json!(request.stop_sequences));
@@ -406,9 +413,6 @@ pub(crate) fn lower_anthropic_request(
     // Bedrock selects streaming by endpoint rather than a body flag.
     if streaming && dialect == AnthropicDialect::Direct {
         object.insert("stream".into(), json!(true));
-    }
-    if dialect == AnthropicDialect::Bedrock && !beta_features.is_empty() {
-        object.insert("anthropic_beta".into(), json!(beta_features));
     }
     if let Some(options) = request.provider_options.get("anthropic") {
         crate::util::json_merge(&mut body, options.clone());

@@ -6,7 +6,7 @@
 //! They share [`OAuthClientConfig`] for the client identity, [`DevicePoll`]
 //! for device-flow polling, and [`OAuthStatus`] for observing refreshes.
 //!
-//! Both are [`OAuthAuthenticator`]s: implement [`OAuthTokens`] and
+//! Both authenticators are [`OAuthAuthenticator`]s: implement [`OAuthTokens`] and
 //! [`TokenRefresher`] for any other refreshable bearer credential (Azure
 //! Entra, an STS session) to get the same single-flight refresh policy.
 

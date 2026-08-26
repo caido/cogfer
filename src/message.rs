@@ -173,14 +173,14 @@ pub enum ReasoningContent {
 /// A call carries up to three ids. Only [`call_id`](Self::call_id) matters to
 /// callers: it is always present and it is what a [`ToolResultPart`] correlates
 /// on. The other two are opaque provider handles that exist so a conversation
-/// can be replayed to the provider that produced it; keep them even when they
+/// can be replayed to the provider that produced it. Keep them even when they
 /// duplicate `call_id`, as Gemini's do. Build results with
 /// [`ToolResultPart::for_call`] and they are carried over automatically.
 ///
 /// | Profile | `call_id` | `item_id` | `provider_call_id` |
 /// |---|---|---|---|
-/// | Anthropic | `toolu_...` | — | — |
-/// | OpenAI Chat, xAI Chat, OpenRouter | `call_...` | — | — |
+/// | Anthropic | `toolu_...` | none | none |
+/// | OpenAI Chat, xAI Chat, OpenRouter | `call_...` | none | none |
 /// | OpenAI Responses, ChatGPT, xAI Responses | `call_...` | `fc_...` | `call_...` |
 /// | Gemini | provider id or synthesized | provider id, if any | provider id, if any |
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -241,7 +241,7 @@ impl ToolCall {
 /// Only [`call_id`](Self::call_id) is required. The remaining identity fields
 /// mirror the originating [`ToolCall`] (see its *Identity* section) and are
 /// recovered from the matching call earlier in the conversation when left
-/// `None`; set them explicitly only when that call is not part of the request.
+/// `None`. Set them explicitly only when that call is not part of the request.
 /// [`ToolResultPart::for_call`] copies everything for you.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ToolResultPart {

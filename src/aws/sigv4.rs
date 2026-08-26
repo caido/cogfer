@@ -20,7 +20,7 @@ const ALGORITHM: &str = "AWS4-HMAC-SHA256";
 const AMZ_DATE: HeaderName = HeaderName::from_static("x-amz-date");
 const SECURITY_TOKEN: HeaderName = HeaderName::from_static("x-amz-security-token");
 
-/// Sign `request` in place as of `now`, replacing any previous signature.
+/// Sign `request` in place, replacing any previous signature.
 ///
 /// The body must be final: its hash is part of the signature. Signing sets
 /// `host`, `x-amz-date`, `x-amz-security-token` for temporary credentials,
@@ -31,6 +31,16 @@ const SECURITY_TOKEN: HeaderName = HeaderName::from_static("x-amz-security-token
 /// Returns an error when the URL has no host or a credential is not a valid
 /// header value.
 pub fn sign_request(
+    request: &mut HttpRequest,
+    credentials: &AwsCredentials,
+    region: &str,
+    service: &str,
+) -> Result<()> {
+    sign_request_at(request, credentials, region, service, SystemTime::now())
+}
+
+/// [`sign_request`] as of `now`, so tests can pin the timestamp.
+fn sign_request_at(
     request: &mut HttpRequest,
     credentials: &AwsCredentials,
     region: &str,
@@ -137,7 +147,6 @@ fn canonical_query(url: &url::Url) -> String {
         .join("&")
 }
 
-/// Trimmed, with runs of spaces collapsed.
 fn canonical_header_value(value: &str) -> String {
     value.split_whitespace().collect::<Vec<_>>().join(" ")
 }
@@ -220,7 +229,7 @@ mod tests {
         UNIX_EPOCH + Duration::from_secs(days * 86_400 + hour * 3600 + minute * 60 + second)
     }
 
-    /// The AWS SigV4 test-suite credentials and scope.
+    /// The AWS SigV4 test-suite credentials.
     fn suite_credentials() -> AwsCredentials {
         AwsCredentials::new("AKIDEXAMPLE", "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY")
     }
@@ -249,7 +258,7 @@ mod tests {
             body: None,
         };
 
-        sign_request(
+        sign_request_at(
             &mut request,
             &suite_credentials(),
             "us-east-1",
@@ -281,7 +290,7 @@ mod tests {
             body: Some(bytes::Bytes::from_static(b"Param1=value1")),
         };
 
-        sign_request(
+        sign_request_at(
             &mut request,
             &suite_credentials(),
             "us-east-1",
@@ -309,7 +318,7 @@ mod tests {
             body: Some(bytes::Bytes::from_static(b"{}")),
         };
 
-        sign_request(
+        sign_request_at(
             &mut request,
             &credentials,
             "eu-west-1",
@@ -353,7 +362,7 @@ mod tests {
             body: None,
         };
         let credentials = suite_credentials();
-        sign_request(
+        sign_request_at(
             &mut request,
             &credentials,
             "us-east-1",
@@ -363,7 +372,7 @@ mod tests {
         .unwrap();
         let first = request.headers[header::AUTHORIZATION].clone();
 
-        sign_request(
+        sign_request_at(
             &mut request,
             &credentials,
             "us-east-1",

@@ -7,6 +7,7 @@ use futures_util::StreamExt;
 
 use super::handler::LoweredRequest;
 use super::{ProtocolContext, ProtocolHandler, StreamDecoder};
+use crate::capabilities::ModelCapabilities;
 use crate::error::{Error, ErrorKind, Result};
 use crate::http::{enrich_error_from_headers, find_request_id, redact_headers, sanitized_url};
 use crate::provider::{Authentication, Provider};
@@ -25,6 +26,7 @@ struct Prepared {
     http: HttpRequest,
     warnings: Vec<Warning>,
     base_url: url::Url,
+    capabilities: ModelCapabilities,
 }
 
 async fn prepare(
@@ -74,6 +76,7 @@ async fn prepare(
         http,
         warnings,
         base_url,
+        capabilities,
     })
 }
 
@@ -169,24 +172,14 @@ async fn authentication_retry(
 /// Decode a buffered 2xx body, attaching request diagnostics to decoder errors.
 fn decode_buffered_response(
     handler: &dyn ProtocolHandler,
-    base_url: &url::Url,
+    ctx: &ProtocolContext<'_>,
     mut warnings: Vec<Warning>,
     provider: &Provider,
-    model: &str,
-    request: &Request,
     response: &HttpResponse,
 ) -> Result<GenerateResult> {
-    let capabilities = provider.capabilities();
-    let ctx = ProtocolContext {
-        profile: provider.profile(),
-        model,
-        request,
-        base_url,
-        capabilities: &capabilities,
-    };
-    let mut result = handler.decode_response(&ctx, response).map_err(|error| {
+    let mut result = handler.decode_response(ctx, response).map_err(|error| {
         let error = enrich_error_from_headers(error, response.status, &response.headers);
-        annotate(error, provider, model)
+        annotate(error, provider, ctx.model)
     })?;
 
     warnings.append(&mut result.warnings);
@@ -208,6 +201,7 @@ pub(crate) async fn generate(
         http,
         warnings,
         base_url,
+        capabilities,
     } = prepare(provider, model, &request, false).await?;
     trace_wire_request(&http);
     let retry_request = retry_copy(provider, &http);
@@ -241,9 +235,14 @@ pub(crate) async fn generate(
         return Err(error);
     }
 
-    decode_buffered_response(
-        handler, &base_url, warnings, provider, model, &request, &response,
-    )
+    let ctx = ProtocolContext {
+        profile: provider.profile(),
+        model,
+        request: &request,
+        base_url: &base_url,
+        capabilities: &capabilities,
+    };
+    decode_buffered_response(handler, &ctx, warnings, provider, &response)
 }
 
 pub(crate) async fn stream(
@@ -257,6 +256,7 @@ pub(crate) async fn stream(
         http,
         warnings,
         base_url,
+        capabilities,
     } = prepare(provider, model, &request, true).await?;
     trace_wire_request(&http);
     let retry_request = retry_copy(provider, &http);
@@ -331,15 +331,14 @@ pub(crate) async fn stream(
             body: Bytes::from(body),
         };
         // The stream start already carries the lowering warnings.
-        let result = decode_buffered_response(
-            handler,
-            &base_url,
-            Vec::new(),
-            provider,
+        let ctx = ProtocolContext {
+            profile: provider.profile(),
             model,
-            &request,
-            &response,
-        )?;
+            request: &request,
+            base_url: &base_url,
+            capabilities: &capabilities,
+        };
+        let result = decode_buffered_response(handler, &ctx, Vec::new(), provider, &response)?;
         let mut out = Vec::new();
         normalizer.replay(&mut out, result);
         queue.extend(out);
@@ -347,7 +346,6 @@ pub(crate) async fn stream(
         return Ok(EventStream::new(Box::pin(stream)));
     }
 
-    let capabilities = provider.capabilities();
     let decoder = handler.new_stream_decoder(&ProtocolContext {
         profile: provider.profile(),
         model,

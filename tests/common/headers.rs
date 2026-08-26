@@ -2,12 +2,10 @@
 
 use caido_ai::transport::{HeaderMap, HeaderName, HeaderValue, HttpRequest};
 
-/// The value of `name` on `request`, when present and ASCII.
 pub(crate) fn header<'a>(request: &'a HttpRequest, name: &str) -> Option<&'a str> {
     request.headers.get(name)?.to_str().ok()
 }
 
-/// Build a header map from name/value pairs.
 pub(crate) fn headers(pairs: &[(&str, &str)]) -> HeaderMap {
     pairs
         .iter()

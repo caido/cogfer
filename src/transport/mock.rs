@@ -6,8 +6,8 @@ use std::sync::{Arc, Mutex};
 use bytes::Bytes;
 
 use super::{
-    HeaderMap, HeaderValue, HttpByteStream, HttpRequest, HttpResponse, HttpTransport, event_stream,
-    header,
+    HeaderMap, HeaderValue, HttpByteStream, HttpRequest, HttpResponse, HttpTransport,
+    aws_event_stream, header,
 };
 use crate::error::{Error, ErrorKind, Result};
 
@@ -97,15 +97,14 @@ impl MockTransport {
             });
     }
 
-    /// Queue an AWS event stream (`application/vnd.amazon.eventstream`), one
-    /// message per entry: `(event type, payload)` for events, delivered one
-    /// message per chunk. Bedrock wraps each model event as
+    /// Queue an AWS event stream, one `(event type, payload)` message per
+    /// entry and one message per chunk. Bedrock wraps each model event as
     /// `{"bytes": base64}` under the `chunk` event type.
     pub fn push_event_stream(&self, events: &[(&str, &[u8])]) {
         let chunks = events
             .iter()
             .map(|&(event_type, payload)| {
-                Bytes::from(event_stream::encode_message(
+                Bytes::from(aws_event_stream::encode_message(
                     &[
                         (":event-type", event_type),
                         (":content-type", "application/json"),
@@ -132,7 +131,7 @@ impl MockTransport {
         let mut chunks: Vec<Bytes> = events
             .iter()
             .map(|&(event_type, payload)| {
-                Bytes::from(event_stream::encode_message(
+                Bytes::from(aws_event_stream::encode_message(
                     &[
                         (":event-type", event_type),
                         (":content-type", "application/json"),
@@ -142,7 +141,7 @@ impl MockTransport {
                 ))
             })
             .collect();
-        chunks.push(Bytes::from(event_stream::encode_message(
+        chunks.push(Bytes::from(aws_event_stream::encode_message(
             &[
                 (":exception-type", exception_type),
                 (":content-type", "application/json"),

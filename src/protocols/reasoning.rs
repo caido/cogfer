@@ -1,6 +1,6 @@
 //! Fit a [`ReasoningConfig`] to what a profile can express.
 //!
-//! Callers choose between a discrete effort and a token budget; providers
+//! Callers choose between a discrete effort and a token budget, but providers
 //! accept one or the other, and not every effort level. Rather than each
 //! protocol dropping what it cannot send, this maps the request onto the
 //! closest supported control and records the approximation as a warning.

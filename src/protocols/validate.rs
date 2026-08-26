@@ -4,6 +4,7 @@ use std::collections::{HashMap, HashSet};
 
 use serde_json::Value;
 
+use crate::capabilities::ModelCapabilities;
 use crate::error::{Error, ErrorKind, Result};
 use crate::message::{AssistantPart, Message, ToolCall, ToolResultPart};
 use crate::protocols::ApiProfile;
@@ -285,10 +286,7 @@ fn validate_profile(request: &Request, profile: ApiProfile) -> Result<()> {
                 AssistantPart::Compaction(compaction) if compaction.content.is_none()
             )))
         });
-    let supports_native_compaction = matches!(
-        profile,
-        ApiProfile::OpenAiResponses | ApiProfile::ChatGptResponses | ApiProfile::AnthropicMessages
-    );
+    let supports_native_compaction = ModelCapabilities::for_profile(profile).native_compaction;
     if requires_native_compaction && !supports_native_compaction {
         return Err(Error::new(
             ErrorKind::UnsupportedCapability,

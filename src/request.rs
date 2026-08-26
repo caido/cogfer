@@ -32,7 +32,7 @@ pub struct Request {
     /// Reasoning/thinking configuration. `None` uses the provider default.
     ///
     /// Profiles differ in whether they take an effort or a token budget and
-    /// in which efforts they accept; see
+    /// in which efforts they accept. See
     /// [`ModelCapabilities::reasoning`](crate::ModelCapabilities::reasoning).
     /// Lowering sends the closest control the profile has and reports the
     /// substitution as a [`WarningKind::ApproximatedSetting`](crate::WarningKind::ApproximatedSetting).
@@ -273,7 +273,7 @@ pub enum ToolChoice {
 }
 
 /// Exclusive reasoning configuration. Unset preserves the provider default.
-/// Either form is accepted on every profile; see [`Request::reasoning`] for
+/// Either form is accepted on every profile. See [`Request::reasoning`] for
 /// how a form the profile lacks is approximated.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]

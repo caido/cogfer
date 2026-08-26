@@ -57,11 +57,23 @@ pub(crate) enum BlockKind {
     },
 }
 
-#[derive(Default)]
 pub(crate) struct AnthropicStreamDecoder {
+    /// Stamped on stream errors: Anthropic directly or on Bedrock.
+    profile: ApiProfile,
     blocks: std::collections::HashMap<u64, BlockKind>,
     finish: Option<Finish>,
     done: bool,
+}
+
+impl AnthropicStreamDecoder {
+    pub(crate) fn new(profile: ApiProfile) -> Self {
+        Self {
+            profile,
+            blocks: std::collections::HashMap::new(),
+            finish: None,
+            done: false,
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -491,8 +503,7 @@ impl AnthropicStreamDecoder {
             message,
             ErrorKind::Provider,
         );
-        let mut error = Error::new(kind, message.to_string())
-            .with_origin(ApiProfile::AnthropicMessages.as_str());
+        let mut error = Error::new(kind, message.to_string()).with_origin(self.profile.as_str());
         if !error_type.is_empty() {
             error = error.with_code(error_type.to_string());
         }

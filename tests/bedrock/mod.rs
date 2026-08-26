@@ -20,7 +20,8 @@ const MODEL: &str = "anthropic.claude-sonnet-4-5-20250929-v1:0";
 fn bedrock(mock: &Arc<MockTransport>) -> Provider {
     provider_with(
         mock,
-        ProviderConfig::bedrock_anthropic("eu-west-1", Credentials::bearer("bedrock-api-key")),
+        ProviderConfig::bedrock_anthropic("eu-west-1", Credentials::bearer("bedrock-api-key"))
+            .expect("region is valid"),
     )
 }
 
@@ -212,6 +213,7 @@ async fn aws_error_envelopes_are_classified() {
     assert_eq!(error.kind(), ErrorKind::Authentication);
     assert_eq!(error.code(), Some("ExpiredTokenException"));
     assert_eq!(error.status(), Some(403));
+    assert_eq!(error.request_id(), Some("req-1"));
     assert!(error.message().contains("expired"));
     assert_eq!(error.origin(), Some("bedrock-anthropic"));
 }
@@ -233,6 +235,41 @@ async fn native_compaction_is_not_available() {
     assert_eq!(error.kind(), ErrorKind::UnsupportedCapability);
     assert!(!bedrock(&mock).capabilities().native_compaction);
     assert!(mock.requests().is_empty());
+}
+
+#[tokio::test]
+async fn replayed_compaction_history_is_rejected() {
+    let mock = MockTransport::shared();
+    let request = Request::builder()
+        .message(Message::user("hi"))
+        .message(Message::Assistant {
+            content: vec![caido_ai::AssistantPart::Compaction(
+                caido_ai::CompactionPart {
+                    id: None,
+                    content: Some("summary".into()),
+                    encrypted_content: None,
+                },
+            )],
+            provider_metadata: Default::default(),
+        })
+        .message(Message::user("continue"))
+        .build();
+
+    let error = bedrock(&mock)
+        .language_model(MODEL)
+        .generate(request)
+        .await
+        .expect_err("bedrock has no compaction beta");
+
+    assert_eq!(error.kind(), ErrorKind::UnsupportedContent);
+    assert!(mock.requests().is_empty());
+}
+
+#[test]
+fn regions_are_validated() {
+    assert!(ProviderConfig::bedrock_anthropic("us east 1", Credentials::none()).is_err());
+    assert!(ProviderConfig::bedrock_anthropic("", Credentials::none()).is_err());
+    assert!(ProviderConfig::bedrock_anthropic("us-gov-west-1", Credentials::none()).is_ok());
 }
 
 #[tokio::test]
@@ -275,6 +312,7 @@ mod sigv4 {
         provider_with(
             mock,
             ProviderConfig::bedrock_anthropic("eu-west-1", Credentials::none())
+                .expect("region is valid")
                 .with_authenticator(Arc::new(SigV4Authenticator::new("eu-west-1", credentials))),
         )
     }

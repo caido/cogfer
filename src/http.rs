@@ -44,11 +44,12 @@ pub(crate) fn sanitized_url(url: &Url) -> String {
 }
 
 /// Response headers carrying a provider request identifier, in lookup order.
-static REQUEST_ID_HEADERS: [HeaderName; 5] = [
+static REQUEST_ID_HEADERS: [HeaderName; 6] = [
     HeaderName::from_static("x-request-id"),
     HeaderName::from_static("x-oai-request-id"),
     HeaderName::from_static("openai-request-id"),
     HeaderName::from_static("x-goog-request-id"),
+    HeaderName::from_static("x-amzn-requestid"),
     HeaderName::from_static("request-id"),
 ];
 
@@ -81,7 +82,7 @@ pub(crate) fn bearer_value(token: &str) -> Result<HeaderValue> {
 /// arbitrary authentication header names, so a denylist of known secrets
 /// would leak custom credentials.
 pub(crate) fn redact_headers(headers: &HeaderMap) -> Vec<(&str, &str)> {
-    static VISIBLE: [HeaderName; 13] = [
+    static VISIBLE: [HeaderName; 14] = [
         header::ACCEPT,
         header::ACCEPT_ENCODING,
         HeaderName::from_static("anthropic-beta"),
@@ -92,6 +93,7 @@ pub(crate) fn redact_headers(headers: &HeaderMap) -> Vec<(&str, &str)> {
         HeaderName::from_static("http-referer"),
         header::RETRY_AFTER,
         header::USER_AGENT,
+        HeaderName::from_static("x-amzn-errortype"),
         HeaderName::from_static("x-openrouter-title"),
         HeaderName::from_static("x-should-retry"),
         HeaderName::from_static("x-title"),

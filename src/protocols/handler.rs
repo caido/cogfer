@@ -17,7 +17,7 @@ pub(crate) struct ProtocolContext<'a> {
     pub model: &'a str,
     pub request: &'a Request,
     pub base_url: &'a Url,
-    /// What the model accepts; lowering fits the request to it.
+    /// What the model accepts. Lowering fits the request to it.
     pub capabilities: &'a ModelCapabilities,
 }
 

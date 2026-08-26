@@ -27,7 +27,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let client = Client::builder().build()?;
     let provider = client.provider(
-        ProviderConfig::bedrock_anthropic(&region, Credentials::none())
+        ProviderConfig::bedrock_anthropic(&region, Credentials::none())?
             .with_authenticator(Arc::new(SigV4Authenticator::new(&region, credentials))),
     )?;
     let model = provider.language_model("anthropic.claude-sonnet-4-5-20250929-v1:0");

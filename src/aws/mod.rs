@@ -8,7 +8,6 @@
 mod sigv4;
 
 use std::fmt;
-use std::time::SystemTime;
 
 pub use self::sigv4::sign_request;
 use crate::auth::{RequestAuthenticator, SecretString};
@@ -52,43 +51,31 @@ impl fmt::Debug for AwsCredentials {
     }
 }
 
-/// Signs requests with static credentials. Bedrock rejects a signature
-/// whose timestamp has drifted, so a 403 is answered by signing again.
+/// Signs Bedrock requests with static credentials. Bedrock rejects a
+/// signature whose timestamp has drifted, so a 403 is answered by signing
+/// again.
 #[derive(Debug, Clone)]
 #[must_use = "authenticators must be attached to a ProviderConfig"]
 pub struct SigV4Authenticator {
     credentials: AwsCredentials,
     region: String,
-    service: String,
 }
 
 impl SigV4Authenticator {
-    /// Sign for the `bedrock` service in `region`.
     pub fn new(region: impl Into<String>, credentials: AwsCredentials) -> Self {
         Self {
             credentials,
             region: region.into(),
-            service: "bedrock".into(),
         }
     }
-
-    /// Sign for another AWS service.
-    pub fn with_service(mut self, service: impl Into<String>) -> Self {
-        self.service = service.into();
-        self
-    }
 }
+
+const SERVICE: &str = "bedrock";
 
 #[async_trait::async_trait]
 impl RequestAuthenticator for SigV4Authenticator {
     async fn authenticate(&self, request: &mut HttpRequest) -> Result<()> {
-        sign_request(
-            request,
-            &self.credentials,
-            &self.region,
-            &self.service,
-            SystemTime::now(),
-        )
+        sign_request(request, &self.credentials, &self.region, SERVICE)
     }
 
     async fn reauthenticate(&self, request: &mut HttpRequest, status: u16) -> Result<bool> {

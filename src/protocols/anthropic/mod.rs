@@ -1,10 +1,10 @@
 //! Anthropic Messages API (`POST {base}/messages`) and the backends that
 //! serve it.
 
-use super::{LoweredRequest, ProtocolContext, ProtocolHandler, StreamDecoder};
+use super::{ApiProfile, LoweredRequest, ProtocolContext, ProtocolHandler, StreamDecoder};
 use crate::error::{Error, Result};
 use crate::response::GenerateResult;
-use crate::transport::event_stream::EventStreamParser;
+use crate::transport::aws_event_stream::AwsEventStreamParser;
 use crate::transport::framing::FrameSource;
 use crate::transport::{HeaderMap, HeaderName, HttpRequest, HttpResponse};
 
@@ -62,19 +62,21 @@ impl ProtocolHandler for Handler {
 
     fn new_stream_decoder(&self, _ctx: &ProtocolContext<'_>) -> Box<dyn StreamDecoder> {
         match self.dialect {
-            AnthropicDialect::Direct => Box::new(AnthropicStreamDecoder::default()),
-            AnthropicDialect::Bedrock => Box::new(BedrockStreamDecoder::default()),
+            AnthropicDialect::Direct => {
+                Box::new(AnthropicStreamDecoder::new(ApiProfile::AnthropicMessages))
+            }
+            AnthropicDialect::Bedrock => Box::new(BedrockStreamDecoder::new()),
         }
     }
 
     fn new_frame_source(&self) -> Box<dyn FrameSource> {
         match self.dialect {
             AnthropicDialect::Direct => Box::new(crate::transport::sse::SseParser::new()),
-            AnthropicDialect::Bedrock => Box::new(EventStreamParser::new()),
+            AnthropicDialect::Bedrock => Box::new(AwsEventStreamParser::new()),
         }
     }
 
-    /// Anthropic takes API keys in `x-api-key`; Bedrock API keys are bearer
+    /// Anthropic takes API keys in `x-api-key`. Bedrock API keys are bearer
     /// tokens, and SigV4 arrives through a
     /// [`RequestAuthenticator`](crate::RequestAuthenticator).
     fn apply_auth(

@@ -124,6 +124,8 @@ fn everything() -> Request {
 
 fn expected_dropped(capabilities: &ModelCapabilities) -> BTreeSet<&'static str> {
     [
+        ("tools", capabilities.tools),
+        ("structured_output", capabilities.structured_output),
         ("tools.strict", capabilities.strict_tools),
         ("parallel_tool_calls", capabilities.parallel_tool_calls),
         ("reasoning.output", capabilities.reasoning.output),
@@ -267,7 +269,7 @@ async fn out_of_range_efforts_are_clamped_to_the_nearest_supported_level() {
             .build()
     };
 
-    // Anthropic has no `minimal` or `xhigh`; both snap to the neighbour.
+    // Anthropic has no `minimal` or `xhigh`, so both snap to the neighbour.
     let (result, body) = lower(
         ApiProfile::AnthropicMessages,
         effort(ReasoningEffort::Minimal),

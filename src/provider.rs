@@ -7,6 +7,7 @@ use url::Url;
 
 use crate::auth::{Credentials, RequestAuthenticator};
 use crate::capabilities::ModelCapabilities;
+use crate::error::{Error, Result};
 use crate::model::LanguageModel;
 use crate::protocols::ApiProfile;
 use crate::transport::{HeaderMap, HeaderName, HeaderValue, HttpTransport};
@@ -113,13 +114,23 @@ impl ProviderConfig {
     /// [`Credentials::none`] plus a SigV4 [`RequestAuthenticator`] through
     /// [`ProviderConfig::with_authenticator`].
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// Panics if `region` does not form a valid host name.
-    pub fn bedrock_anthropic(region: &str, credentials: Credentials) -> Self {
+    /// Returns [`ErrorKind::Configuration`](crate::ErrorKind::Configuration)
+    /// when `region` is not an AWS region name.
+    pub fn bedrock_anthropic(region: &str, credentials: Credentials) -> Result<Self> {
+        let valid = !region.is_empty()
+            && region
+                .bytes()
+                .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-');
+        if !valid {
+            return Err(Error::configuration(format!(
+                "`{region}` is not an AWS region name"
+            )));
+        }
         let base_url = Url::parse(&format!("https://bedrock-runtime.{region}.amazonaws.com"))
-            .expect("a region forms a valid bedrock host");
-        Self::new(ApiProfile::BedrockAnthropic, credentials).with_base_url(base_url)
+            .expect("a region name forms a valid host");
+        Ok(Self::new(ApiProfile::BedrockAnthropic, credentials).with_base_url(base_url))
     }
 
     /// Use a custom API base URL.
@@ -131,7 +142,8 @@ impl ProviderConfig {
         self
     }
 
-    /// Add a header to every request for this provider.
+    /// Add a header to every request for this provider, replacing an earlier
+    /// value with the same name.
     ///
     /// Per-request headers and authentication are applied later and can
     /// replace this value.
@@ -189,17 +201,17 @@ impl Provider {
         self.inner.config.profile()
     }
 
+    /// The settings models on this provider accept. Profile defaults today.
+    /// Per-model data will refine them here.
+    pub fn capabilities(&self) -> ModelCapabilities {
+        ModelCapabilities::for_profile(self.profile())
+    }
+
     /// The effective base URL (custom or the profile default).
     ///
     /// # Panics
     ///
     /// Panics if an internally defined profile default is not a valid URL.
-    /// The settings models on this provider accept. Profile defaults today;
-    /// the seam where per-model data will refine them.
-    pub fn capabilities(&self) -> ModelCapabilities {
-        ModelCapabilities::for_profile(self.profile())
-    }
-
     pub fn base_url(&self) -> Url {
         match self.inner.config.custom_base_url() {
             Some(url) => url.clone(),

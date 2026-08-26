@@ -89,7 +89,7 @@ impl ReqwestTransport {
     /// buffered bodies are capped at 16 MiB until changed with the builder
     /// methods below.
     ///
-    /// Install a Rustls crypto provider before building `client`; see
+    /// Install a Rustls crypto provider before building `client`. See
     /// [`install_default_crypto_provider`] for why. Prefer a client without a
     /// total `timeout` so streams are bounded only by the idle-read timeout,
     /// and disable redirects or restrict them to trusted same-origin targets.

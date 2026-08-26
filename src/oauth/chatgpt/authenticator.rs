@@ -14,11 +14,24 @@ use crate::transport::{HeaderName, HttpRequest, header};
 /// ChatGPT tokens. See [`OAuthAuthenticator`] for the refresh policy.
 pub type ChatGptAuthenticator = OAuthAuthenticator<ChatGptTokens, ChatGptOAuth>;
 
+impl ChatGptAuthenticator {
+    /// Use the built-in reqwest transport for token refreshes.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the reqwest transport cannot be initialized, for
+    /// example when no Rustls crypto provider is installed (see
+    /// [`install_default_crypto_provider`](crate::transport::install_default_crypto_provider)).
+    #[cfg(feature = "reqwest-transport")]
+    pub fn with_default_transport(tokens: ChatGptTokens) -> Result<Self> {
+        Ok(Self::new(tokens, ChatGptOAuth::with_default_transport()?))
+    }
+}
+
 const CHATGPT_ACCOUNT_ID: HeaderName = HeaderName::from_static("chatgpt-account-id");
 
 impl OAuthTokens for ChatGptTokens {
     const PROVIDER: &'static str = "chatgpt";
-    /// Refresh a minute early so a token cannot lapse mid-request.
     const EXPIRY_SKEW: Duration = Duration::from_secs(60);
 
     fn access_token(&self) -> &str {
@@ -65,10 +78,5 @@ impl TokenRefresher<ChatGptTokens> for ChatGptOAuth {
     fn refresh(&self, refresh_token: String) -> BoxFuture<'static, Result<ChatGptTokens>> {
         let oauth = self.clone();
         async move { oauth.refresh(&refresh_token).await }.boxed()
-    }
-
-    #[cfg(feature = "reqwest-transport")]
-    fn with_default_transport() -> Result<Self> {
-        ChatGptOAuth::with_default_transport()
     }
 }

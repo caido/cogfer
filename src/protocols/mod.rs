@@ -85,7 +85,7 @@ impl ApiProfile {
 
     /// The official endpoint used when no custom base URL is configured.
     ///
-    /// Bedrock endpoints are regional; this is `us-east-1`, and
+    /// Bedrock endpoints are regional. This is `us-east-1`, and
     /// [`ProviderConfig::bedrock_anthropic`](crate::ProviderConfig::bedrock_anthropic)
     /// derives the right one from a region.
     pub fn default_base_url(self) -> &'static str {
@@ -114,7 +114,7 @@ impl std::fmt::Display for ApiProfile {
 /// Decoders record it in the library-reserved `caido-ai` namespace, and
 /// request lowering uses [`foreign_origin`] to replay opaque state (encrypted
 /// reasoning, item ids, server tool payloads) only to the profile that
-/// produced it — backends cannot verify each other's items and reject the
+/// produced it, because backends cannot verify each other's items and reject the
 /// request with errors like `invalid_encrypted_content`.
 pub(crate) fn origin_metadata(profile: ApiProfile) -> ProviderMetadata {
     ProviderMetadata::with("caido-ai", json!({"profile": profile.as_str()}))

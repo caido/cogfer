@@ -19,9 +19,8 @@ impl LanguageModel {
         &self.id
     }
 
-    /// The settings this model accepts. Lowering drops anything outside them
-    /// with a [`Warning`](crate::Warning); hosts can use this to hide the
-    /// controls that would be dropped.
+    /// The settings this model accepts. Hosts can use this to hide the
+    /// controls lowering would drop.
     pub fn capabilities(&self) -> ModelCapabilities {
         self.provider.capabilities()
     }

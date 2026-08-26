@@ -13,6 +13,20 @@ use crate::transport::{HttpRequest, header};
 /// xAI tokens. See [`OAuthAuthenticator`] for the refresh policy.
 pub type XaiAuthenticator = OAuthAuthenticator<XaiTokens, XaiOAuth>;
 
+impl XaiAuthenticator {
+    /// Use the built-in reqwest transport for token refreshes.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the reqwest transport cannot be initialized, for
+    /// example when no Rustls crypto provider is installed (see
+    /// [`install_default_crypto_provider`](crate::transport::install_default_crypto_provider)).
+    #[cfg(feature = "reqwest-transport")]
+    pub fn with_default_transport(tokens: XaiTokens) -> Result<Self> {
+        Ok(Self::new(tokens, XaiOAuth::with_default_transport()?))
+    }
+}
+
 impl OAuthTokens for XaiTokens {
     const PROVIDER: &'static str = "xai";
     /// xAI tokens live about an hour, so refresh five minutes early.
@@ -47,10 +61,5 @@ impl TokenRefresher<XaiTokens> for XaiOAuth {
     fn refresh(&self, refresh_token: String) -> BoxFuture<'static, Result<XaiTokens>> {
         let oauth = self.clone();
         async move { oauth.refresh(&refresh_token).await }.boxed()
-    }
-
-    #[cfg(feature = "reqwest-transport")]
-    fn with_default_transport() -> Result<Self> {
-        XaiOAuth::with_default_transport()
     }
 }

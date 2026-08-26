@@ -54,16 +54,6 @@ pub trait OAuthTokens: Clone + Send + Sync + 'static {
 /// The client that exchanges refresh tokens for new token sets.
 pub trait TokenRefresher<T>: Clone + Send + Sync + fmt::Debug + 'static {
     fn refresh(&self, refresh_token: String) -> BoxFuture<'static, Result<T>>;
-
-    /// A refresher over the built-in reqwest transport.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the reqwest transport cannot be initialized.
-    #[cfg(feature = "reqwest-transport")]
-    fn with_default_transport() -> Result<Self>
-    where
-        Self: Sized;
 }
 
 #[derive(Clone, Copy)]
@@ -79,7 +69,7 @@ enum RefreshTrigger<'a> {
 /// while a request awaits them: a cancelled waiter parks the in-flight refresh
 /// until the next request resumes it. A proactive refresh that fails while the
 /// current token is still valid falls back to that token. A 401 rejecting the
-/// current token triggers one refresh and retry; other statuses do not.
+/// current token triggers one refresh and retry. Other statuses do not.
 #[must_use = "authenticator modifiers return an updated value"]
 pub struct OAuthAuthenticator<T, R> {
     refresher: R,
@@ -108,18 +98,6 @@ impl<T: OAuthTokens, R: TokenRefresher<T>> OAuthAuthenticator<T, R> {
             state: futures_util::lock::Mutex::new(RefreshState::new(tokens.normalized())),
             token_store: None,
         }
-    }
-
-    /// Use the built-in reqwest transport for token refreshes.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the reqwest transport cannot be initialized, for
-    /// example when no Rustls crypto provider is installed (see
-    /// [`install_default_crypto_provider`](crate::transport::install_default_crypto_provider)).
-    #[cfg(feature = "reqwest-transport")]
-    pub fn with_default_transport(tokens: T) -> Result<Self> {
-        Ok(Self::new(tokens, R::with_default_transport()?))
     }
 
     /// Durably save refreshed tokens before publishing them to requests.

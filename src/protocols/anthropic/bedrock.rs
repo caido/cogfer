@@ -1,9 +1,9 @@
 //! Anthropic models served by Amazon Bedrock.
 //!
 //! Bedrock speaks the Messages API with a few differences: the model is in
-//! the URL, `anthropic_version` replaces the version header, betas travel in
-//! the body, streaming uses the AWS event stream encoding with each Anthropic
-//! event base64-encoded inside a `chunk`, and errors use AWS envelopes.
+//! the URL, `anthropic_version` replaces the version header, streaming uses
+//! the AWS event stream encoding with each Anthropic event base64-encoded
+//! inside a `chunk`, and errors use AWS envelopes.
 
 use serde::Deserialize;
 
@@ -89,9 +89,16 @@ struct PayloadPart {
 }
 
 /// Unwraps Bedrock's stream envelope around the Anthropic events.
-#[derive(Default)]
 pub(super) struct BedrockStreamDecoder {
     inner: AnthropicStreamDecoder,
+}
+
+impl BedrockStreamDecoder {
+    pub(super) fn new() -> Self {
+        Self {
+            inner: AnthropicStreamDecoder::new(ApiProfile::BedrockAnthropic),
+        }
+    }
 }
 
 impl StreamDecoder for BedrockStreamDecoder {

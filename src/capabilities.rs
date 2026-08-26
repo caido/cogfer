@@ -1,9 +1,10 @@
 //! What a model can do on its API profile.
 //!
 //! Every [`Request`](crate::Request) setting is expressible, but not every
-//! profile can send every setting. Lowering drops what a profile cannot
-//! express with a [`Warning`](crate::Warning); these types say up front what
-//! will survive so hosts can hide or disable the controls that would not.
+//! profile can send every setting. Lowering drops most of what a profile
+//! cannot express with a [`Warning`](crate::Warning). These types say up
+//! front what will survive so hosts can hide or disable the controls that
+//! would not.
 //!
 //! The values here are profile defaults. Per-model data (a models.dev listing,
 //! for example) can later refine them without changing this shape.
@@ -39,27 +40,21 @@ impl ReasoningSupport {
         }
     }
 
-    /// Whether the profile can express any reasoning configuration.
-    pub fn is_available(&self) -> bool {
-        !self.efforts.is_empty() || self.budget
-    }
-
     /// The supported effort closest to `effort`, preferring the lower one
     /// when `effort` falls between two.
-    pub fn nearest_effort(&self, effort: ReasoningEffort) -> Option<ReasoningEffort> {
+    pub(crate) fn nearest_effort(&self, effort: ReasoningEffort) -> Option<ReasoningEffort> {
         if self.efforts.contains(&effort) {
             return Some(effort);
         }
         let rank = |candidate: ReasoningEffort| candidate as i32;
         self.efforts.iter().copied().min_by_key(|candidate| {
             let distance = (rank(*candidate) - rank(effort)).abs();
-            // Break ties toward the cheaper effort.
             (distance, rank(*candidate))
         })
     }
 
     /// The supported effort that approximates a token budget.
-    pub fn effort_for_budget(&self, tokens: NonZeroU32) -> Option<ReasoningEffort> {
+    pub(crate) fn effort_for_budget(&self, tokens: NonZeroU32) -> Option<ReasoningEffort> {
         let effort = match tokens.get() {
             0..1024 => ReasoningEffort::Minimal,
             1024..8192 => ReasoningEffort::Low,
@@ -70,7 +65,7 @@ impl ReasoningSupport {
     }
 
     /// The token budget that approximates a discrete effort.
-    pub fn budget_for_effort(effort: ReasoningEffort) -> NonZeroU32 {
+    pub(crate) fn budget_for_effort(effort: ReasoningEffort) -> NonZeroU32 {
         let tokens = match effort {
             ReasoningEffort::Minimal => 1024,
             ReasoningEffort::Low => 4096,
@@ -83,8 +78,7 @@ impl ReasoningSupport {
     }
 }
 
-/// The settings a model accepts. A `false` field means lowering drops that
-/// setting with a warning rather than sending it.
+/// The settings a model accepts.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct ModelCapabilities {
@@ -95,6 +89,9 @@ pub struct ModelCapabilities {
     pub parallel_tool_calls: bool,
     pub structured_output: bool,
     /// Provider-managed context compaction ([`Request::compaction`](crate::Request::compaction)).
+    /// Unlike the other settings, a request that needs it fails with
+    /// [`ErrorKind::UnsupportedCapability`](crate::ErrorKind::UnsupportedCapability)
+    /// instead of a warning.
     pub native_compaction: bool,
     pub max_output_tokens: bool,
     pub temperature: bool,

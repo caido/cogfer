@@ -32,6 +32,7 @@ fn provider_from_env() -> Option<Provider> {
         live_client()
             .provider(
                 ProviderConfig::bedrock_anthropic(&region, Credentials::none())
+                    .expect("region is valid")
                     .with_authenticator(Arc::new(SigV4Authenticator::new(&region, credentials))),
             )
             .expect("provider builds"),
