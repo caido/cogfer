@@ -12,6 +12,8 @@ caido-ai = { git = "https://github.com/caido/caido-ai" }
 ```rust
 use caido_ai::{Client, Credentials, Message, ProviderConfig, Request};
 
+// Once per process, unless the host already installed a Rustls provider.
+caido_ai::transport::install_default_crypto_provider();
 let client = Client::builder().build()?;
 let provider = client.provider(ProviderConfig::openai_responses(
     Credentials::api_key(std::env::var("OPENAI_API_KEY")?),
