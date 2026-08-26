@@ -52,6 +52,8 @@ pub use self::response::{
 pub use self::stream::{Citation, EventStream, StreamAccumulator, StreamEvent};
 pub use self::usage::Usage;
 
+#[cfg(feature = "aws")]
+pub mod aws;
 pub mod oauth;
 pub mod transport;
 

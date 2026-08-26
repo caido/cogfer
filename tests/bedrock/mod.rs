@@ -257,3 +257,97 @@ async fn buffered_responses_decode_like_anthropic() {
         result.warnings
     );
 }
+
+#[cfg(feature = "aws")]
+mod sigv4 {
+    use std::sync::Arc;
+
+    use caido_ai::aws::{AwsCredentials, SigV4Authenticator};
+    use caido_ai::transport::mock::MockTransport;
+    use caido_ai::{Credentials, ErrorKind, ProviderConfig};
+
+    use super::{MODEL, message};
+    use crate::common::{header, headers, provider_with, text_request};
+
+    fn signed_provider(mock: &Arc<MockTransport>) -> caido_ai::Provider {
+        let credentials =
+            AwsCredentials::new("AKIDEXAMPLE", "secret").with_session_token("session");
+        provider_with(
+            mock,
+            ProviderConfig::bedrock_anthropic("eu-west-1", Credentials::none())
+                .with_authenticator(Arc::new(SigV4Authenticator::new("eu-west-1", credentials))),
+        )
+    }
+
+    #[tokio::test]
+    async fn requests_are_signed_for_the_bedrock_service_in_the_region() {
+        let mock = MockTransport::shared();
+        mock.push_json(200, &message("ok"));
+
+        signed_provider(&mock)
+            .language_model(MODEL)
+            .generate(text_request("hi"))
+            .await
+            .expect("generate succeeds");
+
+        let http = &mock.requests()[0];
+        let authorization = header(http, "authorization").expect("signed");
+        assert!(
+            authorization.starts_with("AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/"),
+            "{authorization}"
+        );
+        assert!(
+            authorization.contains("/eu-west-1/bedrock/aws4_request, SignedHeaders=content-type;host;x-amz-date;x-amz-security-token, Signature="),
+            "{authorization}"
+        );
+        assert_eq!(
+            header(http, "host"),
+            Some("bedrock-runtime.eu-west-1.amazonaws.com")
+        );
+        assert!(header(http, "x-amz-date").is_some_and(|date| date.ends_with('Z')));
+        assert_eq!(header(http, "x-amz-security-token"), Some("session"));
+    }
+
+    #[tokio::test]
+    async fn a_rejected_signature_is_recomputed_once() {
+        let mock = MockTransport::shared();
+        mock.push_response(
+            403,
+            headers(&[("x-amzn-errortype", "InvalidSignatureException")]),
+            r#"{"message":"The request signature we calculated does not match"}"#,
+        );
+        mock.push_json(200, &message("ok"));
+
+        let result = signed_provider(&mock)
+            .language_model(MODEL)
+            .generate(text_request("hi"))
+            .await
+            .expect("the re-signed request succeeds");
+
+        assert_eq!(result.text(), "ok");
+        let requests = mock.requests();
+        assert_eq!(requests.len(), 2);
+        assert!(header(&requests[1], "authorization").is_some());
+    }
+
+    #[tokio::test]
+    async fn a_second_rejection_is_terminal() {
+        let mock = MockTransport::shared();
+        for _ in 0..2 {
+            mock.push_response(
+                403,
+                headers(&[("x-amzn-errortype", "AccessDeniedException")]),
+                r#"{"message":"not allowed"}"#,
+            );
+        }
+
+        let error = signed_provider(&mock)
+            .language_model(MODEL)
+            .generate(text_request("hi"))
+            .await
+            .expect_err("denied twice");
+
+        assert_eq!(error.kind(), ErrorKind::Permission);
+        assert_eq!(mock.requests().len(), 2);
+    }
+}

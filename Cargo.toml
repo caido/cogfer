@@ -9,7 +9,9 @@ license = "MIT"
 publish = false
 
 [features]
-default = ["reqwest-transport"]
+default = ["reqwest-transport", "aws"]
+# AWS SigV4 request signing for Amazon Bedrock.
+aws = ["dep:ring"]
 reqwest-transport = ["dep:async-stream", "dep:reqwest", "dep:rustls", "dep:tokio"]
 
 [dependencies]
@@ -25,6 +27,8 @@ url = "2"
 uuid = { version = "1", features = ["v4"] }
 
 reqwest = { version = "0.13.4", optional = true, default-features = false, features = ["rustls-no-provider", "stream"] }
+# SHA-256 and HMAC for SigV4; the same crate Rustls already brings in.
+ring = { version = "0.17", optional = true }
 # Reqwest leaves provider selection to the process. Keep this compatible with
 # reqwest's Rustls version so install_default_crypto_provider installs ring
 # into, and ReqwestTransport::new checks, the same process-wide slot without
@@ -71,3 +75,7 @@ required-features = ["reqwest-transport"]
 [[example]]
 name = "xai_login"
 required-features = ["reqwest-transport"]
+
+[[example]]
+name = "bedrock"
+required-features = ["reqwest-transport", "aws"]

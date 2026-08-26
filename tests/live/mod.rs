@@ -5,6 +5,8 @@
 //! ```
 
 mod anthropic;
+#[cfg(feature = "aws")]
+mod bedrock;
 mod openai;
 mod openai_compatible;
 mod openrouter;
