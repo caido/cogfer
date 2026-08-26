@@ -21,5 +21,6 @@ mod live_compaction;
 mod openai_chat;
 mod openai_responses;
 mod openrouter;
+mod parity;
 mod replay;
 mod xai;
