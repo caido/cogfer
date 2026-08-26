@@ -4,8 +4,11 @@
 //! and produce a [`RequestAuthenticator`](crate::RequestAuthenticator) for
 //! [`ProviderConfig::with_authenticator`](crate::ProviderConfig::with_authenticator).
 //! They share [`OAuthClientConfig`] for the client identity, [`DevicePoll`]
-//! for device-flow polling, and [`OAuthStatus`] for observing refreshes; the
-//! device-flow and refresh machinery underneath is crate-private.
+//! for device-flow polling, and [`OAuthStatus`] for observing refreshes.
+//!
+//! Both are [`OAuthAuthenticator`]s: implement [`OAuthTokens`] and
+//! [`TokenRefresher`] for any other refreshable bearer credential (Azure
+//! Entra, an STS session) to get the same single-flight refresh policy.
 
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -18,7 +21,7 @@ mod authenticator;
 mod device_flow;
 mod refresh;
 
-pub(crate) use self::authenticator::{OAuthAuthenticator, OAuthTokens, TokenRefresher};
+pub use self::authenticator::{OAuthAuthenticator, OAuthTokens, TokenRefresher};
 #[cfg(feature = "reqwest-transport")]
 pub(crate) use self::device_flow::wait_for_device_tokens;
 pub(crate) use self::device_flow::{

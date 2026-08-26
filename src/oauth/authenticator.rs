@@ -1,4 +1,5 @@
-//! [`OAuthAuthenticator`] and the traits provider token types implement for it.
+//! [`OAuthAuthenticator`] and the traits a refreshable token type implements
+//! to use it.
 
 use std::fmt;
 use std::sync::Arc;
@@ -9,20 +10,36 @@ use futures_util::future::BoxFuture;
 use super::OAuthStatus;
 use super::expires_within;
 use super::refresh::{RefreshState, refresh_operation};
-use crate::auth::TokenStore;
+use crate::auth::{RequestAuthenticator, TokenStore};
 use crate::error::Result;
 use crate::transport::HttpRequest;
 
 const TARGET: &str = "ai|oauth";
 
-/// A refreshable OAuth token set, as seen by [`OAuthAuthenticator`].
-pub(crate) trait OAuthTokens: Clone + Send + Sync + 'static {
+/// A refreshable token set, as seen by [`OAuthAuthenticator`].
+///
+/// Implement this together with a [`TokenRefresher`] to give any bearer
+/// credential with a refresh token (an OAuth subscription, Azure Entra, an
+/// STS session) the shared single-flight refresh policy.
+pub trait OAuthTokens: Clone + Send + Sync + 'static {
+    /// The provider name used in errors and logs.
+    const PROVIDER: &'static str;
+
+    /// Refresh this long before expiry so a token cannot lapse mid-request.
+    const EXPIRY_SKEW: Duration;
+
     fn access_token(&self) -> &str;
 
     fn refresh_token(&self) -> Option<&str>;
 
     /// Unix seconds when the access token expires, when known.
     fn expires_at(&self) -> Option<i64>;
+
+    /// Fill in fields derivable from the tokens themselves (JWT claims, for
+    /// example) before first use.
+    fn normalized(self) -> Self {
+        self
+    }
 
     /// Carry forward the fields a refresh response omits.
     fn merge_refreshed(previous: &Self, refreshed: Self) -> Self;
@@ -35,9 +52,19 @@ pub(crate) trait OAuthTokens: Clone + Send + Sync + 'static {
     fn apply(&self, request: &mut HttpRequest) -> Result<()>;
 }
 
-/// The provider client that exchanges refresh tokens.
-pub(crate) trait TokenRefresher<T>: Clone + Send + Sync + fmt::Debug + 'static {
+/// The client that exchanges refresh tokens for new token sets.
+pub trait TokenRefresher<T>: Clone + Send + Sync + fmt::Debug + 'static {
     fn refresh(&self, refresh_token: String) -> BoxFuture<'static, Result<T>>;
+
+    /// A refresher over the built-in reqwest transport.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the reqwest transport cannot be initialized.
+    #[cfg(feature = "reqwest-transport")]
+    fn with_default_transport() -> Result<Self>
+    where
+        Self: Sized;
 }
 
 #[derive(Clone, Copy)]
@@ -46,17 +73,16 @@ enum RefreshTrigger<'a> {
     Unauthorized(Option<&'a str>),
 }
 
-/// The refresh policy every provider authenticator shares.
+/// [`RequestAuthenticator`] for tokens that refresh.
 ///
 /// Concurrent requests share one refresh. A configured [`TokenStore`] saves
 /// rotated tokens before they become visible to requests. Refreshes run only
 /// while a request awaits them: a cancelled waiter parks the in-flight refresh
 /// until the next request resumes it. A proactive refresh that fails while the
-/// current token is still valid falls back to that token.
-pub(crate) struct OAuthAuthenticator<T, R> {
-    provider: &'static str,
-    /// Refresh this long before expiry so a token cannot lapse mid-request.
-    expiry_skew: Duration,
+/// current token is still valid falls back to that token. A 401 rejecting the
+/// current token triggers one refresh and retry; other statuses do not.
+#[must_use = "authenticator modifiers return an updated value"]
+pub struct OAuthAuthenticator<T, R> {
     refresher: R,
     /// An async lock because every accessor is `async`. It is `futures_util`'s
     /// rather than tokio's since tokio is an optional transport dependency.
@@ -65,71 +91,59 @@ pub(crate) struct OAuthAuthenticator<T, R> {
     token_store: Option<Arc<dyn TokenStore<T>>>,
 }
 
-impl<T, R: fmt::Debug> fmt::Debug for OAuthAuthenticator<T, R> {
+impl<T: OAuthTokens, R: fmt::Debug> fmt::Debug for OAuthAuthenticator<T, R> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("OAuthAuthenticator")
-            .field("provider", &self.provider)
-            .field("oauth", &self.refresher)
+            .field("provider", &T::PROVIDER)
+            .field("refresher", &self.refresher)
             .field("token_store", &self.token_store.is_some())
             .finish_non_exhaustive()
     }
 }
 
 impl<T: OAuthTokens, R: TokenRefresher<T>> OAuthAuthenticator<T, R> {
-    pub(crate) fn new(
-        provider: &'static str,
-        expiry_skew: Duration,
-        tokens: T,
-        refresher: R,
-    ) -> Self {
+    /// Create an authenticator from `tokens` and the client that issued them.
+    pub fn new(tokens: T, refresher: R) -> Self {
         Self {
-            provider,
-            expiry_skew,
             refresher,
-            state: futures_util::lock::Mutex::new(RefreshState::new(tokens)),
+            state: futures_util::lock::Mutex::new(RefreshState::new(tokens.normalized())),
             token_store: None,
         }
     }
 
-    pub(crate) fn with_token_store(mut self, store: Arc<dyn TokenStore<T>>) -> Self {
+    /// Use the built-in reqwest transport for token refreshes.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the reqwest transport cannot be initialized, for
+    /// example when no Rustls crypto provider is installed (see
+    /// [`install_default_crypto_provider`](crate::transport::install_default_crypto_provider)).
+    #[cfg(feature = "reqwest-transport")]
+    pub fn with_default_transport(tokens: T) -> Result<Self> {
+        Ok(Self::new(tokens, R::with_default_transport()?))
+    }
+
+    /// Durably save refreshed tokens before publishing them to requests.
+    pub fn with_token_store(mut self, store: Arc<dyn TokenStore<T>>) -> Self {
         self.token_store = Some(store);
         self
     }
 
     /// The current published token set.
-    pub(crate) async fn tokens(&self) -> T {
+    pub async fn tokens(&self) -> T {
         self.state.lock().await.tokens.clone()
     }
 
-    /// Current OAuth credential status.
-    pub(crate) async fn status(&self) -> OAuthStatus {
+    /// Current credential status.
+    pub async fn status(&self) -> OAuthStatus {
         let mut state = self.state.lock().await;
         if state.status() == OAuthStatus::Ready
             && state.tokens.refresh_token().is_none()
             && expires_within(state.tokens.expires_at(), Duration::ZERO)
         {
-            state.require_reauthentication(self.provider);
+            state.require_reauthentication(T::PROVIDER);
         }
         state.status()
-    }
-
-    pub(crate) async fn authenticate(&self, request: &mut HttpRequest) -> Result<()> {
-        self.apply(request, RefreshTrigger::Proactive).await
-    }
-
-    pub(crate) async fn reauthenticate(
-        &self,
-        request: &mut HttpRequest,
-        status: u16,
-    ) -> Result<bool> {
-        // Only an unauthorized response means the token itself was rejected.
-        if status != 401 {
-            return Ok(false);
-        }
-        let rejected = request.bearer_token().map(str::to_owned);
-        self.apply(request, RefreshTrigger::Unauthorized(rejected.as_deref()))
-            .await?;
-        Ok(true)
     }
 
     async fn apply(&self, request: &mut HttpRequest, trigger: RefreshTrigger<'_>) -> Result<()> {
@@ -145,7 +159,7 @@ impl<T: OAuthTokens, R: TokenRefresher<T>> OAuthAuthenticator<T, R> {
                 let (rejected_current, needs_refresh) = match trigger {
                     RefreshTrigger::Proactive => (
                         false,
-                        expires_within(state.tokens.expires_at(), self.expiry_skew),
+                        expires_within(state.tokens.expires_at(), T::EXPIRY_SKEW),
                     ),
                     RefreshTrigger::Unauthorized(rejected) => {
                         let current =
@@ -163,7 +177,7 @@ impl<T: OAuthTokens, R: TokenRefresher<T>> OAuthAuthenticator<T, R> {
                     if pending.is_none() && !needs_refresh {
                         return Ok(state.tokens.clone());
                     }
-                    if let Some(error) = state.cached_refresh_error(self.provider) {
+                    if let Some(error) = state.cached_refresh_error(T::PROVIDER) {
                         if usable {
                             return Ok(state.tokens.clone());
                         }
@@ -172,7 +186,7 @@ impl<T: OAuthTokens, R: TokenRefresher<T>> OAuthAuthenticator<T, R> {
 
                     if let Some(tokens) = pending {
                         let Some(store) = self.token_store.clone() else {
-                            return Err(state.require_reauthentication(self.provider));
+                            return Err(state.require_reauthentication(T::PROVIDER));
                         };
                         let operation = refresh_operation(async move { Ok(tokens) }, Some(store));
                         state.start(operation)
@@ -186,12 +200,12 @@ impl<T: OAuthTokens, R: TokenRefresher<T>> OAuthAuthenticator<T, R> {
                             },
                             self.token_store.clone(),
                         );
-                        log::debug!(target: TARGET, "{} access token requires refresh", self.provider);
+                        log::debug!(target: TARGET, "{} access token requires refresh", T::PROVIDER);
                         state.start(operation)
                     } else if usable {
                         return Ok(state.tokens.clone());
                     } else {
-                        return Err(state.require_reauthentication(self.provider));
+                        return Err(state.require_reauthentication(T::PROVIDER));
                     }
                 };
                 (usable, operation)
@@ -208,7 +222,7 @@ impl<T: OAuthTokens, R: TokenRefresher<T>> OAuthAuthenticator<T, R> {
                         log::warn!(
                             target: TARGET,
                             "{} token refresh failed; using the current token until it expires: {error}",
-                            self.provider
+                            T::PROVIDER
                         );
                         Ok(state.tokens.clone())
                     }
@@ -217,5 +231,23 @@ impl<T: OAuthTokens, R: TokenRefresher<T>> OAuthAuthenticator<T, R> {
                 };
             }
         }
+    }
+}
+
+#[async_trait::async_trait]
+impl<T: OAuthTokens, R: TokenRefresher<T>> RequestAuthenticator for OAuthAuthenticator<T, R> {
+    async fn authenticate(&self, request: &mut HttpRequest) -> Result<()> {
+        self.apply(request, RefreshTrigger::Proactive).await
+    }
+
+    async fn reauthenticate(&self, request: &mut HttpRequest, status: u16) -> Result<bool> {
+        // Only an unauthorized response means the token itself was rejected.
+        if status != 401 {
+            return Ok(false);
+        }
+        let rejected = request.bearer_token().map(str::to_owned);
+        self.apply(request, RefreshTrigger::Unauthorized(rejected.as_deref()))
+            .await?;
+        Ok(true)
     }
 }
