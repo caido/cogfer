@@ -126,8 +126,13 @@ impl ReqwestTransport {
     }
 
     fn build(&self, request: HttpRequest, streaming: bool) -> reqwest::RequestBuilder {
-        let HttpRequest { url, headers, body } = request;
-        let mut builder = self.client.post(url).headers(headers);
+        let HttpRequest {
+            method,
+            url,
+            headers,
+            body,
+        } = request;
+        let mut builder = self.client.request(method, url).headers(headers);
         if !streaming {
             builder = builder.timeout(self.request_timeout);
         }
@@ -267,7 +272,7 @@ mod tests {
     use tokio::io::AsyncWriteExt;
 
     use super::*;
-    use crate::transport::{HeaderMap, HttpTransport};
+    use crate::transport::{HeaderMap, HttpTransport, Method};
 
     async fn serve_once(response: &'static [u8]) -> url::Url {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -315,6 +320,7 @@ mod tests {
 
         let error = transport
             .execute(HttpRequest {
+                method: Method::POST,
                 url,
                 headers: HeaderMap::new(),
                 body: None,
@@ -345,6 +351,7 @@ mod tests {
 
         let error = transport
             .execute(HttpRequest {
+                method: Method::POST,
                 url,
                 headers: HeaderMap::new(),
                 body: None,
@@ -368,6 +375,7 @@ mod tests {
 
         let error = transport
             .execute(HttpRequest {
+                method: Method::POST,
                 url,
                 headers: HeaderMap::new(),
                 body: None,
@@ -399,6 +407,7 @@ mod tests {
 
         let mut stream = transport
             .stream(HttpRequest {
+                method: Method::POST,
                 url,
                 headers: HeaderMap::new(),
                 body: None,
@@ -440,6 +449,7 @@ mod tests {
         let url = url::Url::parse(&format!("http://{addr}/v1")).unwrap();
         let error = transport
             .stream(HttpRequest {
+                method: Method::POST,
                 url,
                 headers: HeaderMap::new(),
                 body: None,

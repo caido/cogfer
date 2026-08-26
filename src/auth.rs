@@ -142,11 +142,13 @@ fn secret_value(secret: &SecretString) -> Result<http::HeaderValue> {
 
 /// Async authentication hook, applied to every outgoing request.
 ///
-/// This is the extension seam for refreshable tokens (e.g. OAuth): implement
-/// it to fetch/refresh a token and set the appropriate headers. When a
-/// provider is configured with an authenticator, it replaces the static
-/// [`Credentials`] header logic. Authentication runs after profile, provider,
-/// and per-request headers, so it has final authority over credential headers.
+/// This is the extension seam for refreshable tokens (e.g. OAuth) and request
+/// signers (e.g. AWS SigV4): implement it to fetch/refresh a credential and set
+/// the appropriate headers. When a provider is configured with an
+/// authenticator, it replaces the static [`Credentials`] header logic.
+/// Authentication runs last, after profile, provider, and per-request headers
+/// and after the body is final, so it has final authority over credential
+/// headers and can sign the complete request.
 #[async_trait::async_trait]
 pub trait RequestAuthenticator: Send + Sync + fmt::Debug {
     /// Authenticate a fully prepared request before it is sent.
@@ -161,14 +163,15 @@ pub trait RequestAuthenticator: Send + Sync + fmt::Debug {
 
     /// Recover once after the provider rejects the prepared credentials.
     ///
-    /// Called only for an HTTP 401 received before any response output. The
-    /// request contains the rejected credential headers. Return `true` only
-    /// after replacing them and when retrying the request once is safe.
+    /// Called only for an HTTP 401 or 403 `status` received before any
+    /// response output. The request contains the rejected credential headers.
+    /// Return `true` only after replacing them and when retrying the request
+    /// once is safe.
     ///
     /// # Errors
     ///
     /// Returns an error when recovery or credential refresh fails.
-    async fn reauthenticate(&self, _request: &mut HttpRequest) -> Result<bool> {
+    async fn reauthenticate(&self, _request: &mut HttpRequest, _status: u16) -> Result<bool> {
         Ok(false)
     }
 }

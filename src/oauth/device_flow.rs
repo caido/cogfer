@@ -15,7 +15,7 @@ use url::Url;
 use super::DevicePoll;
 use super::refresh::DEAD_REFRESH_TOKEN_CODES;
 use crate::error::{Error, ErrorKind, Result};
-use crate::transport::{HeaderMap, HeaderValue, header};
+use crate::transport::{HeaderMap, HeaderValue, Method, header};
 use crate::transport::{HttpRequest, HttpResponse, HttpTransport};
 
 pub(crate) fn require_response_field(
@@ -72,6 +72,7 @@ pub(crate) async fn post_form(
         .extend_pairs(pairs)
         .finish();
     let request = HttpRequest {
+        method: Method::POST,
         url,
         headers: HeaderMap::from_iter([
             (header::ACCEPT, HeaderValue::from_static("application/json")),

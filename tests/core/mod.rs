@@ -146,3 +146,82 @@ async fn provider_options_must_be_objects() {
     );
     assert!(mock.requests().is_empty());
 }
+
+/// A request signer that stamps a generation counter, standing in for a
+/// signature that must be recomputed when the provider rejects it.
+#[derive(Debug, Default)]
+struct CountingSigner {
+    signatures: std::sync::atomic::AtomicU32,
+}
+
+#[async_trait::async_trait]
+impl caido_ai::RequestAuthenticator for CountingSigner {
+    async fn authenticate(
+        &self,
+        request: &mut caido_ai::transport::HttpRequest,
+    ) -> caido_ai::Result<()> {
+        let generation = self
+            .signatures
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst)
+            + 1;
+        request.headers.insert(
+            caido_ai::transport::HeaderName::from_static("x-signature"),
+            caido_ai::transport::HeaderValue::from_str(&format!("v{generation}")).unwrap(),
+        );
+        Ok(())
+    }
+
+    async fn reauthenticate(
+        &self,
+        request: &mut caido_ai::transport::HttpRequest,
+        status: u16,
+    ) -> caido_ai::Result<bool> {
+        if status != 403 {
+            return Ok(false);
+        }
+        self.authenticate(request).await?;
+        Ok(true)
+    }
+}
+
+#[tokio::test]
+async fn signers_recover_from_a_forbidden_response() {
+    use caido_ai::transport::mock::MockTransport;
+    use caido_ai::{Credentials, ProviderConfig};
+
+    let mock = MockTransport::shared();
+    mock.push_json(403, &serde_json::json!({"message": "signature expired"}));
+    mock.push_json(
+        200,
+        &serde_json::json!({
+            "id": "resp_1", "object": "response", "status": "completed", "model": "m",
+            "output": [{"type": "message", "id": "msg_1", "status": "completed", "role": "assistant",
+                        "content": [{"type": "output_text", "text": "ok", "annotations": []}]}],
+            "usage": {"input_tokens": 1, "output_tokens": 1, "total_tokens": 2}
+        }),
+    );
+    let provider = crate::common::provider_with(
+        &mock,
+        ProviderConfig::openai_responses(Credentials::none())
+            .with_authenticator(std::sync::Arc::new(CountingSigner::default())),
+    );
+
+    let result = provider
+        .language_model("m")
+        .generate(crate::common::text_request("hi"))
+        .await
+        .expect("the re-signed request succeeds");
+
+    assert_eq!(result.text(), "ok");
+    let requests = mock.requests();
+    assert_eq!(requests.len(), 2);
+    assert_eq!(requests[0].method, caido_ai::transport::Method::POST);
+    assert_eq!(
+        crate::common::header(&requests[0], "x-signature"),
+        Some("v1")
+    );
+    assert_eq!(
+        crate::common::header(&requests[1], "x-signature"),
+        Some("v2")
+    );
+}

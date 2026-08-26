@@ -82,7 +82,8 @@ fn trace_wire_request(http: &HttpRequest) {
     let header_names: Vec<_> = http.headers.keys().map(HeaderName::as_str).collect();
     log::trace!(
         target: TARGET,
-        "wire request: method=POST url={} query_present={} headers={header_names:?} body_bytes={}",
+        "wire request: method={} url={} query_present={} headers={header_names:?} body_bytes={}",
+        http.method,
         sanitized_url(&http.url),
         http.url.query().is_some(),
         http.body.as_ref().map_or(0, Bytes::len),
@@ -147,14 +148,16 @@ async fn authentication_retry(
     let Some(mut request) = request else {
         return Ok(None);
     };
-    if status != 401 {
+    // Rejected credentials: 401 from OAuth-style bearers, 403 from request
+    // signers such as AWS SigV4.
+    if !matches!(status, 401 | 403) {
         return Ok(None);
     }
     let Authentication::Authenticator(authenticator) = provider.inner.config.authentication()
     else {
         return Ok(None);
     };
-    if authenticator.reauthenticate(&mut request).await? {
+    if authenticator.reauthenticate(&mut request, status).await? {
         Ok(Some(request))
     } else {
         Ok(None)

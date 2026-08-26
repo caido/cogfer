@@ -14,6 +14,7 @@ use std::fmt;
 
 use bytes::Bytes;
 use futures_util::stream::BoxStream;
+pub use http::Method;
 pub use http::header::{self, HeaderMap, HeaderName, HeaderValue};
 #[cfg(feature = "reqwest-transport")]
 pub use reqwest_transport::{ReqwestTransport, install_default_crypto_provider};
@@ -22,9 +23,10 @@ use url::Url;
 use crate::error::Result;
 use crate::http::redact_headers;
 
-/// A neutral HTTP POST request.
+/// A neutral HTTP request.
 #[derive(Clone)]
 pub struct HttpRequest {
+    pub method: Method,
     /// Fully resolved endpoint URL.
     pub url: Url,
     pub headers: HeaderMap,
@@ -48,6 +50,7 @@ impl HttpRequest {
             HeaderValue::from_static("application/json"),
         );
         Ok(Self {
+            method: Method::POST,
             url,
             headers,
             body: Some(Bytes::from(body)),
@@ -68,6 +71,7 @@ impl fmt::Debug for HttpRequest {
         let headers = redact_headers(&self.headers);
         let url = crate::http::sanitized_url(&self.url);
         f.debug_struct("HttpRequest")
+            .field("method", &self.method)
             .field("url", &url)
             .field("headers", &headers)
             .field("body_len", &self.body.as_ref().map(Bytes::len))

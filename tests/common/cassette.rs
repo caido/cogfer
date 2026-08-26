@@ -240,6 +240,7 @@ mod tests {
         let mock = MockTransport::new();
         loaded.queue(&mock);
         let request = caido_ai::transport::HttpRequest {
+            method: caido_ai::transport::Method::POST,
             url: Url::parse("https://example.test/v1/responses").unwrap(),
             headers: HeaderMap::new(),
             body: None,

@@ -47,10 +47,7 @@ async fn authenticator_sends_bearer_without_needless_refresh() {
         .expect("generate succeeds");
 
     let http = &mock.requests()[0];
-    assert_eq!(
-        header(http, "authorization"),
-        Some("Bearer fresh-access")
-    );
+    assert_eq!(header(http, "authorization"), Some("Bearer fresh-access"));
     assert_eq!(header(http, "x-static-auth"), None);
     assert!(
         auth_transport.requests().is_empty(),
@@ -100,10 +97,7 @@ async fn authenticator_refreshes_expiring_tokens_and_reports_them() {
     assert!(form.contains("refresh_token=refresh-1"));
 
     let http = &mock.requests()[0];
-    assert_eq!(
-        header(http, "authorization"),
-        Some("Bearer access-2")
-    );
+    assert_eq!(header(http, "authorization"), Some("Bearer access-2"));
 
     let saved = store.saved().expect("refreshed tokens persisted");
     assert_eq!(saved.access_token, "access-2");
@@ -247,6 +241,37 @@ async fn unauthorized_recovery_retries_only_once() {
 }
 
 #[tokio::test]
+async fn forbidden_responses_do_not_refresh_tokens() {
+    let mock = MockTransport::shared();
+    mock.push_json(
+        403,
+        &json!({"error": {"message": "no access to this model", "type": "permission_error"}}),
+    );
+    let auth_transport = MockTransport::shared();
+    auth_transport.push_json(
+        200,
+        &json!({"access_token": "access-2", "refresh_token": "refresh-2", "expires_in": 3600}),
+    );
+    let mut tokens = XaiTokens::new("access-1").with_refresh_token("refresh-1");
+    tokens.expires_at = Some(now() + 3600);
+    let authenticator = XaiAuthenticator::new(tokens, XaiOAuth::new(auth_transport.clone()));
+    let provider = provider_with(
+        &mock,
+        ProviderConfig::xai(Credentials::none()).with_authenticator(Arc::new(authenticator)),
+    );
+
+    let error = provider
+        .language_model("grok-4.5")
+        .generate(text_request("hi"))
+        .await
+        .expect_err("a forbidden response is not recoverable by refreshing");
+
+    assert_eq!(error.kind(), ErrorKind::Permission);
+    assert_eq!(mock.requests().len(), 1, "no retry");
+    assert!(auth_transport.requests().is_empty(), "no refresh");
+}
+
+#[tokio::test]
 async fn stale_unauthorized_request_reuses_the_new_token_generation() {
     let auth_transport = MockTransport::shared();
     auth_transport.push_json(
@@ -266,13 +291,13 @@ async fn stale_unauthorized_request_reuses_the_new_token_generation() {
     authenticator.authenticate(&mut first).await.unwrap();
     authenticator.authenticate(&mut second).await.unwrap();
 
-    authenticator.reauthenticate(&mut first).await.unwrap();
-    authenticator.reauthenticate(&mut second).await.unwrap();
+    authenticator.reauthenticate(&mut first, 401).await.unwrap();
+    authenticator
+        .reauthenticate(&mut second, 401)
+        .await
+        .unwrap();
 
-    assert_eq!(
-        header(&second, "authorization"),
-        Some("Bearer access-2")
-    );
+    assert_eq!(header(&second, "authorization"), Some("Bearer access-2"));
     assert_eq!(auth_transport.requests().len(), 1);
 }
 
@@ -320,10 +345,7 @@ async fn failed_proactive_refresh_falls_back_to_the_valid_token() {
 
     assert_eq!(auth_transport.requests().len(), 1);
     for http in mock.requests() {
-        assert_eq!(
-            header(&http, "authorization"),
-            Some("Bearer access-1")
-        );
+        assert_eq!(header(&http, "authorization"), Some("Bearer access-1"));
     }
     assert_eq!(authenticator.status().await, OAuthStatus::TransientFailure);
 }

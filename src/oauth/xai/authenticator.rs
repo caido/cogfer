@@ -76,8 +76,8 @@ impl RequestAuthenticator for XaiAuthenticator {
         self.inner.authenticate(request).await
     }
 
-    async fn reauthenticate(&self, request: &mut HttpRequest) -> Result<bool> {
-        self.inner.reauthenticate(request).await
+    async fn reauthenticate(&self, request: &mut HttpRequest, status: u16) -> Result<bool> {
+        self.inner.reauthenticate(request, status).await
     }
 }
 

@@ -117,7 +117,15 @@ impl<T: OAuthTokens, R: TokenRefresher<T>> OAuthAuthenticator<T, R> {
         self.apply(request, RefreshTrigger::Proactive).await
     }
 
-    pub(crate) async fn reauthenticate(&self, request: &mut HttpRequest) -> Result<bool> {
+    pub(crate) async fn reauthenticate(
+        &self,
+        request: &mut HttpRequest,
+        status: u16,
+    ) -> Result<bool> {
+        // Only an unauthorized response means the token itself was rejected.
+        if status != 401 {
+            return Ok(false);
+        }
         let rejected = request.bearer_token().map(str::to_owned);
         self.apply(request, RefreshTrigger::Unauthorized(rejected.as_deref()))
             .await?;
