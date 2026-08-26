@@ -18,7 +18,7 @@ use serde_json::{Value, json};
 
 use crate::common::provider_with;
 
-const PROFILES: [ApiProfile; 8] = [
+const PROFILES: [ApiProfile; 9] = [
     ApiProfile::OpenAiResponses,
     ApiProfile::OpenAiChatCompletions,
     ApiProfile::OpenRouter,
@@ -26,6 +26,7 @@ const PROFILES: [ApiProfile; 8] = [
     ApiProfile::XaiResponses,
     ApiProfile::XaiChatCompletions,
     ApiProfile::AnthropicMessages,
+    ApiProfile::BedrockAnthropic,
     ApiProfile::GeminiGenerateContent,
 ];
 
@@ -62,7 +63,7 @@ fn queue_success(mock: &MockTransport, profile: ApiProfile) {
                 }),
             );
         }
-        ApiProfile::AnthropicMessages => mock.push_json(
+        ApiProfile::AnthropicMessages | ApiProfile::BedrockAnthropic => mock.push_json(
             200,
             &json!({
                 "id": "msg_1", "type": "message", "role": "assistant", "model": "m",

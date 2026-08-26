@@ -20,7 +20,8 @@ use crate::protocols::{
 };
 use crate::response::GenerateResult;
 use crate::stream::{StreamAccumulator, StreamNormalizer};
-use crate::transport::sse::{SseFrame, SseParser};
+use crate::transport::framing::{FrameSource, StreamFrame};
+use crate::transport::sse::SseParser;
 use crate::transport::{HeaderMap, HeaderName, HeaderValue, header};
 use crate::transport::{HttpRequest, HttpResponse};
 
@@ -103,7 +104,7 @@ impl ProtocolHandler for Handler {
 /// Chunking matters because the parser bounds one line, not the total body.
 /// A single push of a large transcript could otherwise look like an oversized
 /// line.
-fn transcript_frames(body: &[u8]) -> Result<Vec<SseFrame>> {
+fn transcript_frames(body: &[u8]) -> Result<Vec<StreamFrame>> {
     let mut parser = SseParser::new();
     let mut frames = Vec::new();
     for chunk in body.chunks(64 * 1024) {
@@ -126,7 +127,7 @@ fn transcript_frames(body: &[u8]) -> Result<Vec<SseFrame>> {
 /// Find the terminal response object (`response.completed` / `.failed` /
 /// `.incomplete`, whose status [`decode_response_object`] translates) and
 /// any top-level `error` event in the transcript.
-fn scan_terminal(frames: &[SseFrame]) -> Result<(Option<ResponseObject>, Option<Error>)> {
+fn scan_terminal(frames: &[StreamFrame]) -> Result<(Option<ResponseObject>, Option<Error>)> {
     let mut stream_error: Option<Error> = None;
     let mut terminal: Option<ResponseObject> = None;
     for frame in frames {
@@ -159,7 +160,7 @@ fn scan_terminal(frames: &[SseFrame]) -> Result<(Option<ResponseObject>, Option<
 }
 
 /// Build a blocking result by replaying the transcript through the stream decoder.
-fn reconstruct_from_transcript(frames: Vec<SseFrame>) -> Result<GenerateResult> {
+fn reconstruct_from_transcript(frames: Vec<StreamFrame>) -> Result<GenerateResult> {
     let mut decoder = ResponsesStreamDecoder::new(ApiProfile::ChatGptResponses);
     let mut normalizer = StreamNormalizer::new(false);
     let mut events = Vec::new();

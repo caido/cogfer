@@ -208,6 +208,18 @@ impl ModelCapabilities {
                 frequency_penalty: false,
                 ..full
             },
+            ApiProfile::BedrockAnthropic => Self {
+                reasoning: ReasoningSupport {
+                    efforts: vec![Low, Medium, High, Max],
+                    budget: true,
+                    disable: true,
+                    output: true,
+                },
+                seed: false,
+                presence_penalty: false,
+                frequency_penalty: false,
+                ..full
+            },
             ApiProfile::GeminiGenerateContent => Self {
                 reasoning: ReasoningSupport {
                     efforts: vec![Minimal, Low, Medium, High],

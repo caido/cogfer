@@ -1,13 +1,14 @@
 use serde_json::{Value, json};
 
+use super::AnthropicDialect;
 use crate::error::{Error, ErrorKind, Result};
-use crate::http::join_url;
+use crate::http::{join_url, uri_encode};
 use crate::message::{AssistantPart, Message, ReasoningContent, ReasoningPart, ToolCall, UserPart};
 use crate::protocols::{LoweredRequest, ProtocolContext, ResolvedReasoning, resolve_reasoning};
 use crate::request::{ReasoningOutput, Request, ToolChoice};
 use crate::response::Warning;
 use crate::transport::HttpRequest;
-use crate::transport::{HeaderName, HeaderValue};
+use crate::transport::{HeaderName, HeaderValue, header};
 
 /// Anthropic's `max_tokens` is mandatory. This is the value used when the
 /// caller leaves the output cap to the SDK.
@@ -346,6 +347,7 @@ fn lower_sampling(
 pub(crate) fn lower_anthropic_request(
     ctx: &ProtocolContext<'_>,
     streaming: bool,
+    dialect: AnthropicDialect,
 ) -> Result<LoweredRequest> {
     let mut warnings = Vec::new();
     let request = ctx.request;
@@ -360,11 +362,23 @@ pub(crate) fn lower_anthropic_request(
     let max_tokens = effective_max_tokens(request, reasoning.map(|(resolved, _)| resolved));
 
     let mut body = json!({
-        "model": ctx.model,
         "max_tokens": max_tokens,
         "messages": lower_messages(request)?,
     });
     let object = body.as_object_mut().expect("body is an object");
+    match dialect {
+        AnthropicDialect::Direct => {
+            object.insert("model".into(), json!(ctx.model));
+        }
+        // Bedrock names the model in the URL and versions the body instead
+        // of the request.
+        AnthropicDialect::Bedrock => {
+            object.insert(
+                "anthropic_version".into(),
+                json!(super::bedrock::ANTHROPIC_VERSION),
+            );
+        }
+    }
 
     if let Some(system) = request.system_prompt() {
         object.insert("system".into(), json!(system));
@@ -390,24 +404,41 @@ pub(crate) fn lower_anthropic_request(
             ));
         }
     }
-    if streaming {
+    // Bedrock selects streaming by endpoint rather than a body flag.
+    if streaming && dialect == AnthropicDialect::Direct {
         object.insert("stream".into(), json!(true));
+    }
+    if dialect == AnthropicDialect::Bedrock && !beta_features.is_empty() {
+        object.insert("anthropic_beta".into(), json!(beta_features));
     }
     if let Some(options) = request.provider_options.get("anthropic") {
         crate::util::json_merge(&mut body, options.clone());
     }
 
-    let mut http = HttpRequest::post_json(join_url(ctx.base_url, "messages"), &body)?;
-    http.headers.insert(
-        HeaderName::from_static("anthropic-version"),
-        HeaderValue::from_static("2023-06-01"),
-    );
-    if !beta_features.is_empty() {
-        http.headers.insert(
-            HeaderName::from_static("anthropic-beta"),
-            HeaderValue::from_str(&beta_features.join(","))
-                .expect("beta feature names are valid header values"),
-        );
-    }
+    let http = match dialect {
+        AnthropicDialect::Direct => {
+            let mut http = HttpRequest::post_json(join_url(ctx.base_url, "messages"), &body)?;
+            http.headers.insert(
+                HeaderName::from_static("anthropic-version"),
+                HeaderValue::from_static("2023-06-01"),
+            );
+            if !beta_features.is_empty() {
+                http.headers.insert(
+                    HeaderName::from_static("anthropic-beta"),
+                    HeaderValue::from_str(&beta_features.join(","))
+                        .expect("beta feature names are valid header values"),
+                );
+            }
+            http
+        }
+        AnthropicDialect::Bedrock => {
+            let operation = if streaming { "invoke-with-response-stream" } else { "invoke" };
+            let path = format!("model/{}/{operation}", uri_encode(ctx.model, true));
+            let mut http = HttpRequest::post_json(join_url(ctx.base_url, &path), &body)?;
+            http.headers
+                .insert(header::ACCEPT, HeaderValue::from_static("application/json"));
+            http
+        }
+    };
     Ok(LoweredRequest { http, warnings })
 }

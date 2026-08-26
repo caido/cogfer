@@ -7,7 +7,8 @@ use crate::error::{Error, Result};
 use crate::request::Request;
 use crate::response::{GenerateResult, Warning};
 use crate::stream::{StreamEvent, StreamNormalizer};
-use crate::transport::sse::SseFrame;
+use crate::transport::framing::{FrameSource, StreamFrame};
+use crate::transport::sse::SseParser;
 use crate::transport::{HeaderMap, HttpRequest, HttpResponse};
 
 pub(crate) struct ProtocolContext<'a> {
@@ -38,6 +39,12 @@ pub(crate) trait ProtocolHandler: Send + Sync {
 
     fn new_stream_decoder(&self, ctx: &ProtocolContext<'_>) -> Box<dyn StreamDecoder>;
 
+    /// How the streamed body is split into frames. Server-Sent Events unless
+    /// the profile overrides it.
+    fn new_frame_source(&self) -> Box<dyn FrameSource> {
+        Box::new(SseParser::new())
+    }
+
     fn apply_auth(&self, request: &mut HttpRequest, credentials: &Credentials) -> Result<()> {
         credentials.apply_bearer(request)
     }
@@ -46,7 +53,7 @@ pub(crate) trait ProtocolHandler: Send + Sync {
 pub(crate) trait StreamDecoder: Send {
     fn on_frame(
         &mut self,
-        frame: SseFrame,
+        frame: StreamFrame,
         normalizer: &mut StreamNormalizer,
         out: &mut Vec<StreamEvent>,
     ) -> Result<()>;
@@ -62,7 +69,8 @@ pub(crate) fn handler(profile: ApiProfile) -> &'static dyn ProtocolHandler {
         ApiProfile::XaiChatCompletions => &super::openai::chat::Handler::XAI,
         ApiProfile::OpenRouter => &super::openai::chat::Handler::OPENROUTER,
         ApiProfile::ChatGptResponses => &super::openai::responses::chatgpt::Handler,
-        ApiProfile::AnthropicMessages => &super::anthropic::Handler,
+        ApiProfile::AnthropicMessages => &super::anthropic::Handler::DIRECT,
+        ApiProfile::BedrockAnthropic => &super::anthropic::Handler::BEDROCK,
         ApiProfile::GeminiGenerateContent => &super::gemini::Handler,
     }
 }

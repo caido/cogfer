@@ -10,7 +10,7 @@ use crate::metadata::ProviderMetadata;
 use crate::protocols::StreamDecoder;
 use crate::response::{Finish, FinishReason, ResponseMetadata};
 use crate::stream::{Citation, StreamEvent, StreamNormalizer};
-use crate::transport::sse::SseFrame;
+use crate::transport::framing::StreamFrame;
 
 const TEXT_BLOCK: &str = "t0";
 const REASONING_BLOCK: &str = "r0";
@@ -251,7 +251,7 @@ impl GeminiStreamDecoder {
 impl StreamDecoder for GeminiStreamDecoder {
     fn on_frame(
         &mut self,
-        frame: SseFrame,
+        frame: StreamFrame,
         normalizer: &mut StreamNormalizer,
         out: &mut Vec<StreamEvent>,
     ) -> Result<()> {

@@ -10,6 +10,7 @@
 mod common;
 
 mod anthropic;
+mod bedrock;
 mod capabilities;
 mod chatgpt;
 mod core;

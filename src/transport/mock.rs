@@ -5,6 +5,7 @@ use std::sync::{Arc, Mutex};
 
 use bytes::Bytes;
 
+use super::event_stream;
 use super::{
     HeaderMap, HeaderValue, HttpByteStream, HttpRequest, HttpResponse, HttpTransport, header,
 };
@@ -94,6 +95,66 @@ impl MockTransport {
                 chunks,
                 error_after: None,
             });
+    }
+
+    /// Queue an AWS event stream (`application/vnd.amazon.eventstream`), one
+    /// message per entry: `(event type, payload)` for events, delivered one
+    /// message per chunk. Bedrock wraps each model event as
+    /// `{"bytes": base64}` under the `chunk` event type.
+    pub fn push_event_stream(&self, events: &[(&str, &[u8])]) {
+        let chunks = events
+            .iter()
+            .map(|&(event_type, payload)| {
+                Bytes::from(event_stream::encode_message(
+                    &[
+                        (":event-type", event_type),
+                        (":content-type", "application/json"),
+                        (":message-type", "event"),
+                    ],
+                    payload,
+                ))
+            })
+            .collect();
+        self.push_stream_chunks(
+            200,
+            content_type("application/vnd.amazon.eventstream"),
+            chunks,
+        );
+    }
+
+    /// Queue an AWS event stream that ends with an exception message.
+    pub fn push_event_stream_then_exception(
+        &self,
+        events: &[(&str, &[u8])],
+        exception_type: &str,
+        payload: &[u8],
+    ) {
+        let mut chunks: Vec<Bytes> = events
+            .iter()
+            .map(|&(event_type, payload)| {
+                Bytes::from(event_stream::encode_message(
+                    &[
+                        (":event-type", event_type),
+                        (":content-type", "application/json"),
+                        (":message-type", "event"),
+                    ],
+                    payload,
+                ))
+            })
+            .collect();
+        chunks.push(Bytes::from(event_stream::encode_message(
+            &[
+                (":exception-type", exception_type),
+                (":content-type", "application/json"),
+                (":message-type", "exception"),
+            ],
+            payload,
+        )));
+        self.push_stream_chunks(
+            200,
+            content_type("application/vnd.amazon.eventstream"),
+            chunks,
+        );
     }
 
     /// Queue a streaming response with exact byte chunks.

@@ -3,6 +3,8 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use crate::util::base64_decode;
+
 /// A ChatGPT OAuth token set.
 ///
 /// Serialization exposes secrets for persistence. `Debug` output is redacted.
@@ -79,7 +81,7 @@ impl fmt::Debug for ChatGptTokens {
 /// Decode metadata from a TLS-issued JWT without verifying its signature.
 fn jwt_claims(token: &str) -> Option<Value> {
     let payload = token.split('.').nth(1)?;
-    let bytes = base64url_decode(payload)?;
+    let bytes = base64_decode(payload, true)?;
     serde_json::from_slice(&bytes).ok()
 }
 
@@ -89,36 +91,6 @@ fn account_id_claim(token: &str) -> Option<String> {
         .get("chatgpt_account_id")?
         .as_str()
         .map(str::to_owned)
-}
-
-/// Decode URL-safe base64 while tolerating optional padding.
-fn base64url_decode(input: &str) -> Option<Vec<u8>> {
-    fn value(byte: u8) -> Option<u32> {
-        match byte {
-            b'A'..=b'Z' => Some((byte - b'A') as u32),
-            b'a'..=b'z' => Some((byte - b'a' + 26) as u32),
-            b'0'..=b'9' => Some((byte - b'0' + 52) as u32),
-            b'-' => Some(62),
-            b'_' => Some(63),
-            _ => None,
-        }
-    }
-
-    let input = input.trim_end_matches('=').as_bytes();
-    let mut output = Vec::with_capacity(input.len() * 3 / 4);
-    for chunk in input.chunks(4) {
-        if chunk.len() == 1 {
-            return None;
-        }
-        let mut buffer: u32 = 0;
-        for byte in chunk {
-            buffer = (buffer << 6) | value(*byte)?;
-        }
-        buffer <<= 6 * (4 - chunk.len()) as u32;
-        let bytes = buffer.to_be_bytes();
-        output.extend_from_slice(&bytes[1..chunk.len()]);
-    }
-    Some(output)
 }
 
 #[cfg(test)]
@@ -169,7 +141,7 @@ mod tests {
         ] {
             let encoded = unpadded_base64url(input);
             assert_eq!(
-                base64url_decode(&encoded).as_deref(),
+                base64_decode(&encoded, true).as_deref(),
                 Some(input),
                 "round trip failed for {input:?} via {encoded:?}"
             );
@@ -178,9 +150,9 @@ mod tests {
 
     #[test]
     fn base64url_rejects_invalid_input() {
-        assert_eq!(base64url_decode("a"), None);
-        assert_eq!(base64url_decode("ab!c"), None);
-        assert_eq!(base64url_decode("a+/b"), None);
+        assert_eq!(base64_decode("a", true), None);
+        assert_eq!(base64_decode("ab!c", true), None);
+        assert_eq!(base64_decode("a+/b", true), None);
     }
 
     #[test]

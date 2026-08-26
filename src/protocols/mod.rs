@@ -46,6 +46,9 @@ pub enum ApiProfile {
     XaiChatCompletions,
     /// Anthropic Messages API (`POST {base}/messages`).
     AnthropicMessages,
+    /// Anthropic models on Amazon Bedrock
+    /// (`POST {base}/model/{model}/invoke[-with-response-stream]`).
+    BedrockAnthropic,
     /// Gemini GenerateContent API.
     GeminiGenerateContent,
 }
@@ -61,6 +64,7 @@ impl ApiProfile {
             ApiProfile::XaiResponses => "xai-responses",
             ApiProfile::XaiChatCompletions => "xai-chat",
             ApiProfile::AnthropicMessages => "anthropic",
+            ApiProfile::BedrockAnthropic => "bedrock-anthropic",
             ApiProfile::GeminiGenerateContent => "gemini",
         }
     }
@@ -74,12 +78,16 @@ impl ApiProfile {
             | ApiProfile::XaiResponses
             | ApiProfile::XaiChatCompletions => "openai",
             ApiProfile::OpenRouter => "openrouter",
-            ApiProfile::AnthropicMessages => "anthropic",
+            ApiProfile::AnthropicMessages | ApiProfile::BedrockAnthropic => "anthropic",
             ApiProfile::GeminiGenerateContent => "gemini",
         }
     }
 
     /// The official endpoint used when no custom base URL is configured.
+    ///
+    /// Bedrock endpoints are regional; this is `us-east-1`, and
+    /// [`ProviderConfig::bedrock_anthropic`](crate::ProviderConfig::bedrock_anthropic)
+    /// derives the right one from a region.
     pub fn default_base_url(self) -> &'static str {
         match self {
             ApiProfile::OpenAiResponses | ApiProfile::OpenAiChatCompletions => {
@@ -89,6 +97,7 @@ impl ApiProfile {
             ApiProfile::ChatGptResponses => "https://chatgpt.com/backend-api/codex",
             ApiProfile::XaiResponses | ApiProfile::XaiChatCompletions => "https://api.x.ai/v1",
             ApiProfile::AnthropicMessages => "https://api.anthropic.com/v1",
+            ApiProfile::BedrockAnthropic => "https://bedrock-runtime.us-east-1.amazonaws.com",
             ApiProfile::GeminiGenerateContent => "https://generativelanguage.googleapis.com/v1beta",
         }
     }

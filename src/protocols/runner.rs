@@ -13,7 +13,7 @@ use crate::provider::{Authentication, Provider};
 use crate::request::Request;
 use crate::response::{GenerateResult, ResponseMetadata, Warning};
 use crate::stream::{EventStream, StreamEvent, StreamNormalizer};
-use crate::transport::sse::SseParser;
+use crate::transport::framing::FrameSource;
 use crate::transport::{
     HeaderMap, HeaderName, HeaderValue, HttpByteStream, HttpRequest, HttpResponse, header,
 };
@@ -357,12 +357,12 @@ pub(crate) async fn stream(
     });
     let state = StreamState {
         bytes: byte_stream.bytes,
-        parser: SseParser::new(),
+        parser: handler.new_frame_source(),
         decoder,
         normalizer,
         queue,
         exhausted: false,
-        reported_invalid_utf8: false,
+        reported_corruption: false,
     };
 
     let stream = futures_util::stream::unfold(state, StreamState::next_event);
@@ -385,12 +385,12 @@ fn is_json_body(headers: &HeaderMap) -> bool {
 
 struct StreamState {
     bytes: futures_util::stream::BoxStream<'static, Result<Bytes>>,
-    parser: SseParser,
+    parser: Box<dyn FrameSource>,
     decoder: Box<dyn StreamDecoder>,
     normalizer: StreamNormalizer,
     queue: VecDeque<StreamEvent>,
     exhausted: bool,
-    reported_invalid_utf8: bool,
+    reported_corruption: bool,
 }
 
 impl StreamState {
@@ -408,7 +408,7 @@ impl StreamState {
                 Some(Ok(chunk)) => {
                     let frames = self.parser.push(&chunk);
                     for frame in frames {
-                        log::trace!(target: TARGET, "sse frame: data_bytes={}", frame.data.len());
+                        log::trace!(target: TARGET, "stream frame: data_bytes={}", frame.data.len());
                         if let Err(error) =
                             self.decoder.on_frame(frame, &mut self.normalizer, &mut out)
                         {
@@ -442,7 +442,7 @@ impl StreamState {
                     if let Some(frame) = &final_frame {
                         log::trace!(
                             target: TARGET,
-                            "sse frame (final): data_bytes={}",
+                            "stream frame (final): data_bytes={}",
                             frame.data.len(),
                         );
                     }
@@ -471,20 +471,16 @@ impl StreamState {
         }
     }
 
-    /// When the SSE parser has flagged corruption, emit the terminal error
+    /// When the frame source has flagged corruption, emit the terminal error
     /// sequence once and exhaust the stream. Returns whether it fired.
     fn report_corruption(&mut self, out: &mut Vec<StreamEvent>) -> bool {
-        if (!self.parser.saw_invalid_utf8() && !self.parser.overflowed())
-            || self.reported_invalid_utf8
-        {
+        let Some(message) = self.parser.corruption() else {
+            return false;
+        };
+        if self.reported_corruption {
             return false;
         }
-        self.reported_invalid_utf8 = true;
-        let message = if self.parser.overflowed() {
-            "provider stream exceeded the maximum SSE frame size"
-        } else {
-            "provider stream contained invalid UTF-8; output would be corrupted"
-        };
+        self.reported_corruption = true;
         self.normalizer.fail(out, Error::malformed(message));
         self.exhausted = true;
         true

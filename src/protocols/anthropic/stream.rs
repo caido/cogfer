@@ -11,7 +11,7 @@ use crate::metadata::ProviderMetadata;
 use crate::protocols::{ApiProfile, StreamDecoder};
 use crate::response::{Finish, FinishReason, ResponseMetadata};
 use crate::stream::{Citation, StreamEvent, StreamNormalizer};
-use crate::transport::sse::SseFrame;
+use crate::transport::framing::StreamFrame;
 
 /// The block's own id (`server_tool_use`) or the id of the call it answers
 /// (`*_tool_result`).
@@ -505,7 +505,7 @@ impl AnthropicStreamDecoder {
 impl StreamDecoder for AnthropicStreamDecoder {
     fn on_frame(
         &mut self,
-        frame: SseFrame,
+        frame: StreamFrame,
         normalizer: &mut StreamNormalizer,
         out: &mut Vec<StreamEvent>,
     ) -> Result<()> {

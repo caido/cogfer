@@ -12,12 +12,7 @@
 //! rather than at end of stream, dispatching a final frame that lacks its
 //! terminating blank line, and errors that never echo response bytes.
 
-/// One parsed SSE frame.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct SseFrame {
-    /// The joined `data:` payload.
-    pub(crate) data: String,
-}
+use super::framing::{FrameSource, StreamFrame};
 
 /// Maximum bytes buffered for one unterminated SSE line. Provider frames are
 /// much smaller. The limit prevents unbounded growth when line breaks vanish.
@@ -55,8 +50,67 @@ impl SseParser {
         Self::default()
     }
 
+    /// Whether any line so far contained invalid UTF-8.
+    pub(crate) fn saw_invalid_utf8(&self) -> bool {
+        self.invalid_utf8
+    }
+
+    /// Whether a line or accumulated frame exceeded its limit and was discarded.
+    pub(crate) fn overflowed(&self) -> bool {
+        self.overflowed
+    }
+
+    fn process_line(&mut self, line: &str) -> Option<StreamFrame> {
+        if line.is_empty() {
+            return self.dispatch();
+        }
+        if line.starts_with(':') {
+            // OpenRouter sends comment keepalives while generation is pending.
+            return None;
+        }
+        let (field, value) = match line.split_once(':') {
+            Some((field, value)) => (field, value.strip_prefix(' ').unwrap_or(value)),
+            None => (line, ""),
+        };
+        // `event:`, `id:` and `retry:` are ignored.
+        if field != "data" {
+            return None;
+        }
+        let separator = usize::from(self.has_data);
+        let next_bytes = self
+            .data_bytes
+            .saturating_add(separator)
+            .saturating_add(value.len());
+        if next_bytes > MAX_FRAME_BYTES {
+            self.overflowed = true;
+            self.data.clear();
+            self.has_data = false;
+            self.data_bytes = 0;
+            return None;
+        }
+        self.data_bytes = next_bytes;
+        if self.has_data {
+            self.data.push('\n');
+        }
+        self.data.push_str(value);
+        self.has_data = true;
+        None
+    }
+
+    fn dispatch(&mut self) -> Option<StreamFrame> {
+        if !self.has_data {
+            return None;
+        }
+        self.data_bytes = 0;
+        self.has_data = false;
+        let data = std::mem::take(&mut self.data);
+        Some(StreamFrame::data(data))
+    }
+}
+
+impl FrameSource for SseParser {
     /// Push bytes and return every frame completed by the chunk.
-    pub(crate) fn push(&mut self, bytes: &[u8]) -> Vec<SseFrame> {
+    fn push(&mut self, bytes: &[u8]) -> Vec<StreamFrame> {
         if self.invalid_utf8 || self.overflowed {
             return Vec::new();
         }
@@ -123,7 +177,7 @@ impl SseParser {
 
     /// Flush any partial frame at end of stream (providers occasionally
     /// truncate without the final blank line).
-    pub(crate) fn finish(&mut self) -> Option<SseFrame> {
+    fn finish(&mut self) -> Option<StreamFrame> {
         if self.invalid_utf8 || self.overflowed {
             return None;
         }
@@ -148,61 +202,14 @@ impl SseParser {
         self.dispatch()
     }
 
-    /// Whether any line so far contained invalid UTF-8.
-    pub(crate) fn saw_invalid_utf8(&self) -> bool {
-        self.invalid_utf8
-    }
-
-    /// Whether a line or accumulated frame exceeded its limit and was discarded.
-    pub(crate) fn overflowed(&self) -> bool {
-        self.overflowed
-    }
-
-    fn process_line(&mut self, line: &str) -> Option<SseFrame> {
-        if line.is_empty() {
-            return self.dispatch();
+    fn corruption(&self) -> Option<&'static str> {
+        if self.overflowed {
+            Some("provider stream exceeded the maximum SSE frame size")
+        } else if self.invalid_utf8 {
+            Some("provider stream contained invalid UTF-8; output would be corrupted")
+        } else {
+            None
         }
-        if line.starts_with(':') {
-            // OpenRouter sends comment keepalives while generation is pending.
-            return None;
-        }
-        let (field, value) = match line.split_once(':') {
-            Some((field, value)) => (field, value.strip_prefix(' ').unwrap_or(value)),
-            None => (line, ""),
-        };
-        // `event:`, `id:` and `retry:` are ignored.
-        if field != "data" {
-            return None;
-        }
-        let separator = usize::from(self.has_data);
-        let next_bytes = self
-            .data_bytes
-            .saturating_add(separator)
-            .saturating_add(value.len());
-        if next_bytes > MAX_FRAME_BYTES {
-            self.overflowed = true;
-            self.data.clear();
-            self.has_data = false;
-            self.data_bytes = 0;
-            return None;
-        }
-        self.data_bytes = next_bytes;
-        if self.has_data {
-            self.data.push('\n');
-        }
-        self.data.push_str(value);
-        self.has_data = true;
-        None
-    }
-
-    fn dispatch(&mut self) -> Option<SseFrame> {
-        if !self.has_data {
-            return None;
-        }
-        self.data_bytes = 0;
-        self.has_data = false;
-        let data = std::mem::take(&mut self.data);
-        Some(SseFrame { data })
     }
 }
 
@@ -210,7 +217,7 @@ impl SseParser {
 mod tests {
     use super::*;
 
-    fn collect(parser: &mut SseParser, input: &[u8]) -> Vec<SseFrame> {
+    fn collect(parser: &mut SseParser, input: &[u8]) -> Vec<StreamFrame> {
         let mut frames = parser.push(input);
         if let Some(frame) = parser.finish() {
             frames.push(frame);
@@ -245,10 +252,7 @@ mod tests {
 
         assert_eq!(
             frames,
-            vec![
-                SseFrame { data: "one".into() },
-                SseFrame { data: "two".into() },
-            ]
+            vec![StreamFrame::data("one"), StreamFrame::data("two"),]
         );
     }
 
@@ -308,7 +312,7 @@ mod tests {
     fn flushes_frame_dispatched_by_trailing_carriage_return() {
         let mut parser = SseParser::new();
         let frames = collect(&mut parser, b"data: hi\r\n\r");
-        assert_eq!(frames, vec![SseFrame { data: "hi".into() }]);
+        assert_eq!(frames, vec![StreamFrame::data("hi")]);
     }
 
     #[test]

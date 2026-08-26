@@ -5,6 +5,8 @@
 //! concrete HTTP clients and host applications own proxy, TLS, timeout, and
 //! connection-pool policy.
 
+pub(crate) mod event_stream;
+pub(crate) mod framing;
 pub mod mock;
 pub(crate) mod sse;
 

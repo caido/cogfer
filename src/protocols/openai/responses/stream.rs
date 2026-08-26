@@ -11,7 +11,7 @@ use crate::metadata::ProviderMetadata;
 use crate::protocols::{ApiProfile, StreamDecoder, origin_metadata};
 use crate::response::{Finish, FinishReason, ResponseMetadata};
 use crate::stream::{Citation, StreamEvent, StreamNormalizer};
-use crate::transport::sse::SseFrame;
+use crate::transport::framing::StreamFrame;
 
 pub(crate) struct ResponsesStreamDecoder {
     /// Profile used to attribute errors from this shared decoder.
@@ -419,7 +419,7 @@ impl ResponsesStreamDecoder {
 impl StreamDecoder for ResponsesStreamDecoder {
     fn on_frame(
         &mut self,
-        frame: SseFrame,
+        frame: StreamFrame,
         normalizer: &mut StreamNormalizer,
         out: &mut Vec<StreamEvent>,
     ) -> Result<()> {

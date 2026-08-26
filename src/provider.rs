@@ -106,6 +106,22 @@ impl ProviderConfig {
         Self::new(ApiProfile::GeminiGenerateContent, credentials)
     }
 
+    /// Anthropic models on Amazon Bedrock in `region`.
+    ///
+    /// Model ids are Bedrock's (`anthropic.claude-...` or an inference profile
+    /// or ARN). Pass a Bedrock API key as [`Credentials::bearer`], or
+    /// [`Credentials::none`] plus a SigV4 [`RequestAuthenticator`] through
+    /// [`ProviderConfig::with_authenticator`].
+    ///
+    /// # Panics
+    ///
+    /// Panics if `region` does not form a valid host name.
+    pub fn bedrock_anthropic(region: &str, credentials: Credentials) -> Self {
+        let base_url = Url::parse(&format!("https://bedrock-runtime.{region}.amazonaws.com"))
+            .expect("a region forms a valid bedrock host");
+        Self::new(ApiProfile::BedrockAnthropic, credentials).with_base_url(base_url)
+    }
+
     /// Use a custom API base URL.
     ///
     /// Any path prefix is preserved. The selected profile appends its request

@@ -15,6 +15,23 @@ pub(crate) fn join_url(base: &Url, path: &str) -> Url {
     url
 }
 
+/// Percent-encode `input` the way AWS canonicalizes URIs: every byte except
+/// the RFC 3986 unreserved characters, with uppercase hex digits. `/` is
+/// kept as a separator unless `encode_slash` is set.
+pub(crate) fn uri_encode(input: &str, encode_slash: bool) -> String {
+    let mut encoded = String::with_capacity(input.len());
+    for byte in input.bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                encoded.push(byte as char);
+            }
+            b'/' if !encode_slash => encoded.push('/'),
+            _ => encoded.push_str(&format!("%{byte:02X}")),
+        }
+    }
+    encoded
+}
+
 /// Render a URL for diagnostics without credentials or opaque query data.
 pub(crate) fn sanitized_url(url: &Url) -> String {
     let mut sanitized = url.clone();
@@ -153,6 +170,17 @@ mod tests {
         let base = Url::parse("https://api.openai.com/v1").unwrap();
         let joined = join_url(&base, "responses");
         assert_eq!(joined.as_str(), "https://api.openai.com/v1/responses");
+    }
+
+    #[test]
+    fn uri_encoding_follows_the_aws_rules() {
+        assert_eq!(
+            uri_encode("anthropic.claude-v1:0", true),
+            "anthropic.claude-v1%3A0"
+        );
+        assert_eq!(uri_encode("a b/c~", false), "a%20b/c~");
+        assert_eq!(uri_encode("a/b", true), "a%2Fb");
+        assert_eq!(uri_encode("é", true), "%C3%A9");
     }
 
     #[test]
