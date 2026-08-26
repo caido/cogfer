@@ -7,7 +7,7 @@ use crate::request::Request;
 use crate::response::{GenerateResult, Warning};
 use crate::stream::{StreamEvent, StreamNormalizer};
 use crate::transport::sse::SseFrame;
-use crate::transport::{HttpRequest, HttpResponse};
+use crate::transport::{HeaderMap, HttpRequest, HttpResponse};
 
 pub(crate) struct ProtocolContext<'a> {
     /// The provider's active API profile, used to attribute errors and warnings.
@@ -31,12 +31,12 @@ pub(crate) trait ProtocolHandler: Send + Sync {
         response: &HttpResponse,
     ) -> Result<GenerateResult>;
 
-    fn decode_error(&self, status: u16, headers: &[(String, String)], body: &[u8]) -> Error;
+    fn decode_error(&self, status: u16, headers: &HeaderMap, body: &[u8]) -> Error;
 
     fn new_stream_decoder(&self, ctx: &ProtocolContext<'_>) -> Box<dyn StreamDecoder>;
 
-    fn apply_auth(&self, request: &mut HttpRequest, credentials: &Credentials) {
-        credentials.apply_bearer(request);
+    fn apply_auth(&self, request: &mut HttpRequest, credentials: &Credentials) -> Result<()> {
+        credentials.apply_bearer(request)
     }
 }
 

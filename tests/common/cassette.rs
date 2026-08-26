@@ -18,6 +18,7 @@ use std::path::{Path, PathBuf};
 use bytes::Bytes;
 use caido_ai::ApiProfile;
 use caido_ai::transport::mock::MockTransport;
+use caido_ai::transport::{HeaderMap, HeaderName, HeaderValue};
 use serde::{Deserialize, Serialize};
 
 /// A recorded scenario: every exchange the scenario performed, in order.
@@ -134,10 +135,15 @@ impl Cassette {
     pub(crate) fn queue(&self, mock: &MockTransport) {
         for exchange in &self.exchanges {
             let response = &exchange.response;
-            let headers: Vec<(String, String)> = response
+            let headers: HeaderMap = response
                 .headers
                 .iter()
-                .map(|(name, value)| (name.clone(), value.clone()))
+                .map(|(name, value)| {
+                    (
+                        HeaderName::from_bytes(name.as_bytes()).expect("recorded header name"),
+                        HeaderValue::from_str(value).expect("recorded header value"),
+                    )
+                })
                 .collect();
             match &response.body {
                 Body::Chunks(chunks) => mock.push_stream_chunks(
@@ -235,7 +241,7 @@ mod tests {
         loaded.queue(&mock);
         let request = caido_ai::transport::HttpRequest {
             url: Url::parse("https://example.test/v1/responses").unwrap(),
-            headers: Vec::new(),
+            headers: HeaderMap::new(),
             body: None,
         };
         let stream = mock.stream(request).await.unwrap();

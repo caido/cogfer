@@ -155,7 +155,7 @@ data: {"id":"gen-corrupt","choices":[{"index":0,"delta":{"content":""#
     );
     mock.push_stream_chunks(
         200,
-        vec![("content-type".into(), "text/event-stream".into())],
+        headers(&[("content-type", "text/event-stream")]),
         vec![bytes::Bytes::from(chunk)],
     );
 

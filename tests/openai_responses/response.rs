@@ -132,11 +132,11 @@ async fn http_error_decoding() {
     let mock = MockTransport::shared();
     mock.push_response(
         429,
-        vec![
-            ("content-type".into(), "application/json".into()),
-            ("retry-after".into(), "12".into()),
-            ("x-request-id".into(), "req_x".into()),
-        ],
+        headers(&[
+            ("content-type", "application/json"),
+            ("retry-after", "12"),
+            ("x-request-id", "req_x"),
+        ]),
         serde_json::to_vec(&json!({"error": {"message": "slow down", "type": "rate_limit_error", "param": null, "code": "rate_limit_exceeded"}})).unwrap(),
     );
     let provider = openai_responses(&mock);

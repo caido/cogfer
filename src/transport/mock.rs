@@ -5,7 +5,9 @@ use std::sync::{Arc, Mutex};
 
 use bytes::Bytes;
 
-use super::{HttpByteStream, HttpRequest, HttpResponse, HttpTransport};
+use super::{
+    HeaderMap, HeaderValue, HttpByteStream, HttpRequest, HttpResponse, HttpTransport, header,
+};
 use crate::error::{Error, ErrorKind, Result};
 
 /// A queued canned reply.
@@ -14,11 +16,15 @@ enum CannedReply {
     Buffered(HttpResponse),
     Stream {
         status: u16,
-        headers: Vec<(String, String)>,
+        headers: HeaderMap,
         chunks: Vec<Bytes>,
         /// When set, the stream yields this transport error after the chunks.
         error_after: Option<ErrorKind>,
     },
+}
+
+fn content_type(value: &'static str) -> HeaderMap {
+    HeaderMap::from_iter([(header::CONTENT_TYPE, HeaderValue::from_static(value))])
 }
 
 /// See the [module docs](self).
@@ -46,18 +52,13 @@ impl MockTransport {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .push_back(CannedReply::Buffered(HttpResponse {
                 status,
-                headers: vec![("content-type".into(), "application/json".into())],
+                headers: content_type("application/json"),
                 body: Bytes::from(body.to_string()),
             }));
     }
 
     /// Queue a raw-body response with headers.
-    pub fn push_response(
-        &self,
-        status: u16,
-        headers: Vec<(String, String)>,
-        body: impl Into<Bytes>,
-    ) {
+    pub fn push_response(&self, status: u16, headers: HeaderMap, body: impl Into<Bytes>) {
         self.replies
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -89,19 +90,14 @@ impl MockTransport {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .push_back(CannedReply::Stream {
                 status: 200,
-                headers: vec![("content-type".into(), "text/event-stream".into())],
+                headers: content_type("text/event-stream"),
                 chunks,
                 error_after: None,
             });
     }
 
     /// Queue a streaming response with exact byte chunks.
-    pub fn push_stream_chunks(
-        &self,
-        status: u16,
-        headers: Vec<(String, String)>,
-        chunks: Vec<Bytes>,
-    ) {
+    pub fn push_stream_chunks(&self, status: u16, headers: HeaderMap, chunks: Vec<Bytes>) {
         self.replies
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -121,7 +117,7 @@ impl MockTransport {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .push_back(CannedReply::Stream {
                 status: 200,
-                headers: vec![("content-type".into(), "text/event-stream".into())],
+                headers: content_type("text/event-stream"),
                 chunks,
                 error_after: Some(error),
             });

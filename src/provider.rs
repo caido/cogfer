@@ -8,7 +8,7 @@ use url::Url;
 use crate::auth::{Credentials, RequestAuthenticator};
 use crate::model::LanguageModel;
 use crate::protocols::ApiProfile;
-use crate::transport::HttpTransport;
+use crate::transport::{HeaderMap, HeaderName, HeaderValue, HttpTransport};
 
 #[derive(Clone)]
 pub(crate) enum Authentication {
@@ -30,7 +30,7 @@ pub struct ProviderConfig {
     /// Custom base URL whose path prefix is preserved. `None` uses the official endpoint.
     base_url: Option<Url>,
     /// Headers added to every request from this provider.
-    default_headers: Vec<(String, String)>,
+    default_headers: HeaderMap,
 }
 
 impl fmt::Debug for ProviderConfig {
@@ -55,7 +55,7 @@ impl ProviderConfig {
             profile,
             authentication: Authentication::Credentials(credentials),
             base_url: None,
-            default_headers: Vec::new(),
+            default_headers: HeaderMap::new(),
         }
     }
 
@@ -118,8 +118,8 @@ impl ProviderConfig {
     ///
     /// Per-request headers and authentication are applied later and can
     /// replace this value.
-    pub fn with_header(mut self, name: impl Into<String>, value: impl Into<String>) -> Self {
-        self.default_headers.push((name.into(), value.into()));
+    pub fn with_header(mut self, name: HeaderName, value: HeaderValue) -> Self {
+        self.default_headers.insert(name, value);
         self
     }
 
@@ -138,7 +138,7 @@ impl ProviderConfig {
         self.base_url.as_ref()
     }
 
-    pub(crate) fn default_headers(&self) -> &[(String, String)] {
+    pub(crate) fn default_headers(&self) -> &HeaderMap {
         &self.default_headers
     }
 

@@ -3,6 +3,7 @@
 use super::{LoweredRequest, ProtocolContext, ProtocolHandler, StreamDecoder};
 use crate::error::{Error, Result};
 use crate::response::GenerateResult;
+use crate::transport::{HeaderMap, HeaderName};
 use crate::transport::{HttpRequest, HttpResponse};
 
 mod request;
@@ -28,7 +29,7 @@ impl ProtocolHandler for Handler {
         decode_anthropic_response(response)
     }
 
-    fn decode_error(&self, status: u16, headers: &[(String, String)], body: &[u8]) -> Error {
+    fn decode_error(&self, status: u16, headers: &HeaderMap, body: &[u8]) -> Error {
         decode_anthropic_error(status, headers, body)
     }
 
@@ -36,7 +37,11 @@ impl ProtocolHandler for Handler {
         Box::new(AnthropicStreamDecoder::default())
     }
 
-    fn apply_auth(&self, request: &mut HttpRequest, credentials: &crate::auth::Credentials) {
-        credentials.apply_native_key(request, "x-api-key");
+    fn apply_auth(
+        &self,
+        request: &mut HttpRequest,
+        credentials: &crate::auth::Credentials,
+    ) -> Result<()> {
+        credentials.apply_native_key(request, HeaderName::from_static("x-api-key"))
     }
 }

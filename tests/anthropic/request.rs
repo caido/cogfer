@@ -57,18 +57,9 @@ async fn request_golden_with_thinking_replay_and_compaction() {
 
     let http = &mock.requests()[0];
     assert_eq!(http.url.as_str(), "https://api.anthropic.com/v1/messages");
-    let header = |name: &str| {
-        http.headers
-            .iter()
-            .find(|(header_name, _)| header_name.eq_ignore_ascii_case(name))
-            .map(|(_, value)| value.clone())
-    };
-    assert_eq!(header("x-api-key").as_deref(), Some("sk-ant-test"));
-    assert_eq!(header("anthropic-version").as_deref(), Some("2023-06-01"));
-    assert_eq!(
-        header("anthropic-beta").as_deref(),
-        Some("compact-2026-01-12")
-    );
+    assert_eq!(header(http, "x-api-key"), Some("sk-ant-test"));
+    assert_eq!(header(http, "anthropic-version"), Some("2023-06-01"));
+    assert_eq!(header(http, "anthropic-beta"), Some("compact-2026-01-12"));
 
     let body = mock.request_json(0);
     assert_eq!(body["max_tokens"], 32000);
@@ -146,8 +137,10 @@ async fn user_beta_headers_merge_with_protocol_betas() {
     mock.push_json(200, &minimal_message());
     let provider = provider_with(
         &mock,
-        caido_ai::ProviderConfig::anthropic(caido_ai::Credentials::api_key("k"))
-            .with_header("anthropic-beta", "context-management-2025-06-27"),
+        caido_ai::ProviderConfig::anthropic(caido_ai::Credentials::api_key("k")).with_header(
+            HeaderName::from_static("anthropic-beta"),
+            HeaderValue::from_static("context-management-2025-06-27"),
+        ),
     );
     let request = Request::builder()
         .message(Message::user("hi"))
@@ -159,12 +152,7 @@ async fn user_beta_headers_merge_with_protocol_betas() {
         .await
         .expect("generate succeeds");
     let http = &mock.requests()[0];
-    let beta = http
-        .headers
-        .iter()
-        .find(|(name, _)| name.eq_ignore_ascii_case("anthropic-beta"))
-        .map(|(_, value)| value.clone())
-        .expect("beta header present");
+    let beta = header(http, "anthropic-beta").expect("beta header present");
     assert!(
         beta.contains("compact-2026-01-12"),
         "protocol beta kept: {beta}"

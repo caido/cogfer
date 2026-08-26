@@ -87,11 +87,8 @@ async fn replaying_a_compaction_block_enables_the_beta() {
         .generate(request)
         .await
         .expect("generate succeeds");
-    let beta = mock.requests()[0]
-        .headers
-        .iter()
-        .find(|(name, _)| name.eq_ignore_ascii_case("anthropic-beta"))
-        .map(|(_, value)| value.clone())
+    let requests = mock.requests();
+    let beta = header(&requests[0], "anthropic-beta")
         .expect("beta header required to send compaction blocks");
     assert!(beta.contains("compact-2026-01-12"), "{beta}");
     let body: serde_json::Value =

@@ -9,6 +9,7 @@
 //!     cargo run --example openai_compatible
 //! ```
 
+use caido_ai::transport::{HeaderName, HeaderValue};
 use caido_ai::{Client, Credentials, Message, ProviderConfig, Request, StreamEvent};
 use futures_util::StreamExt;
 use url::Url;
@@ -30,7 +31,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ProviderConfig::openai_chat(credentials)
             .with_base_url(base_url)
             // Headers some gateways read for attribution.
-            .with_header("x-title", "caido-ai example"),
+            .with_header(
+                HeaderName::from_static("x-title"),
+                HeaderValue::from_static("caido-ai example"),
+            ),
     )?;
     let model = provider.language_model(model_id);
 

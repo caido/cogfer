@@ -52,11 +52,7 @@ async fn request_golden_with_signature_replay() {
         http.url.as_str(),
         "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
     );
-    assert!(
-        http.headers.iter().any(|(name, value)| {
-            name.eq_ignore_ascii_case("x-goog-api-key") && value == "g-test"
-        })
-    );
+    assert_eq!(header(http, "x-goog-api-key"), Some("g-test"));
 
     let body = mock.request_json(0);
     assert_eq!(body["systemInstruction"]["parts"][0]["text"], "Be brief.");

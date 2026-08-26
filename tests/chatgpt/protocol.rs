@@ -27,21 +27,15 @@ async fn request_golden() {
         http.url.as_str(),
         "https://chatgpt.com/backend-api/codex/responses"
     );
-    let header = |name: &str| {
-        http.headers
-            .iter()
-            .find(|(header, _)| header.eq_ignore_ascii_case(name))
-            .map(|(_, value)| value.clone())
-    };
     assert_eq!(
-        header("authorization").as_deref(),
+        header(http, "authorization"),
         Some("Bearer chatgpt-access-token")
     );
-    assert_eq!(header("accept").as_deref(), Some("text/event-stream"));
-    assert_eq!(header("originator").as_deref(), Some("caido-ai"));
-    let session_id = header("session_id").expect("session_id header");
+    assert_eq!(header(http, "accept"), Some("text/event-stream"));
+    assert_eq!(header(http, "originator"), Some("caido-ai"));
+    let session_id = header(http, "session_id").expect("session_id header");
     assert!(
-        uuid::Uuid::parse_str(&session_id).is_ok(),
+        uuid::Uuid::parse_str(session_id).is_ok(),
         "session_id should be a UUID, got {session_id:?}"
     );
 
@@ -281,8 +275,10 @@ async fn account_id_header_via_provider_config() {
     mock.push_sse(&completed_transcript());
     let provider = provider_with(
         &mock,
-        ProviderConfig::chatgpt(Credentials::bearer("tok"))
-            .with_header("chatgpt-account-id", "acct_static"),
+        ProviderConfig::chatgpt(Credentials::bearer("tok")).with_header(
+            HeaderName::from_static("chatgpt-account-id"),
+            HeaderValue::from_static("acct_static"),
+        ),
     );
 
     provider

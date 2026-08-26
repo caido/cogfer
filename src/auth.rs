@@ -2,7 +2,10 @@
 
 use std::fmt;
 
+use http::header::{self, HeaderName};
+
 use crate::error::Result;
+use crate::http::{bearer_value, header_value};
 use crate::transport::HttpRequest;
 
 /// A credential string with redacted `Debug` and `Display` output.
@@ -54,7 +57,10 @@ pub enum Credentials {
     /// An explicit `Authorization: Bearer` token, regardless of protocol.
     Bearer(SecretString),
     /// A custom header.
-    Header { name: String, value: SecretString },
+    Header {
+        name: HeaderName,
+        value: SecretString,
+    },
 }
 
 impl Credentials {
@@ -66,9 +72,9 @@ impl Credentials {
         Credentials::Bearer(token.into())
     }
 
-    pub fn header(name: impl Into<String>, value: impl Into<SecretString>) -> Self {
+    pub fn header(name: HeaderName, value: impl Into<SecretString>) -> Self {
         Credentials::Header {
-            name: name.into(),
+            name,
             value: value.into(),
         }
     }
@@ -79,35 +85,59 @@ impl Credentials {
 
     /// Set this credential on `request` as `Authorization: Bearer` (API keys
     /// and bearer tokens) or as its custom header. `None` leaves the request untouched.
-    pub(crate) fn apply_bearer(&self, request: &mut HttpRequest) {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the credential is not a valid header value.
+    pub(crate) fn apply_bearer(&self, request: &mut HttpRequest) -> Result<()> {
         match self {
             Credentials::None => {}
             Credentials::ApiKey(secret) | Credentials::Bearer(secret) => {
-                request.set_header("authorization", format!("Bearer {}", secret.expose()));
+                request
+                    .headers
+                    .insert(header::AUTHORIZATION, bearer_value(secret.expose())?);
             }
             Credentials::Header { name, value } => {
-                request.set_header(name, value.expose().to_string());
+                request.headers.insert(name.clone(), secret_value(value)?);
             }
         }
+        Ok(())
     }
 
     /// Set this credential on `request`, sending API keys in `header_name`
     /// (the protocol's native key header) and bearer tokens as
     /// `Authorization: Bearer`. `None` leaves the request untouched.
-    pub(crate) fn apply_native_key(&self, request: &mut HttpRequest, header_name: &str) {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the credential is not a valid header value.
+    pub(crate) fn apply_native_key(
+        &self,
+        request: &mut HttpRequest,
+        header_name: HeaderName,
+    ) -> Result<()> {
         match self {
             Credentials::None => {}
             Credentials::ApiKey(secret) => {
-                request.set_header(header_name, secret.expose().to_string());
+                request.headers.insert(header_name, secret_value(secret)?);
             }
             Credentials::Bearer(secret) => {
-                request.set_header("authorization", format!("Bearer {}", secret.expose()));
+                request
+                    .headers
+                    .insert(header::AUTHORIZATION, bearer_value(secret.expose())?);
             }
             Credentials::Header { name, value } => {
-                request.set_header(name, value.expose().to_string());
+                request.headers.insert(name.clone(), secret_value(value)?);
             }
         }
+        Ok(())
     }
+}
+
+fn secret_value(secret: &SecretString) -> Result<http::HeaderValue> {
+    let mut value = header_value(secret.expose())?;
+    value.set_sensitive(true);
+    Ok(value)
 }
 
 /// Async authentication hook, applied to every outgoing request.

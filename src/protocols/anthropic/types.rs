@@ -9,6 +9,7 @@ use crate::message::{
 use crate::metadata::ProviderMetadata;
 use crate::protocols::{ApiProfile, content_policy_kind, finalize_tool_calls};
 use crate::response::{Finish, FinishReason, GenerateResult, ResponseMetadata};
+use crate::transport::HeaderMap;
 use crate::transport::HttpResponse;
 use crate::usage::Usage;
 
@@ -299,11 +300,7 @@ pub(crate) fn anthropic_error_kind(
     content_policy_kind(error_type, kind)
 }
 
-pub(crate) fn decode_anthropic_error(
-    status: u16,
-    headers: &[(String, String)],
-    body: &[u8],
-) -> Error {
+pub(crate) fn decode_anthropic_error(status: u16, headers: &HeaderMap, body: &[u8]) -> Error {
     #[derive(Deserialize)]
     struct Envelope {
         #[serde(default)]

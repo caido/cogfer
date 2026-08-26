@@ -7,6 +7,7 @@ use crate::error::{Error, ErrorKind};
 use crate::http::{enrich_error_from_headers, error_kind_for_status};
 use crate::protocols::{ApiProfile, content_policy_kind, fallback_provider_error_message};
 use crate::request::{Request, StructuredOutput, ToolChoice, ToolDefinition};
+use crate::transport::HeaderMap;
 
 /// How the two formats nest function definitions and forced tool choices.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -84,7 +85,7 @@ pub(crate) fn json_schema_format(output: &StructuredOutput) -> Value {
 pub(crate) fn decode_openai_error(
     protocol: ApiProfile,
     status: u16,
-    headers: &[(String, String)],
+    headers: &HeaderMap,
     body: &[u8],
 ) -> Error {
     #[derive(Deserialize)]

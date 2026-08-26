@@ -15,7 +15,9 @@ use std::ops::Range;
 use std::sync::{Arc, Mutex};
 
 use bytes::Bytes;
-use caido_ai::transport::{HttpByteStream, HttpRequest, HttpResponse, HttpTransport};
+use caido_ai::transport::{
+    HeaderMap, HttpByteStream, HttpRequest, HttpResponse, HttpTransport, header,
+};
 use caido_ai::{ApiProfile, Result};
 use futures_util::StreamExt;
 
@@ -164,10 +166,11 @@ fn record_request(request: &HttpRequest) -> RecordedRequest {
     // Our URLs never carry userinfo, but a cassette must not either.
     let _ = url.set_username("");
     let _ = url.set_password(None);
-    let form_encoded = request.headers.iter().any(|(name, value)| {
-        name.eq_ignore_ascii_case("content-type")
-            && value.starts_with("application/x-www-form-urlencoded")
-    });
+    let form_encoded = request
+        .headers
+        .get(header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .is_some_and(|value| value.starts_with("application/x-www-form-urlencoded"));
     RecordedRequest {
         url: url.to_string(),
         headers: request
@@ -185,10 +188,10 @@ fn record_request(request: &HttpRequest) -> RecordedRequest {
                     "user-agent",
                     "x-title",
                 ]
-                .iter()
-                .any(|safe| name.eq_ignore_ascii_case(safe));
-                let value = if visible { value.as_str() } else { "<redacted>" };
-                (name.clone(), value.to_string())
+                .contains(&name.as_str());
+                let value =
+                    if visible { value.to_str().unwrap_or("<non-ascii>") } else { "<redacted>" };
+                (name.to_string(), value.to_string())
             })
             .collect(),
         body: request.body.as_ref().map(|body| {
@@ -200,7 +203,7 @@ fn record_request(request: &HttpRequest) -> RecordedRequest {
 /// Only the response headers the SDK reads plus `date`, which doubles as the
 /// recording timestamp. Rate-limit and tracing headers change on every
 /// recording and are dropped.
-fn record_response_headers(headers: &[(String, String)]) -> Headers {
+fn record_response_headers(headers: &HeaderMap) -> Headers {
     headers
         .iter()
         .filter(|(name, _)| {
@@ -215,10 +218,9 @@ fn record_response_headers(headers: &[(String, String)]) -> Headers {
                 "x-request-id",
                 "x-should-retry",
             ]
-            .iter()
-            .any(|kept| name.eq_ignore_ascii_case(kept))
+            .contains(&name.as_str())
         })
-        .cloned()
+        .filter_map(|(name, value)| Some((name.to_string(), value.to_str().ok()?.to_string())))
         .collect()
 }
 

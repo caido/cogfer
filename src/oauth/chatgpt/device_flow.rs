@@ -353,6 +353,7 @@ mod tests {
     use bytes::Bytes;
 
     use super::*;
+    use crate::transport::HeaderMap;
 
     #[test]
     fn debug_output_redacts_authorization_codes() {
@@ -373,7 +374,7 @@ mod tests {
     fn token_response_rejects_empty_access_token() {
         let response = HttpResponse {
             status: 200,
-            headers: Vec::new(),
+            headers: HeaderMap::new(),
             body: Bytes::from_static(br#"{"access_token":""}"#),
         };
 

@@ -5,8 +5,8 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use caido_ai::oauth::xai::{XaiAuthenticator, XaiOAuth, XaiTokens};
-use caido_ai::transport::HttpRequest;
 use caido_ai::transport::mock::MockTransport;
+use caido_ai::transport::{HeaderName, HttpRequest};
 use caido_ai::{
     ApiProfile, Credentials, DevicePoll, Error, ErrorKind, FinishReason, OAuthStatus,
     ProviderConfig, RequestAuthenticator, TokenStore,
@@ -49,14 +49,6 @@ fn now() -> i64 {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_secs() as i64
-}
-
-fn header(request: &caido_ai::transport::HttpRequest, name: &str) -> Option<String> {
-    request
-        .headers
-        .iter()
-        .find(|(header, _)| header.eq_ignore_ascii_case(name))
-        .map(|(_, value)| value.clone())
 }
 
 fn form_body(request: &caido_ai::transport::HttpRequest) -> String {

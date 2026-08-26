@@ -14,6 +14,7 @@ use std::fmt;
 
 use bytes::Bytes;
 use futures_util::stream::BoxStream;
+pub use http::header::{self, HeaderMap, HeaderName, HeaderValue};
 #[cfg(feature = "reqwest-transport")]
 pub use reqwest_transport::{ReqwestTransport, install_default_crypto_provider};
 use url::Url;
@@ -26,8 +27,7 @@ use crate::http::redact_headers;
 pub struct HttpRequest {
     /// Fully resolved endpoint URL.
     pub url: Url,
-    /// Ordered header list. Names are matched case-insensitively.
-    pub headers: Vec<(String, String)>,
+    pub headers: HeaderMap,
     /// Encoded request body. Current API profiles send JSON or OAuth form data.
     pub body: Option<Bytes>,
 }
@@ -42,32 +42,24 @@ impl HttpRequest {
         let body = serde_json::to_vec(body).map_err(|e| {
             crate::Error::invalid_request(format!("failed to serialize request body: {e}"))
         })?;
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("application/json"),
+        );
         Ok(Self {
             url,
-            headers: vec![("content-type".into(), "application/json".into())],
+            headers,
             body: Some(Bytes::from(body)),
         })
     }
 
-    /// Set a header, replacing any existing values with the same name.
-    pub fn set_header(&mut self, name: &str, value: impl Into<String>) {
-        self.headers
-            .retain(|(existing, _)| !existing.eq_ignore_ascii_case(name));
-        self.headers.push((name.to_string(), value.into()));
-    }
-
-    pub fn has_header(&self, name: &str) -> bool {
-        self.headers
-            .iter()
-            .any(|(existing, _)| existing.eq_ignore_ascii_case(name))
-    }
-
     pub(crate) fn bearer_token(&self) -> Option<&str> {
         self.headers
-            .iter()
-            .find(|(name, _)| name.eq_ignore_ascii_case("authorization"))
-            .map(|(_, value)| value.as_str())
-            .and_then(|value| value.strip_prefix("Bearer "))
+            .get(header::AUTHORIZATION)?
+            .to_str()
+            .ok()?
+            .strip_prefix("Bearer ")
     }
 }
 
@@ -88,8 +80,7 @@ impl fmt::Debug for HttpRequest {
 pub struct HttpResponse {
     /// HTTP response status.
     pub status: u16,
-    /// Response headers in received order.
-    pub headers: Vec<(String, String)>,
+    pub headers: HeaderMap,
     /// Complete buffered response body.
     pub body: Bytes,
 }
@@ -109,7 +100,7 @@ pub struct HttpByteStream {
     /// HTTP response status available before body polling.
     pub status: u16,
     /// Response headers available before body polling.
-    pub headers: Vec<(String, String)>,
+    pub headers: HeaderMap,
     /// Incremental response bytes. Transport errors surface as stream items.
     pub bytes: BoxStream<'static, Result<Bytes>>,
 }
@@ -146,10 +137,16 @@ mod tests {
     fn response_debug_redacts_headers_and_body() {
         let response = HttpResponse {
             status: 200,
-            headers: vec![
-                ("content-type".into(), "application/json".into()),
-                ("set-cookie".into(), "session=secret-cookie".into()),
-            ],
+            headers: HeaderMap::from_iter([
+                (
+                    header::CONTENT_TYPE,
+                    HeaderValue::from_static("application/json"),
+                ),
+                (
+                    header::SET_COOKIE,
+                    HeaderValue::from_static("session=secret-cookie"),
+                ),
+            ]),
             body: Bytes::from_static(br#"{"access_token":"secret-token"}"#),
         };
 

@@ -67,9 +67,7 @@ async fn request_golden() {
 
     let http = &mock.requests()[0];
     assert_eq!(http.url.as_str(), "https://api.openai.com/v1/responses");
-    assert!(http.headers.iter().any(|(name, value)| {
-        name.eq_ignore_ascii_case("authorization") && value == "Bearer sk-test"
-    }));
+    assert_eq!(header(http, "authorization"), Some("Bearer sk-test"));
 
     let body = mock.request_json(0);
     assert_eq!(body["model"], "gpt-5.6");

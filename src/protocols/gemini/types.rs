@@ -8,6 +8,7 @@ use crate::message::{AssistantPart, ReasoningContent, ReasoningPart, ToolCall};
 use crate::metadata::ProviderMetadata;
 use crate::protocols::{ApiProfile, content_policy_kind, finalize_tool_calls};
 use crate::response::{Finish, FinishReason, GenerateResult, ResponseMetadata};
+use crate::transport::HeaderMap;
 use crate::transport::HttpResponse;
 use crate::usage::Usage;
 
@@ -366,7 +367,7 @@ impl GoogleStatus {
     }
 }
 
-pub(crate) fn decode_gemini_error(status: u16, headers: &[(String, String)], body: &[u8]) -> Error {
+pub(crate) fn decode_gemini_error(status: u16, headers: &HeaderMap, body: &[u8]) -> Error {
     #[derive(Deserialize)]
     struct Envelope {
         #[serde(default)]
@@ -480,13 +481,17 @@ pub(crate) fn decode_gemini_response(response: &HttpResponse) -> Result<Generate
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::transport::{HeaderName, HeaderValue, header};
 
     #[test]
     fn error_headers_supply_request_id_and_retry_after() {
-        let headers = vec![
-            ("x-request-id".into(), "request-123".into()),
-            ("retry-after".into(), "7".into()),
-        ];
+        let headers = HeaderMap::from_iter([
+            (
+                HeaderName::from_static("x-request-id"),
+                HeaderValue::from_static("request-123"),
+            ),
+            (header::RETRY_AFTER, HeaderValue::from_static("7")),
+        ]);
         let error = decode_gemini_error(429, &headers, b"not json");
 
         assert_eq!(error.request_id(), Some("request-123"));
@@ -506,7 +511,7 @@ mod tests {
 
     #[test]
     fn body_retry_info_takes_precedence_over_header() {
-        let headers = vec![("retry-after".into(), "7".into())];
+        let headers = HeaderMap::from_iter([(header::RETRY_AFTER, HeaderValue::from_static("7"))]);
         let body = br#"{"error":{"status":"RESOURCE_EXHAUSTED","details":[{"@type":"type.googleapis.com/google.rpc.RetryInfo","retryDelay":"2s"}]}}"#;
         let error = decode_gemini_error(429, &headers, body);
 

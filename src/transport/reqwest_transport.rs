@@ -127,12 +127,9 @@ impl ReqwestTransport {
 
     fn build(&self, request: HttpRequest, streaming: bool) -> reqwest::RequestBuilder {
         let HttpRequest { url, headers, body } = request;
-        let mut builder = self.client.post(url);
+        let mut builder = self.client.post(url).headers(headers);
         if !streaming {
             builder = builder.timeout(self.request_timeout);
-        }
-        for (name, value) in &headers {
-            builder = builder.header(name, value);
         }
         if let Some(body) = body {
             builder = builder.body(body);
@@ -194,19 +191,6 @@ impl<T> ReqwestResultExt<T> for std::result::Result<T, reqwest::Error> {
     }
 }
 
-fn collect_headers(response: &reqwest::Response) -> Vec<(String, String)> {
-    response
-        .headers()
-        .iter()
-        .map(|(name, value)| {
-            (
-                name.as_str().to_string(),
-                String::from_utf8_lossy(value.as_bytes()).into_owned(),
-            )
-        })
-        .collect()
-}
-
 #[async_trait::async_trait]
 impl HttpTransport for ReqwestTransport {
     async fn execute(&self, request: HttpRequest) -> Result<HttpResponse> {
@@ -216,7 +200,7 @@ impl HttpTransport for ReqwestTransport {
             .await
             .map_transport_err()?;
         let status = response.status().as_u16();
-        let headers = collect_headers(&response);
+        let headers = response.headers().clone();
         let body = self.collect_response_body(response).await?;
         Ok(HttpResponse {
             status,
@@ -238,7 +222,7 @@ impl HttpTransport for ReqwestTransport {
                 })?
                 .map_transport_err()?;
         let status = response.status().as_u16();
-        let headers = collect_headers(&response);
+        let headers = response.headers().clone();
         Ok(HttpByteStream {
             status,
             headers,
@@ -283,7 +267,7 @@ mod tests {
     use tokio::io::AsyncWriteExt;
 
     use super::*;
-    use crate::transport::HttpTransport;
+    use crate::transport::{HeaderMap, HttpTransport};
 
     async fn serve_once(response: &'static [u8]) -> url::Url {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -332,7 +316,7 @@ mod tests {
         let error = transport
             .execute(HttpRequest {
                 url,
-                headers: Vec::new(),
+                headers: HeaderMap::new(),
                 body: None,
             })
             .await
@@ -362,7 +346,7 @@ mod tests {
         let error = transport
             .execute(HttpRequest {
                 url,
-                headers: Vec::new(),
+                headers: HeaderMap::new(),
                 body: None,
             })
             .await
@@ -385,7 +369,7 @@ mod tests {
         let error = transport
             .execute(HttpRequest {
                 url,
-                headers: Vec::new(),
+                headers: HeaderMap::new(),
                 body: None,
             })
             .await
@@ -416,7 +400,7 @@ mod tests {
         let mut stream = transport
             .stream(HttpRequest {
                 url,
-                headers: Vec::new(),
+                headers: HeaderMap::new(),
                 body: None,
             })
             .await
@@ -457,7 +441,7 @@ mod tests {
         let error = transport
             .stream(HttpRequest {
                 url,
-                headers: Vec::new(),
+                headers: HeaderMap::new(),
                 body: None,
             })
             .await

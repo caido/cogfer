@@ -8,6 +8,7 @@ use crate::message::{AssistantPart, ReasoningContent, ReasoningPart, ToolCall};
 use crate::metadata::ProviderMetadata;
 use crate::protocols::{ApiProfile, content_policy_kind, finalize_tool_calls};
 use crate::response::{Finish, FinishReason, GenerateResult, ResponseMetadata};
+use crate::transport::HeaderMap;
 use crate::transport::HttpResponse;
 use crate::usage::Usage;
 
@@ -440,11 +441,7 @@ pub(crate) fn merge_reasoning_details(details: Vec<Value>) -> Vec<Value> {
 
 /// Decode an OpenRouter error response, whose `error` object carries
 /// upstream details the shared OpenAI decoder does not know about.
-pub(crate) fn decode_openrouter_error(
-    status: u16,
-    headers: &[(String, String)],
-    body: &[u8],
-) -> Error {
+pub(crate) fn decode_openrouter_error(status: u16, headers: &HeaderMap, body: &[u8]) -> Error {
     #[derive(Deserialize)]
     struct Envelope {
         error: Option<Value>,
@@ -519,13 +516,17 @@ pub(crate) fn decode_inline_error(error: &Value, dialect: ChatDialect) -> Error 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::transport::{HeaderName, HeaderValue, header};
 
     #[test]
     fn non_json_openrouter_error_keeps_header_metadata() {
-        let headers = vec![
-            ("x-request-id".into(), "request-123".into()),
-            ("retry-after".into(), "4".into()),
-        ];
+        let headers = HeaderMap::from_iter([
+            (
+                HeaderName::from_static("x-request-id"),
+                HeaderValue::from_static("request-123"),
+            ),
+            (header::RETRY_AFTER, HeaderValue::from_static("4")),
+        ]);
         let error = decode_openrouter_error(503, &headers, b"upstream unavailable");
 
         assert_eq!(error.request_id(), Some("request-123"));

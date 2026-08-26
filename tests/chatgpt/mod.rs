@@ -5,6 +5,7 @@ use std::sync::{Arc, Mutex};
 
 use caido_ai::oauth::chatgpt::{ChatGptAuthenticator, ChatGptOAuth, ChatGptTokens};
 use caido_ai::transport::mock::MockTransport;
+use caido_ai::transport::{HeaderName, HeaderValue};
 use caido_ai::{
     Credentials, DevicePoll, Error, ErrorKind, FinishReason, Message, OAuthStatus, ProviderConfig,
     Request, StreamEvent, TokenStore,
@@ -57,14 +58,6 @@ fn now() -> i64 {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_secs() as i64
-}
-
-fn header<'a>(request: &'a caido_ai::transport::HttpRequest, name: &str) -> Option<&'a str> {
-    request
-        .headers
-        .iter()
-        .find(|(header, _)| header.eq_ignore_ascii_case(name))
-        .map(|(_, value)| value.as_str())
 }
 
 struct RecordingTokenStore<T> {

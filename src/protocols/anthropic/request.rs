@@ -7,6 +7,7 @@ use crate::protocols::{LoweredRequest, ProtocolContext};
 use crate::request::{ReasoningConfig, ReasoningOutput, Request, ToolChoice};
 use crate::response::Warning;
 use crate::transport::HttpRequest;
+use crate::transport::{HeaderName, HeaderValue};
 
 /// Anthropic's `max_tokens` is mandatory. This is the value used when the
 /// caller leaves the output cap to the SDK.
@@ -392,9 +393,16 @@ pub(crate) fn lower_anthropic_request(
     }
 
     let mut http = HttpRequest::post_json(join_url(ctx.base_url, "messages"), &body)?;
-    http.set_header("anthropic-version", "2023-06-01");
+    http.headers.insert(
+        HeaderName::from_static("anthropic-version"),
+        HeaderValue::from_static("2023-06-01"),
+    );
     if !beta_features.is_empty() {
-        http.set_header("anthropic-beta", beta_features.join(","));
+        http.headers.insert(
+            HeaderName::from_static("anthropic-beta"),
+            HeaderValue::from_str(&beta_features.join(","))
+                .expect("beta feature names are valid header values"),
+        );
     }
     Ok(LoweredRequest { http, warnings })
 }

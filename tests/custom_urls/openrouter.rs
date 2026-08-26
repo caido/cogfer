@@ -1,8 +1,9 @@
 use caido_ai::transport::mock::MockTransport;
+use caido_ai::transport::{HeaderName, HeaderValue};
 use caido_ai::{Credentials, Message, ProviderConfig, Request};
 use serde_json::json;
 
-use crate::common::provider_with;
+use crate::common::{header, provider_with};
 
 #[tokio::test]
 async fn provider_default_headers_and_request_extra_headers() {
@@ -16,12 +17,21 @@ async fn provider_default_headers_and_request_extra_headers() {
     let provider = provider_with(
         &mock,
         ProviderConfig::openrouter(Credentials::api_key("sk-or"))
-            .with_header("HTTP-Referer", "https://caido.io")
-            .with_header("X-OpenRouter-Title", "Caido"),
+            .with_header(
+                HeaderName::from_static("http-referer"),
+                HeaderValue::from_static("https://caido.io"),
+            )
+            .with_header(
+                HeaderName::from_static("x-openrouter-title"),
+                HeaderValue::from_static("Caido"),
+            ),
     );
     let request = Request::builder()
         .message(Message::user("hi"))
-        .extra_header("x-trace-id", "trace-1")
+        .extra_header(
+            HeaderName::from_static("x-trace-id"),
+            HeaderValue::from_static("trace-1"),
+        )
         .build();
     provider
         .language_model("openai/gpt-5.6")
@@ -34,10 +44,9 @@ async fn provider_default_headers_and_request_extra_headers() {
         ("X-OpenRouter-Title", "Caido"),
         ("x-trace-id", "trace-1"),
     ] {
-        assert!(
-            http.headers.iter().any(|(name, value)| {
-                name.eq_ignore_ascii_case(expected_name) && value == expected_value
-            }),
+        assert_eq!(
+            header(http, expected_name),
+            Some(expected_value),
             "missing header {expected_name}"
         );
     }

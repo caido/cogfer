@@ -1,14 +1,16 @@
 #[test]
 fn credential_headers_are_redacted_in_debug() {
-    use caido_ai::transport::HttpRequest;
+    use caido_ai::transport::{HeaderName, HeaderValue, HttpRequest};
 
     let mut request = HttpRequest::post_json(
         "https://example.com".parse().unwrap(),
         &serde_json::json!({"prompt": "secret"}),
     )
     .unwrap();
-    request.set_header("x-custom-auth", "super-secret");
-    request.set_header("content-type", "application/json");
+    request.headers.insert(
+        HeaderName::from_static("x-custom-auth"),
+        HeaderValue::from_static("super-secret"),
+    );
 
     let debug = format!("{request:?}");
     assert!(!debug.contains("super-secret"), "{debug}");

@@ -2,9 +2,10 @@
 
 use std::time::Duration;
 
+use http::header::{self, HeaderMap, HeaderName, HeaderValue};
 use url::Url;
 
-use crate::error::{Error, ErrorKind};
+use crate::error::{Error, ErrorKind, Result};
 
 /// Join a relative endpoint path onto a base URL.
 pub(crate) fn join_url(base: &Url, path: &str) -> Url {
@@ -26,22 +27,34 @@ pub(crate) fn sanitized_url(url: &Url) -> String {
 }
 
 /// Response headers carrying a provider request identifier, in lookup order.
-const REQUEST_ID_HEADERS: &[&str] = &[
-    "x-request-id",
-    "x-oai-request-id",
-    "openai-request-id",
-    "x-goog-request-id",
-    "request-id",
+static REQUEST_ID_HEADERS: [HeaderName; 5] = [
+    HeaderName::from_static("x-request-id"),
+    HeaderName::from_static("x-oai-request-id"),
+    HeaderName::from_static("openai-request-id"),
+    HeaderName::from_static("x-goog-request-id"),
+    HeaderName::from_static("request-id"),
 ];
 
 /// Extract a provider request identifier from response headers.
-pub(crate) fn find_request_id(headers: &[(String, String)]) -> Option<String> {
-    REQUEST_ID_HEADERS.iter().find_map(|candidate| {
-        headers
-            .iter()
-            .find(|(name, _)| name.eq_ignore_ascii_case(candidate))
-            .map(|(_, value)| value.clone())
-    })
+pub(crate) fn find_request_id(headers: &HeaderMap) -> Option<String> {
+    REQUEST_ID_HEADERS
+        .iter()
+        .find_map(|name| headers.get(name)?.to_str().ok())
+        .map(str::to_owned)
+}
+
+/// Build a header value from caller-supplied text, rejecting control
+/// characters as an invalid request rather than failing inside the transport.
+pub(crate) fn header_value(value: &str) -> Result<HeaderValue> {
+    HeaderValue::from_str(value)
+        .map_err(|_| Error::invalid_request("header value contains invalid characters"))
+}
+
+/// A `Bearer` credential value, marked sensitive so transports do not log it.
+pub(crate) fn bearer_value(token: &str) -> Result<HeaderValue> {
+    let mut value = header_value(&format!("Bearer {token}"))?;
+    value.set_sensitive(true);
+    Ok(value)
 }
 
 /// Headers for `Debug` output and wire traces, with every value outside the
@@ -50,32 +63,29 @@ pub(crate) fn find_request_id(headers: &[(String, String)]) -> Option<String> {
 /// This is deliberately an allowlist. [`crate::Credentials::Header`] accepts
 /// arbitrary authentication header names, so a denylist of known secrets
 /// would leak custom credentials.
-pub(crate) fn redact_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
+pub(crate) fn redact_headers(headers: &HeaderMap) -> Vec<(&str, &str)> {
+    static VISIBLE: [HeaderName; 13] = [
+        header::ACCEPT,
+        header::ACCEPT_ENCODING,
+        HeaderName::from_static("anthropic-beta"),
+        HeaderName::from_static("anthropic-version"),
+        header::CONTENT_LENGTH,
+        header::CONTENT_TYPE,
+        header::DATE,
+        HeaderName::from_static("http-referer"),
+        header::RETRY_AFTER,
+        header::USER_AGENT,
+        HeaderName::from_static("x-openrouter-title"),
+        HeaderName::from_static("x-should-retry"),
+        HeaderName::from_static("x-title"),
+    ];
     headers
         .iter()
         .map(|(name, value)| {
-            let visible = [
-                "accept",
-                "accept-encoding",
-                "anthropic-beta",
-                "anthropic-version",
-                "content-length",
-                "content-type",
-                "date",
-                "http-referer",
-                "retry-after",
-                "user-agent",
-                "x-openrouter-title",
-                "x-should-retry",
-                "x-title",
-            ]
-            .iter()
-            .chain(REQUEST_ID_HEADERS)
-            .any(|safe| name.eq_ignore_ascii_case(safe));
-            (
-                name.as_str(),
-                if visible { value.as_str() } else { "<redacted>" },
-            )
+            let visible = VISIBLE.contains(name) || REQUEST_ID_HEADERS.contains(name);
+            let value =
+                if visible { value.to_str().unwrap_or("<non-ascii>") } else { "<redacted>" };
+            (name.as_str(), value)
         })
         .collect()
 }
@@ -97,7 +107,7 @@ pub(crate) fn error_kind_for_status(status: u16) -> ErrorKind {
 pub(crate) fn enrich_error_from_headers(
     mut error: Error,
     status: u16,
-    headers: &[(String, String)],
+    headers: &HeaderMap,
 ) -> Error {
     if error.status().is_none() {
         error = error.with_status(status);
@@ -116,11 +126,14 @@ pub(crate) fn enrich_error_from_headers(
 }
 
 /// Parse a `Retry-After` header expressed in seconds.
-pub(crate) fn parse_retry_after(headers: &[(String, String)]) -> Option<Duration> {
+pub(crate) fn parse_retry_after(headers: &HeaderMap) -> Option<Duration> {
     headers
-        .iter()
-        .find(|(name, _)| name.eq_ignore_ascii_case("retry-after"))
-        .and_then(|(_, value)| value.trim().parse::<u64>().ok())
+        .get(header::RETRY_AFTER)?
+        .to_str()
+        .ok()?
+        .trim()
+        .parse::<u64>()
+        .ok()
         .map(Duration::from_secs)
 }
 
@@ -157,22 +170,31 @@ mod tests {
     #[test]
     fn request_id_supports_provider_specific_headers() {
         for name in ["openai-request-id", "x-goog-request-id"] {
-            assert_eq!(
-                find_request_id(&[(name.into(), "request-123".into())]).as_deref(),
-                Some("request-123")
-            );
+            let headers = HeaderMap::from_iter([(
+                HeaderName::from_static(name),
+                HeaderValue::from_static("request-123"),
+            )]);
+            assert_eq!(find_request_id(&headers).as_deref(), Some("request-123"));
         }
     }
 
     #[test]
     fn header_redaction_hides_everything_outside_the_allowlist() {
-        let headers = vec![
-            ("set-cookie".into(), "session=secret-cookie".into()),
-            ("x-api-key".into(), "secret-key".into()),
-            ("x-provider-account".into(), "account-secret".into()),
-            ("X-Request-Id".into(), "request-123".into()),
-            ("content-type".into(), "application/json".into()),
-        ];
+        let headers = HeaderMap::from_iter(
+            [
+                ("set-cookie", "session=secret-cookie"),
+                ("x-api-key", "secret-key"),
+                ("x-provider-account", "account-secret"),
+                ("X-Request-Id", "request-123"),
+                ("content-type", "application/json"),
+            ]
+            .map(|(name, value)| {
+                (
+                    HeaderName::from_bytes(name.as_bytes()).unwrap(),
+                    HeaderValue::from_static(value),
+                )
+            }),
+        );
         let redacted = redact_headers(&headers);
 
         assert_eq!(redacted[0].1, "<redacted>");

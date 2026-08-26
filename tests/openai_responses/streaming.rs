@@ -94,10 +94,10 @@ async fn stream_error_event_then_failed_is_single_error() {
     ];
     mock.push_stream_chunks(
         200,
-        vec![
-            ("content-type".into(), "text/event-stream".into()),
-            ("x-request-id".into(), "req_failed_56".into()),
-        ],
+        headers(&[
+            ("content-type", "text/event-stream"),
+            ("x-request-id", "req_failed_56"),
+        ]),
         frames
             .iter()
             .map(|frame| Bytes::from(format!("data: {frame}\n\n")))
@@ -301,10 +301,10 @@ async fn truncated_stream_reports_error_finish() {
     ];
     mock.push_stream_chunks(
         200,
-        vec![
-            ("content-type".into(), "text/event-stream".into()),
-            ("x-request-id".into(), "req_safeguard_56".into()),
-        ],
+        headers(&[
+            ("content-type", "text/event-stream"),
+            ("x-request-id", "req_safeguard_56"),
+        ]),
         frames
             .iter()
             .map(|frame| Bytes::from(format!("data: {frame}\n\n")))

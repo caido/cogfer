@@ -28,7 +28,11 @@ pub(crate) trait OAuthTokens: Clone + Send + Sync + 'static {
     fn merge_refreshed(previous: &Self, refreshed: Self) -> Self;
 
     /// Set the credential headers on an outgoing request.
-    fn apply(&self, request: &mut HttpRequest);
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when a token is not a valid header value.
+    fn apply(&self, request: &mut HttpRequest) -> Result<()>;
 }
 
 /// The provider client that exchanges refresh tokens.
@@ -121,7 +125,7 @@ impl<T: OAuthTokens, R: TokenRefresher<T>> OAuthAuthenticator<T, R> {
     }
 
     async fn apply(&self, request: &mut HttpRequest, trigger: RefreshTrigger<'_>) -> Result<()> {
-        self.tokens_for_request(trigger).await?.apply(request);
+        self.tokens_for_request(trigger).await?.apply(request)?;
         Ok(())
     }
 

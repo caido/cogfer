@@ -33,8 +33,11 @@ async fn authenticator_sends_bearer_without_needless_refresh() {
     let authenticator = XaiAuthenticator::new(tokens, XaiOAuth::new(auth_transport.clone()));
     let provider = provider_with(
         &mock,
-        ProviderConfig::xai(Credentials::header("x-static-auth", "stale"))
-            .with_authenticator(Arc::new(authenticator)),
+        ProviderConfig::xai(Credentials::header(
+            HeaderName::from_static("x-static-auth"),
+            "stale",
+        ))
+        .with_authenticator(Arc::new(authenticator)),
     );
 
     provider
@@ -45,7 +48,7 @@ async fn authenticator_sends_bearer_without_needless_refresh() {
 
     let http = &mock.requests()[0];
     assert_eq!(
-        header(http, "authorization").as_deref(),
+        header(http, "authorization"),
         Some("Bearer fresh-access")
     );
     assert_eq!(header(http, "x-static-auth"), None);
@@ -98,7 +101,7 @@ async fn authenticator_refreshes_expiring_tokens_and_reports_them() {
 
     let http = &mock.requests()[0];
     assert_eq!(
-        header(http, "authorization").as_deref(),
+        header(http, "authorization"),
         Some("Bearer access-2")
     );
 
@@ -267,7 +270,7 @@ async fn stale_unauthorized_request_reuses_the_new_token_generation() {
     authenticator.reauthenticate(&mut second).await.unwrap();
 
     assert_eq!(
-        header(&second, "authorization").as_deref(),
+        header(&second, "authorization"),
         Some("Bearer access-2")
     );
     assert_eq!(auth_transport.requests().len(), 1);
@@ -318,7 +321,7 @@ async fn failed_proactive_refresh_falls_back_to_the_valid_token() {
     assert_eq!(auth_transport.requests().len(), 1);
     for http in mock.requests() {
         assert_eq!(
-            header(&http, "authorization").as_deref(),
+            header(&http, "authorization"),
             Some("Bearer access-1")
         );
     }

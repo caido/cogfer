@@ -31,9 +31,7 @@ async fn request_uses_openrouter_reasoning_and_sampling() {
         http.url.as_str(),
         "https://openrouter.ai/api/v1/chat/completions"
     );
-    assert!(http.headers.iter().any(|(name, value)| {
-        name.eq_ignore_ascii_case("authorization") && value == "Bearer sk-or-test"
-    }));
+    assert_eq!(header(http, "authorization"), Some("Bearer sk-or-test"));
     let body = mock.request_json(0);
     assert_eq!(body["reasoning"]["max_tokens"], 2048);
     assert_eq!(body["top_k"], 50);

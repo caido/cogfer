@@ -2,6 +2,7 @@
 
 mod cassette;
 mod flows;
+mod headers;
 #[cfg(feature = "reqwest-transport")]
 mod live;
 mod providers;
@@ -12,6 +13,7 @@ mod streams;
 
 pub(crate) use cassette::*;
 pub(crate) use flows::*;
+pub(crate) use headers::*;
 #[cfg(feature = "reqwest-transport")]
 pub(crate) use live::*;
 pub(crate) use providers::*;

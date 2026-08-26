@@ -21,6 +21,7 @@ use crate::protocols::{
 use crate::response::GenerateResult;
 use crate::stream::{StreamAccumulator, StreamNormalizer};
 use crate::transport::sse::{SseFrame, SseParser};
+use crate::transport::{HeaderMap, HeaderName, HeaderValue, header};
 use crate::transport::{HttpRequest, HttpResponse};
 
 pub(crate) struct Handler;
@@ -43,15 +44,25 @@ impl ProtocolHandler for Handler {
 
         let url = join_url(ctx.base_url, "responses");
         let mut http = HttpRequest::post_json(url, &body)?;
-        http.set_header("accept", "text/event-stream");
+        http.headers.insert(
+            header::ACCEPT,
+            HeaderValue::from_static("text/event-stream"),
+        );
         // Identifies the calling application. A provider-level `originator`
         // header overrides it.
-        http.set_header("originator", "caido-ai");
-        http.set_header(
-            "user-agent",
-            concat!("caido-ai/", env!("CARGO_PKG_VERSION")),
+        http.headers.insert(
+            HeaderName::from_static("originator"),
+            HeaderValue::from_static("caido-ai"),
         );
-        http.set_header("session_id", uuid::Uuid::new_v4().to_string());
+        http.headers.insert(
+            header::USER_AGENT,
+            HeaderValue::from_static(concat!("caido-ai/", env!("CARGO_PKG_VERSION"))),
+        );
+        http.headers.insert(
+            HeaderName::from_static("session_id"),
+            HeaderValue::from_str(&uuid::Uuid::new_v4().to_string())
+                .expect("a UUID is a valid header value"),
+        );
         Ok(LoweredRequest { http, warnings })
     }
 
@@ -78,7 +89,7 @@ impl ProtocolHandler for Handler {
         }
     }
 
-    fn decode_error(&self, status: u16, headers: &[(String, String)], body: &[u8]) -> Error {
+    fn decode_error(&self, status: u16, headers: &HeaderMap, body: &[u8]) -> Error {
         decode_openai_error(ApiProfile::ChatGptResponses, status, headers, body)
     }
 

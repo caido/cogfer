@@ -9,8 +9,10 @@ use super::device_flow::ChatGptOAuth;
 use super::tokens::ChatGptTokens;
 use crate::auth::{RequestAuthenticator, TokenStore};
 use crate::error::Result;
+use crate::http::{bearer_value, header_value};
 use crate::oauth::{OAuthAuthenticator, OAuthStatus, OAuthTokens, TokenRefresher};
 use crate::transport::HttpRequest;
+use crate::transport::{HeaderName, header};
 
 /// [`RequestAuthenticator`] backed by refreshable ChatGPT tokens.
 ///
@@ -85,6 +87,8 @@ impl RequestAuthenticator for ChatGptAuthenticator {
     }
 }
 
+const CHATGPT_ACCOUNT_ID: HeaderName = HeaderName::from_static("chatgpt-account-id");
+
 impl OAuthTokens for ChatGptTokens {
     fn access_token(&self) -> &str {
         &self.access_token
@@ -108,16 +112,17 @@ impl OAuthTokens for ChatGptTokens {
         refreshed
     }
 
-    fn apply(&self, request: &mut HttpRequest) {
-        request.set_header("authorization", format!("Bearer {}", self.access_token));
+    fn apply(&self, request: &mut HttpRequest) -> Result<()> {
         request
             .headers
-            .retain(|(name, _)| !name.eq_ignore_ascii_case("chatgpt-account-id"));
+            .insert(header::AUTHORIZATION, bearer_value(&self.access_token)?);
+        request.headers.remove(CHATGPT_ACCOUNT_ID);
         if let Some(account_id) = &self.account_id {
             request
                 .headers
-                .push(("chatgpt-account-id".into(), account_id.clone()));
+                .insert(CHATGPT_ACCOUNT_ID, header_value(account_id)?);
         }
+        Ok(())
     }
 }
 

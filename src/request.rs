@@ -6,6 +6,7 @@ use serde_json::Value;
 
 use crate::message::Message;
 use crate::metadata::ProviderMetadata;
+use crate::transport::{HeaderMap, HeaderName, HeaderValue};
 
 /// A protocol-independent language-model request.
 ///
@@ -46,7 +47,7 @@ pub struct Request {
     /// [`ProviderMetadata::merge`].
     pub provider_options: ProviderMetadata,
     /// Extra HTTP headers for this request. Values are redacted from `Debug`.
-    pub extra_headers: Vec<(String, String)>,
+    pub extra_headers: HeaderMap,
     /// When streaming, also emit [`crate::StreamEvent::Raw`] events carrying
     /// unrecognized provider payloads.
     pub include_raw_events: bool,
@@ -69,8 +70,8 @@ impl std::fmt::Debug for Request {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let redacted_headers: Vec<(&str, &str)> = self
             .extra_headers
-            .iter()
-            .map(|(name, _)| (name.as_str(), "<redacted>"))
+            .keys()
+            .map(|name| (name.as_str(), "<redacted>"))
             .collect();
         f.debug_struct("Request")
             .field("system", &self.system)
@@ -213,8 +214,8 @@ impl RequestBuilder {
         self
     }
 
-    pub fn extra_header(mut self, name: impl Into<String>, value: impl Into<String>) -> Self {
-        self.request.extra_headers.push((name.into(), value.into()));
+    pub fn extra_header(mut self, name: HeaderName, value: HeaderValue) -> Self {
+        self.request.extra_headers.insert(name, value);
         self
     }
 

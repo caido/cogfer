@@ -17,7 +17,7 @@ async fn responses_dialect_targets_api_x_ai() {
     let http = &mock.requests()[0];
     assert_eq!(http.url.as_str(), "https://api.x.ai/v1/responses");
     assert_eq!(
-        header(http, "authorization").as_deref(),
+        header(http, "authorization"),
         Some("Bearer xai-key")
     );
 
@@ -44,7 +44,7 @@ async fn chat_dialect_targets_chat_completions() {
     let http = &mock.requests()[0];
     assert_eq!(http.url.as_str(), "https://api.x.ai/v1/chat/completions");
     assert_eq!(
-        header(http, "authorization").as_deref(),
+        header(http, "authorization"),
         Some("Bearer xai-key")
     );
 }

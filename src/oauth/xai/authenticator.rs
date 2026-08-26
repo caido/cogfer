@@ -8,8 +8,10 @@ use futures_util::future::BoxFuture;
 use super::{XaiOAuth, XaiTokens};
 use crate::auth::{RequestAuthenticator, TokenStore};
 use crate::error::Result;
+use crate::http::bearer_value;
 use crate::oauth::{OAuthAuthenticator, OAuthStatus, OAuthTokens, TokenRefresher};
 use crate::transport::HttpRequest;
+use crate::transport::header;
 
 /// [`RequestAuthenticator`] backed by refreshable xAI tokens.
 ///
@@ -97,8 +99,11 @@ impl OAuthTokens for XaiTokens {
     }
 
     /// The OAuth access token acts as a plain API key on `api.x.ai`.
-    fn apply(&self, request: &mut HttpRequest) {
-        request.set_header("authorization", format!("Bearer {}", self.access_token));
+    fn apply(&self, request: &mut HttpRequest) -> Result<()> {
+        request
+            .headers
+            .insert(header::AUTHORIZATION, bearer_value(&self.access_token)?);
+        Ok(())
     }
 }
 

@@ -7,6 +7,7 @@ use crate::protocols::{
     ApiProfile, LoweredRequest, ProtocolContext, ProtocolHandler, StreamDecoder,
 };
 use crate::response::GenerateResult;
+use crate::transport::HeaderMap;
 use crate::transport::{HttpRequest, HttpResponse};
 
 pub(crate) mod chatgpt;
@@ -73,7 +74,7 @@ impl ProtocolHandler for Handler {
         decode_openai_response(ctx, response)
     }
 
-    fn decode_error(&self, status: u16, headers: &[(String, String)], body: &[u8]) -> Error {
+    fn decode_error(&self, status: u16, headers: &HeaderMap, body: &[u8]) -> Error {
         decode_openai_error(self.dialect.profile(), status, headers, body)
     }
 

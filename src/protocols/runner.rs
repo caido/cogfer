@@ -14,7 +14,9 @@ use crate::request::Request;
 use crate::response::{GenerateResult, ResponseMetadata, Warning};
 use crate::stream::{EventStream, StreamEvent, StreamNormalizer};
 use crate::transport::sse::SseParser;
-use crate::transport::{HttpByteStream, HttpRequest, HttpResponse};
+use crate::transport::{
+    HeaderMap, HeaderName, HeaderValue, HttpByteStream, HttpRequest, HttpResponse, header,
+};
 
 const TARGET: &str = "ai|runner";
 
@@ -54,7 +56,9 @@ async fn prepare(
     }
 
     match provider.inner.config.authentication() {
-        Authentication::Credentials(credentials) => handler.apply_auth(&mut http, credentials),
+        Authentication::Credentials(credentials) => handler
+            .apply_auth(&mut http, credentials)
+            .map_err(|error| annotate(error, provider, model))?,
         Authentication::Authenticator(authenticator) => {
             authenticator
                 .authenticate(&mut http)
@@ -75,7 +79,7 @@ fn trace_wire_request(http: &HttpRequest) {
     if !log::log_enabled!(target: TARGET, log::Level::Trace) {
         return;
     }
-    let header_names: Vec<_> = http.headers.iter().map(|(name, _)| name.as_str()).collect();
+    let header_names: Vec<_> = http.headers.keys().map(HeaderName::as_str).collect();
     log::trace!(
         target: TARGET,
         "wire request: method=POST url={} query_present={} headers={header_names:?} body_bytes={}",
@@ -85,7 +89,7 @@ fn trace_wire_request(http: &HttpRequest) {
     );
 }
 
-fn trace_wire_response(status: u16, headers: &[(String, String)], body: &[u8]) {
+fn trace_wire_response(status: u16, headers: &HeaderMap, body: &[u8]) {
     if !log::log_enabled!(target: TARGET, log::Level::Trace) {
         return;
     }
@@ -99,22 +103,22 @@ fn trace_wire_response(status: u16, headers: &[(String, String)], body: &[u8]) {
 
 /// Set a header, comma-merging `anthropic-beta` instead of replacing so
 /// caller-supplied beta flags compose with protocol-required ones.
-fn apply_header(http: &mut HttpRequest, name: &str, value: &str) {
-    if name.eq_ignore_ascii_case("anthropic-beta") {
-        let existing = http
-            .headers
-            .iter()
-            .find(|(existing_name, _)| existing_name.eq_ignore_ascii_case(name))
-            .map(|(_, existing_value)| existing_value.clone());
-        if let Some(existing) = existing {
-            if !existing.split(',').any(|flag| flag.trim() == value) {
-                http.set_header(name, format!("{existing},{value}"));
-            }
-            return;
+fn apply_header(http: &mut HttpRequest, name: &HeaderName, value: &HeaderValue) {
+    if name == ANTHROPIC_BETA
+        && let Some(existing) = http.headers.get(name)
+        && let (Ok(existing), Ok(flag)) = (existing.to_str(), value.to_str())
+    {
+        if !existing.split(',').any(|known| known.trim() == flag) {
+            let merged = HeaderValue::from_str(&format!("{existing},{flag}"))
+                .expect("joining two valid header values yields a valid header value");
+            http.headers.insert(name.clone(), merged);
         }
+        return;
     }
-    http.set_header(name, value.to_string());
+    http.headers.insert(name.clone(), value.clone());
 }
+
+const ANTHROPIC_BETA: HeaderName = HeaderName::from_static("anthropic-beta");
 
 /// Fill in origin and model context without overwriting decoder context.
 fn annotate(mut error: Error, provider: &Provider, model: &str) -> Error {
@@ -358,11 +362,11 @@ pub(crate) async fn stream(
 }
 
 /// Whether the response declares a JSON body rather than an event stream.
-fn is_json_body(headers: &[(String, String)]) -> bool {
+fn is_json_body(headers: &HeaderMap) -> bool {
     headers
-        .iter()
-        .find(|(name, _)| name.eq_ignore_ascii_case("content-type"))
-        .is_some_and(|(_, value)| {
+        .get(header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .is_some_and(|value| {
             value
                 .trim_start()
                 .to_ascii_lowercase()
@@ -506,14 +510,17 @@ mod tests {
 
     #[test]
     fn json_bodies_are_detected_case_insensitively_with_parameters() {
-        let json = vec![(
-            "Content-Type".to_string(),
-            "Application/JSON; charset=utf-8".to_string(),
-        )];
-        let sse = vec![("content-type".to_string(), "text/event-stream".to_string())];
+        let json = HeaderMap::from_iter([(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("Application/JSON; charset=utf-8"),
+        )]);
+        let sse = HeaderMap::from_iter([(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("text/event-stream"),
+        )]);
 
         assert!(is_json_body(&json));
         assert!(!is_json_body(&sse));
-        assert!(!is_json_body(&[]));
+        assert!(!is_json_body(&HeaderMap::new()));
     }
 }

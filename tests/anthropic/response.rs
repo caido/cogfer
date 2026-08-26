@@ -112,10 +112,7 @@ async fn error_decoding() {
     let mock = MockTransport::shared();
     mock.push_response(
         429,
-        vec![
-            ("content-type".into(), "application/json".into()),
-            ("retry-after".into(), "30".into()),
-        ],
+        headers(&[("content-type", "application/json"), ("retry-after", "30")]),
         serde_json::to_vec(&json!({"type": "error",
             "error": {"type": "rate_limit_error", "message": "limited"},
             "request_id": "req_a"}))

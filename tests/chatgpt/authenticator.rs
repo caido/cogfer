@@ -21,17 +21,11 @@ async fn authenticator_sets_bearer_and_account_headers() {
         .expect("generate succeeds");
 
     let http = &mock.requests()[0];
-    let authorization = http
-        .headers
-        .iter()
-        .find(|(name, _)| name == "authorization")
-        .map(|(_, value)| value.clone())
-        .expect("authorization header");
-    assert!(authorization.starts_with("Bearer eyJ") || authorization.starts_with("Bearer "));
-    assert!(
-        http.headers
-            .iter()
-            .any(|(name, value)| name == "chatgpt-account-id" && value == "acct_42"),
+    let authorization = header(http, "authorization").expect("authorization header");
+    assert!(authorization.starts_with("Bearer "));
+    assert_eq!(
+        header(http, "chatgpt-account-id"),
+        Some("acct_42"),
         "account id derived from the JWT should be sent"
     );
     assert!(

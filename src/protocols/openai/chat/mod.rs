@@ -8,7 +8,7 @@ use crate::protocols::{
     ApiProfile, LoweredRequest, ProtocolContext, ProtocolHandler, StreamDecoder,
 };
 use crate::response::GenerateResult;
-use crate::transport::HttpResponse;
+use crate::transport::{HeaderMap, HttpResponse};
 
 mod request;
 mod stream;
@@ -109,7 +109,7 @@ impl ProtocolHandler for Handler {
         decode_chat_response(response, self.dialect)
     }
 
-    fn decode_error(&self, status: u16, headers: &[(String, String)], body: &[u8]) -> Error {
+    fn decode_error(&self, status: u16, headers: &HeaderMap, body: &[u8]) -> Error {
         match self.dialect {
             ChatDialect::OpenRouter => decode_openrouter_error(status, headers, body),
             _ => decode_openai_error(self.dialect.profile(), status, headers, body),
