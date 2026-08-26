@@ -6,8 +6,10 @@ use super::ResponsesDialect;
 use crate::error::{Error, ErrorKind, Result};
 use crate::message::{AssistantPart, Message, ReasoningContent, UserPart};
 use crate::protocols::openai::shared::{ToolShape, insert_tools, json_schema_format};
-use crate::protocols::{ApiProfile, ProtocolContext, foreign_origin};
-use crate::request::{ReasoningConfig, ReasoningOutput};
+use crate::protocols::{
+    ApiProfile, ProtocolContext, ResolvedReasoning, foreign_origin, resolve_reasoning,
+};
+use crate::request::ReasoningOutput;
 use crate::response::Warning;
 
 /// Lower the message history (without the system prompt, which uses
@@ -256,33 +258,31 @@ fn insert_reasoning_configuration(
     object: &mut serde_json::Map<String, Value>,
     warnings: &mut Vec<Warning>,
 ) {
-    let Some(reasoning) = &ctx.request.reasoning else {
+    let Some(config) = ctx.request.reasoning else {
         return;
     };
-    let mut config = serde_json::Map::new();
-    let output = match reasoning {
-        ReasoningConfig::Disabled => {
-            config.insert("effort".into(), json!("none"));
-            None
-        }
-        ReasoningConfig::Effort { effort, output } => {
-            config.insert("effort".into(), json!(effort.as_str()));
-            *output
-        }
-        ReasoningConfig::Budget { output, .. } => {
+    let Some((resolved, output)) =
+        resolve_reasoning(config, &ctx.capabilities.reasoning, ctx.profile, warnings)
+    else {
+        return;
+    };
+    let effort = match resolved {
+        ResolvedReasoning::Disabled => "none",
+        ResolvedReasoning::Effort(effort) => effort.as_str(),
+        ResolvedReasoning::Budget(_) => {
             warnings.push(Warning::unsupported_setting(
                 "reasoning.budget",
-                "openai-responses uses discrete reasoning efforts, not token budgets",
+                format!("{} has no reasoning token budget", ctx.profile),
             ));
-            *output
+            return;
         }
     };
+    let mut config = serde_json::Map::new();
+    config.insert("effort".into(), json!(effort));
     if output == Some(ReasoningOutput::Include) {
         config.insert("summary".into(), json!("auto"));
     }
-    if !config.is_empty() {
-        object.insert("reasoning".into(), Value::Object(config));
-    }
+    object.insert("reasoning".into(), Value::Object(config));
 }
 
 fn insert_compaction_configuration(

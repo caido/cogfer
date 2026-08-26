@@ -29,6 +29,7 @@
 #![warn(missing_debug_implementations)]
 
 pub use self::auth::{Credentials, RequestAuthenticator, SecretString, TokenStore};
+pub use self::capabilities::{ModelCapabilities, ReasoningSupport};
 pub use self::client::{Client, ClientBuilder};
 pub use self::error::{Error, ErrorKind, Result};
 pub use self::message::{
@@ -54,6 +55,7 @@ pub mod oauth;
 pub mod transport;
 
 mod auth;
+mod capabilities;
 mod client;
 mod error;
 mod http;

@@ -1,5 +1,6 @@
 //! The [`LanguageModel`] execution handle.
 
+use crate::capabilities::ModelCapabilities;
 use crate::error::Result;
 use crate::provider::Provider;
 use crate::request::Request;
@@ -16,6 +17,13 @@ pub struct LanguageModel {
 impl LanguageModel {
     pub fn id(&self) -> &str {
         &self.id
+    }
+
+    /// The settings this model accepts. Lowering drops anything outside them
+    /// with a [`Warning`](crate::Warning); hosts can use this to hide the
+    /// controls that would be dropped.
+    pub fn capabilities(&self) -> ModelCapabilities {
+        self.provider.capabilities()
     }
 
     /// Execute a non-streaming completion.

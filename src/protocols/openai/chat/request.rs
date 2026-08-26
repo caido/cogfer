@@ -5,8 +5,10 @@ use crate::error::Result;
 use crate::http::join_url;
 use crate::message::{AssistantPart, Message, ReasoningContent, ReasoningPart, UserPart};
 use crate::protocols::openai::shared::{ToolShape, insert_tools, json_schema_format};
-use crate::protocols::{LoweredRequest, ProtocolContext, foreign_origin};
-use crate::request::{ReasoningConfig, ReasoningOutput, Request};
+use crate::protocols::{
+    LoweredRequest, ProtocolContext, ResolvedReasoning, foreign_origin, resolve_reasoning,
+};
+use crate::request::{ReasoningOutput, Request};
 use crate::response::Warning;
 use crate::transport::HttpRequest;
 
@@ -31,7 +33,7 @@ pub(crate) fn lower_chat(
             json!({"type": "json_schema", "json_schema": json_schema_format(output)}),
         );
     }
-    insert_reasoning(request, dialect, object, &mut warnings);
+    insert_reasoning(ctx, dialect, object, &mut warnings);
     insert_generation_settings(request, dialect, object, &mut warnings);
 
     if streaming {
@@ -57,67 +59,48 @@ pub(crate) fn lower_chat(
 }
 
 fn insert_reasoning(
-    request: &Request,
+    ctx: &ProtocolContext<'_>,
     dialect: ChatDialect,
     object: &mut Map<String, Value>,
     warnings: &mut Vec<Warning>,
 ) {
-    let Some(reasoning) = request.reasoning else {
+    let Some(config) = ctx.request.reasoning else {
+        return;
+    };
+    let Some((resolved, output)) =
+        resolve_reasoning(config, &ctx.capabilities.reasoning, ctx.profile, warnings)
+    else {
         return;
     };
 
     match dialect {
-        ChatDialect::OpenAi | ChatDialect::Compatible | ChatDialect::Xai => match reasoning {
-            ReasoningConfig::Disabled => {
-                object.insert("reasoning_effort".into(), json!("none"));
-            }
-            ReasoningConfig::Effort { effort, output } => {
-                object.insert("reasoning_effort".into(), json!(effort.as_str()));
-                if output.is_some() {
+        ChatDialect::OpenAi | ChatDialect::Compatible | ChatDialect::Xai => {
+            let effort = match resolved {
+                ResolvedReasoning::Disabled => "none",
+                ResolvedReasoning::Effort(effort) => effort.as_str(),
+                ResolvedReasoning::Budget(_) => {
                     warnings.push(Warning::unsupported_setting(
-                        "reasoning.output",
-                        format!(
-                            "{} cannot control reasoning output visibility",
-                            dialect.profile()
-                        ),
+                        "reasoning.budget",
+                        format!("{} has no reasoning token budget", ctx.profile),
                     ));
-                }
-            }
-            ReasoningConfig::Budget { output, .. } => {
-                warnings.push(Warning::unsupported_setting(
-                    "reasoning.budget",
-                    format!(
-                        "{} uses discrete reasoning efforts, not token budgets",
-                        dialect.profile()
-                    ),
-                ));
-                if output.is_some() {
-                    warnings.push(Warning::unsupported_setting(
-                        "reasoning.output",
-                        format!(
-                            "{} cannot control reasoning output visibility",
-                            dialect.profile()
-                        ),
-                    ));
-                }
-            }
-        },
-        ChatDialect::OpenRouter => {
-            let mut config = serde_json::Map::new();
-            let output = match reasoning {
-                ReasoningConfig::Disabled => {
-                    config.insert("effort".into(), json!("none"));
-                    None
-                }
-                ReasoningConfig::Effort { effort, output } => {
-                    config.insert("effort".into(), json!(effort.as_str()));
-                    output
-                }
-                ReasoningConfig::Budget { tokens, output } => {
-                    config.insert("max_tokens".into(), json!(tokens.get()));
-                    output
+                    return;
                 }
             };
+            object.insert("reasoning_effort".into(), json!(effort));
+        }
+        ChatDialect::OpenRouter => {
+            let mut config = serde_json::Map::new();
+            match resolved {
+                ResolvedReasoning::Disabled => {
+                    config.insert("effort".into(), json!("none"));
+                }
+                ResolvedReasoning::Effort(effort) => {
+                    config.insert("effort".into(), json!(effort.as_str()));
+                }
+                ResolvedReasoning::Budget(tokens) => {
+                    config.insert("max_tokens".into(), json!(tokens.get()));
+                }
+            }
             if let Some(output) = output {
                 config.insert(
                     "exclude".into(),

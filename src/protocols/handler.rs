@@ -2,6 +2,7 @@ use url::Url;
 
 use super::ApiProfile;
 use crate::auth::Credentials;
+use crate::capabilities::ModelCapabilities;
 use crate::error::{Error, Result};
 use crate::request::Request;
 use crate::response::{GenerateResult, Warning};
@@ -15,6 +16,8 @@ pub(crate) struct ProtocolContext<'a> {
     pub model: &'a str,
     pub request: &'a Request,
     pub base_url: &'a Url,
+    /// What the model accepts; lowering fits the request to it.
+    pub capabilities: &'a ModelCapabilities,
 }
 
 pub(crate) struct LoweredRequest {

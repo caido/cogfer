@@ -37,11 +37,13 @@ async fn prepare(
     super::validate::validate(request, model, provider.profile())?;
 
     let base_url = provider.base_url();
+    let capabilities = provider.capabilities();
     let ctx = ProtocolContext {
         profile: provider.profile(),
         model,
         request,
         base_url: &base_url,
+        capabilities: &capabilities,
     };
     let LoweredRequest { mut http, warnings } = handler
         .lower(&ctx, streaming)
@@ -174,11 +176,13 @@ fn decode_buffered_response(
     request: &Request,
     response: &HttpResponse,
 ) -> Result<GenerateResult> {
+    let capabilities = provider.capabilities();
     let ctx = ProtocolContext {
         profile: provider.profile(),
         model,
         request,
         base_url,
+        capabilities: &capabilities,
     };
     let mut result = handler.decode_response(&ctx, response).map_err(|error| {
         let error = enrich_error_from_headers(error, response.status, &response.headers);
@@ -343,11 +347,13 @@ pub(crate) async fn stream(
         return Ok(EventStream::new(Box::pin(stream)));
     }
 
+    let capabilities = provider.capabilities();
     let decoder = handler.new_stream_decoder(&ProtocolContext {
         profile: provider.profile(),
         model,
         request: &request,
         base_url: &base_url,
+        capabilities: &capabilities,
     });
     let state = StreamState {
         bytes: byte_stream.bytes,

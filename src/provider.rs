@@ -6,6 +6,7 @@ use std::sync::Arc;
 use url::Url;
 
 use crate::auth::{Credentials, RequestAuthenticator};
+use crate::capabilities::ModelCapabilities;
 use crate::model::LanguageModel;
 use crate::protocols::ApiProfile;
 use crate::transport::{HeaderMap, HeaderName, HeaderValue, HttpTransport};
@@ -177,6 +178,12 @@ impl Provider {
     /// # Panics
     ///
     /// Panics if an internally defined profile default is not a valid URL.
+    /// The settings models on this provider accept. Profile defaults today;
+    /// the seam where per-model data will refine them.
+    pub fn capabilities(&self) -> ModelCapabilities {
+        ModelCapabilities::for_profile(self.profile())
+    }
+
     pub fn base_url(&self) -> Url {
         match self.inner.config.custom_base_url() {
             Some(url) => url.clone(),

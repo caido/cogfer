@@ -72,6 +72,9 @@ pub struct ResponseMetadata {
 pub enum WarningKind {
     /// A request setting the selected API profile cannot express was dropped.
     UnsupportedSetting,
+    /// A request setting was sent as the closest control the API profile
+    /// offers (a reasoning budget as a discrete effort, for example).
+    ApproximatedSetting,
     /// Anything else worth surfacing without failing the request.
     Other,
 }
@@ -89,6 +92,14 @@ impl Warning {
     pub fn unsupported_setting(subject: impl Into<String>, message: impl Into<String>) -> Self {
         Self {
             kind: WarningKind::UnsupportedSetting,
+            subject: Some(subject.into()),
+            message: message.into(),
+        }
+    }
+
+    pub fn approximated_setting(subject: impl Into<String>, message: impl Into<String>) -> Self {
+        Self {
+            kind: WarningKind::ApproximatedSetting,
             subject: Some(subject.into()),
             message: message.into(),
         }

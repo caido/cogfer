@@ -7,8 +7,8 @@ use crate::error::{Error, Result};
 use crate::http::join_url;
 use crate::message::{AssistantPart, Message, ToolResultContent, ToolResultPart, UserPart};
 use crate::metadata::ProviderMetadata;
-use crate::protocols::{LoweredRequest, ProtocolContext};
-use crate::request::{ReasoningConfig, ReasoningEffort, ReasoningOutput, Request, ToolChoice};
+use crate::protocols::{LoweredRequest, ProtocolContext, ResolvedReasoning, resolve_reasoning};
+use crate::request::{ReasoningOutput, Request, ToolChoice};
 use crate::response::Warning;
 use crate::transport::HttpRequest;
 
@@ -256,46 +256,29 @@ fn add_tool_config(
     }
 }
 
-fn thinking_config(request: &Request, warnings: &mut Vec<Warning>) -> Option<Value> {
-    let reasoning = request.reasoning?;
+fn thinking_config(ctx: &ProtocolContext<'_>, warnings: &mut Vec<Warning>) -> Option<Value> {
+    let config = ctx.request.reasoning?;
+    let (resolved, output) =
+        resolve_reasoning(config, &ctx.capabilities.reasoning, ctx.profile, warnings)?;
     let mut thinking = Map::new();
-    let output = match reasoning {
-        ReasoningConfig::Disabled => {
+    match resolved {
+        ResolvedReasoning::Disabled => {
             thinking.insert("thinkingBudget".into(), json!(0));
-            None
         }
-        ReasoningConfig::Effort { effort, output } => {
-            match effort {
-                ReasoningEffort::Minimal
-                | ReasoningEffort::Low
-                | ReasoningEffort::Medium
-                | ReasoningEffort::High => {
-                    thinking.insert("thinkingLevel".into(), json!(effort.as_str()));
-                }
-                ReasoningEffort::XHigh | ReasoningEffort::Max => {
-                    warnings.push(Warning::unsupported_setting(
-                        "reasoning.effort",
-                        format!(
-                            "gemini does not support reasoning effort `{}`",
-                            effort.as_str()
-                        ),
-                    ));
-                }
-            }
-            output
+        ResolvedReasoning::Effort(effort) => {
+            thinking.insert("thinkingLevel".into(), json!(effort.as_str()));
         }
-        ReasoningConfig::Budget { tokens, output } => {
+        ResolvedReasoning::Budget(tokens) => {
             thinking.insert("thinkingBudget".into(), json!(tokens.get()));
-            output
         }
-    };
+    }
     if let Some(output) = output {
         thinking.insert(
             "includeThoughts".into(),
             json!(matches!(output, ReasoningOutput::Include)),
         );
     }
-    (!thinking.is_empty()).then_some(Value::Object(thinking))
+    Some(Value::Object(thinking))
 }
 
 fn generation_config(ctx: &ProtocolContext<'_>, warnings: &mut Vec<Warning>) -> Map<String, Value> {
@@ -329,7 +312,7 @@ fn generation_config(ctx: &ProtocolContext<'_>, warnings: &mut Vec<Warning>) -> 
         generation.insert("responseMimeType".into(), json!("application/json"));
         generation.insert("responseJsonSchema".into(), output.schema.clone());
     }
-    if let Some(thinking) = thinking_config(request, warnings) {
+    if let Some(thinking) = thinking_config(ctx, warnings) {
         generation.insert("thinkingConfig".into(), thinking);
     }
     generation

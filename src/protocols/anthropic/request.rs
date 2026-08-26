@@ -3,8 +3,8 @@ use serde_json::{Value, json};
 use crate::error::{Error, ErrorKind, Result};
 use crate::http::join_url;
 use crate::message::{AssistantPart, Message, ReasoningContent, ReasoningPart, ToolCall, UserPart};
-use crate::protocols::{LoweredRequest, ProtocolContext};
-use crate::request::{ReasoningConfig, ReasoningOutput, Request, ToolChoice};
+use crate::protocols::{LoweredRequest, ProtocolContext, ResolvedReasoning, resolve_reasoning};
+use crate::request::{ReasoningOutput, Request, ToolChoice};
 use crate::response::Warning;
 use crate::transport::HttpRequest;
 use crate::transport::{HeaderName, HeaderValue};
@@ -151,41 +151,41 @@ pub(crate) fn lower_reasoning(reasoning: &ReasoningPart, blocks: &mut Vec<Value>
 
 /// The `max_tokens` to send: the caller's cap, or the fallback plus any
 /// thinking budget so the budget never starves the visible answer.
-fn effective_max_tokens(request: &Request) -> u32 {
+fn effective_max_tokens(request: &Request, reasoning: Option<ResolvedReasoning>) -> u32 {
     if let Some(max) = request.max_output_tokens {
         return max;
     }
-    match request.reasoning {
-        Some(ReasoningConfig::Budget { tokens, .. }) => {
-            FALLBACK_MAX_TOKENS.saturating_add(tokens.get())
-        }
+    match reasoning {
+        Some(ResolvedReasoning::Budget(tokens)) => FALLBACK_MAX_TOKENS.saturating_add(tokens.get()),
         _ => FALLBACK_MAX_TOKENS,
     }
 }
 
 fn lower_request_reasoning(
     request: &Request,
+    reasoning: Option<(ResolvedReasoning, Option<ReasoningOutput>)>,
     max_tokens: u32,
     object: &mut serde_json::Map<String, Value>,
 ) -> Result<()> {
     let mut output_config = serde_json::Map::new();
-    if let Some(reasoning) = request.reasoning {
-        match reasoning {
-            ReasoningConfig::Disabled => {
+    if let Some((resolved, output)) = reasoning {
+        let display = output.map(|output| match output {
+            ReasoningOutput::Include => "summarized",
+            ReasoningOutput::Omit => "omitted",
+        });
+        match resolved {
+            ResolvedReasoning::Disabled => {
                 object.insert("thinking".into(), json!({"type": "disabled"}));
             }
-            ReasoningConfig::Effort { effort, output } => {
+            ResolvedReasoning::Effort(effort) => {
                 let mut thinking = json!({"type": "adaptive"});
-                if let Some(output) = output {
-                    thinking["display"] = json!(match output {
-                        ReasoningOutput::Include => "summarized",
-                        ReasoningOutput::Omit => "omitted",
-                    });
+                if let Some(display) = display {
+                    thinking["display"] = json!(display);
                 }
                 object.insert("thinking".into(), thinking);
                 output_config.insert("effort".into(), json!(effort.as_str()));
             }
-            ReasoningConfig::Budget { tokens, output } => {
+            ResolvedReasoning::Budget(tokens) => {
                 let tokens = tokens.get();
                 if tokens < 1024 {
                     return Err(Error::invalid_request(
@@ -201,11 +201,8 @@ fn lower_request_reasoning(
                     "type": "enabled",
                     "budget_tokens": tokens,
                 });
-                if let Some(output) = output {
-                    thinking["display"] = json!(match output {
-                        ReasoningOutput::Include => "summarized",
-                        ReasoningOutput::Omit => "omitted",
-                    });
+                if let Some(display) = display {
+                    thinking["display"] = json!(display);
                 }
                 object.insert("thinking".into(), thinking);
             }
@@ -352,7 +349,15 @@ pub(crate) fn lower_anthropic_request(
 ) -> Result<LoweredRequest> {
     let mut warnings = Vec::new();
     let request = ctx.request;
-    let max_tokens = effective_max_tokens(request);
+    let reasoning = request.reasoning.and_then(|config| {
+        resolve_reasoning(
+            config,
+            &ctx.capabilities.reasoning,
+            ctx.profile,
+            &mut warnings,
+        )
+    });
+    let max_tokens = effective_max_tokens(request, reasoning.map(|(resolved, _)| resolved));
 
     let mut body = json!({
         "model": ctx.model,
@@ -365,8 +370,8 @@ pub(crate) fn lower_anthropic_request(
         object.insert("system".into(), json!(system));
     }
     lower_tools(request, object);
-    let budget_thinking = matches!(request.reasoning, Some(ReasoningConfig::Budget { .. }));
-    lower_request_reasoning(request, max_tokens, object)?;
+    let budget_thinking = matches!(reasoning, Some((ResolvedReasoning::Budget(_), _)));
+    lower_request_reasoning(request, reasoning, max_tokens, object)?;
     lower_tool_choice(request, budget_thinking, object)?;
     let beta_features = lower_compaction(request, object);
     lower_sampling(request, budget_thinking, object, &mut warnings);

@@ -30,6 +30,12 @@ pub struct Request {
     /// Whether the model may issue several tool calls in one turn.
     pub parallel_tool_calls: Option<bool>,
     /// Reasoning/thinking configuration. `None` uses the provider default.
+    ///
+    /// Profiles differ in whether they take an effort or a token budget and
+    /// in which efforts they accept; see
+    /// [`ModelCapabilities::reasoning`](crate::ModelCapabilities::reasoning).
+    /// Lowering sends the closest control the profile has and reports the
+    /// substitution as a [`WarningKind::ApproximatedSetting`](crate::WarningKind::ApproximatedSetting).
     pub reasoning: Option<ReasoningConfig>,
     /// JSON-schema constrained output.
     pub structured_output: Option<StructuredOutput>,
@@ -44,7 +50,8 @@ pub struct Request {
     pub frequency_penalty: Option<f64>,
     pub seed: Option<u64>,
     /// Provider-specific request parameters merged according to
-    /// [`ProviderMetadata::merge`].
+    /// [`ProviderMetadata::merge`]: the escape hatch for anything the typed
+    /// settings and their per-profile approximations cannot express.
     pub provider_options: ProviderMetadata,
     /// Extra HTTP headers for this request. Values are redacted from `Debug`.
     pub extra_headers: HeaderMap,
@@ -266,6 +273,8 @@ pub enum ToolChoice {
 }
 
 /// Exclusive reasoning configuration. Unset preserves the provider default.
+/// Either form is accepted on every profile; see [`Request::reasoning`] for
+/// how a form the profile lacks is approximated.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum ReasoningConfig {

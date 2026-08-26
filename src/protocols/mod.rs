@@ -3,6 +3,7 @@
 mod error;
 mod handler;
 mod normalize;
+mod reasoning;
 
 use serde_json::json;
 
@@ -24,6 +25,7 @@ pub(crate) use self::handler::{
     LoweredRequest, ProtocolContext, ProtocolHandler, StreamDecoder, handler,
 };
 pub(crate) use self::normalize::normalize_usage;
+pub(crate) use self::reasoning::{ResolvedReasoning, resolve as resolve_reasoning};
 
 /// Request, response, and streaming behavior for a provider API.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

@@ -10,6 +10,7 @@
 mod common;
 
 mod anthropic;
+mod capabilities;
 mod chatgpt;
 mod core;
 mod custom_urls;
