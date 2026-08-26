@@ -7,9 +7,8 @@ use std::time::Duration;
 
 use futures_util::future::BoxFuture;
 
-use super::OAuthStatus;
-use super::expires_within;
 use super::refresh::{RefreshState, refresh_operation};
+use super::{OAuthStatus, expires_within};
 use crate::auth::{RequestAuthenticator, TokenStore};
 use crate::error::Result;
 use crate::transport::HttpRequest;

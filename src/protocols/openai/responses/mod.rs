@@ -7,8 +7,7 @@ use crate::protocols::{
     ApiProfile, LoweredRequest, ProtocolContext, ProtocolHandler, StreamDecoder,
 };
 use crate::response::GenerateResult;
-use crate::transport::HeaderMap;
-use crate::transport::{HttpRequest, HttpResponse};
+use crate::transport::{HeaderMap, HttpRequest, HttpResponse};
 
 pub(crate) mod chatgpt;
 mod request;

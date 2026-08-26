@@ -3,8 +3,7 @@
 use super::{LoweredRequest, ProtocolContext, ProtocolHandler, StreamDecoder};
 use crate::error::{Error, Result};
 use crate::response::GenerateResult;
-use crate::transport::{HeaderMap, HeaderName};
-use crate::transport::{HttpRequest, HttpResponse};
+use crate::transport::{HeaderMap, HeaderName, HttpRequest, HttpResponse};
 
 mod request;
 mod stream;

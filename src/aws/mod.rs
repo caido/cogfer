@@ -10,11 +10,10 @@ mod sigv4;
 use std::fmt;
 use std::time::SystemTime;
 
+pub use self::sigv4::sign_request;
 use crate::auth::{RequestAuthenticator, SecretString};
 use crate::error::Result;
 use crate::transport::HttpRequest;
-
-pub use self::sigv4::sign_request;
 
 /// An AWS access key pair, with the session token of temporary credentials.
 #[derive(Clone, PartialEq, Eq)]

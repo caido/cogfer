@@ -7,8 +7,7 @@ use crate::message::{AssistantPart, Message, ReasoningContent, ReasoningPart, To
 use crate::protocols::{LoweredRequest, ProtocolContext, ResolvedReasoning, resolve_reasoning};
 use crate::request::{ReasoningOutput, Request, ToolChoice};
 use crate::response::Warning;
-use crate::transport::HttpRequest;
-use crate::transport::{HeaderName, HeaderValue, header};
+use crate::transport::{HeaderName, HeaderValue, HttpRequest, header};
 
 /// Anthropic's `max_tokens` is mandatory. This is the value used when the
 /// caller leaves the output cap to the SDK.

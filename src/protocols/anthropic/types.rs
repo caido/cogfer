@@ -9,8 +9,7 @@ use crate::message::{
 use crate::metadata::ProviderMetadata;
 use crate::protocols::{ApiProfile, content_policy_kind, finalize_tool_calls};
 use crate::response::{Finish, FinishReason, GenerateResult, ResponseMetadata};
-use crate::transport::HeaderMap;
-use crate::transport::HttpResponse;
+use crate::transport::{HeaderMap, HttpResponse};
 use crate::usage::Usage;
 
 #[derive(Debug, Deserialize)]

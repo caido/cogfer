@@ -22,8 +22,7 @@ use crate::response::GenerateResult;
 use crate::stream::{StreamAccumulator, StreamNormalizer};
 use crate::transport::framing::{FrameSource, StreamFrame};
 use crate::transport::sse::SseParser;
-use crate::transport::{HeaderMap, HeaderName, HeaderValue, header};
-use crate::transport::{HttpRequest, HttpResponse};
+use crate::transport::{HeaderMap, HeaderName, HeaderValue, HttpRequest, HttpResponse, header};
 
 pub(crate) struct Handler;
 

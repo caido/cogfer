@@ -5,9 +5,9 @@ use std::sync::{Arc, Mutex};
 
 use bytes::Bytes;
 
-use super::event_stream;
 use super::{
-    HeaderMap, HeaderValue, HttpByteStream, HttpRequest, HttpResponse, HttpTransport, header,
+    HeaderMap, HeaderValue, HttpByteStream, HttpRequest, HttpResponse, HttpTransport, event_stream,
+    header,
 };
 use crate::error::{Error, ErrorKind, Result};
 

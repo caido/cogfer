@@ -15,8 +15,9 @@ use url::Url;
 use super::DevicePoll;
 use super::refresh::DEAD_REFRESH_TOKEN_CODES;
 use crate::error::{Error, ErrorKind, Result};
-use crate::transport::{HeaderMap, HeaderValue, Method, header};
-use crate::transport::{HttpRequest, HttpResponse, HttpTransport};
+use crate::transport::{
+    HeaderMap, HeaderValue, HttpRequest, HttpResponse, HttpTransport, Method, header,
+};
 
 pub(crate) fn require_response_field(
     provider: &str,
