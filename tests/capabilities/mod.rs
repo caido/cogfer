@@ -269,7 +269,7 @@ async fn out_of_range_efforts_are_clamped_to_the_nearest_supported_level() {
             .build()
     };
 
-    // Anthropic has no `minimal` or `xhigh`, so both snap to the neighbour.
+    // Anthropic has no `minimal`, so it snaps to `low`.
     let (result, body) = lower(
         ApiProfile::AnthropicMessages,
         effort(ReasoningEffort::Minimal),
@@ -277,12 +277,6 @@ async fn out_of_range_efforts_are_clamped_to_the_nearest_supported_level() {
     .await;
     assert_eq!(body["output_config"]["effort"], "low", "{body}");
     assert_eq!(approximations(&result), ["reasoning.effort"]);
-    let (_, body) = lower(
-        ApiProfile::AnthropicMessages,
-        effort(ReasoningEffort::XHigh),
-    )
-    .await;
-    assert_eq!(body["output_config"]["effort"], "high", "{body}");
 
     // Gemini tops out at `high`.
     let (result, body) = lower(

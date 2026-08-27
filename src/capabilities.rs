@@ -234,7 +234,7 @@ impl ModelCapabilities {
             },
             ApiProfile::AnthropicMessages => Self {
                 reasoning: ReasoningSupport {
-                    efforts: vec![Low, Medium, High, Max],
+                    efforts: vec![Low, Medium, High, XHigh, Max],
                     budget: true,
                     disable: true,
                     output: true,
@@ -247,7 +247,7 @@ impl ModelCapabilities {
             },
             ApiProfile::BedrockAnthropic => Self {
                 reasoning: ReasoningSupport {
-                    efforts: vec![Low, Medium, High, Max],
+                    efforts: vec![Low, Medium, High, XHigh, Max],
                     budget: true,
                     disable: true,
                     output: true,
