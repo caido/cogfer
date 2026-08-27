@@ -309,9 +309,80 @@ fn models_expose_their_provider_capabilities() {
     let capabilities = model.capabilities();
 
     assert_eq!(
-        capabilities,
+        *capabilities,
         ModelCapabilities::for_profile(ApiProfile::AnthropicMessages)
     );
     assert!(capabilities.reasoning.budget);
     assert!(!capabilities.seed);
+}
+
+#[tokio::test]
+async fn model_capabilities_narrow_the_profile_defaults() {
+    let profile = ApiProfile::OpenAiChatCompletions;
+    let model_data = ModelCapabilities {
+        temperature: false,
+        reasoning: caido_ai::ReasoningSupport {
+            efforts: vec![ReasoningEffort::Low],
+            ..ModelCapabilities::for_profile(profile).reasoning
+        },
+        ..ModelCapabilities::for_profile(profile)
+    };
+    let mock = MockTransport::shared();
+    queue_success(&mock, profile);
+    let model = provider_with(&mock, config(profile))
+        .language_model("m")
+        .with_capabilities(&model_data);
+    assert!(!model.capabilities().temperature);
+    assert_eq!(
+        model.capabilities().reasoning.efforts,
+        [ReasoningEffort::Low]
+    );
+
+    let result = model
+        .generate(
+            Request::builder()
+                .message(Message::user("hi"))
+                .temperature(0.3)
+                .reasoning(ReasoningConfig::effort(ReasoningEffort::High))
+                .build(),
+        )
+        .await
+        .expect("generate succeeds");
+
+    let body = mock.request_json(0);
+    assert!(body.get("temperature").is_none(), "{body}");
+    assert_eq!(body["reasoning_effort"], "low", "{body}");
+    let subjects: Vec<_> = result
+        .warnings
+        .iter()
+        .map(|warning| (warning.kind, warning.subject.as_deref().unwrap()))
+        .collect();
+    assert_eq!(
+        subjects,
+        [
+            (WarningKind::UnsupportedSetting, "temperature"),
+            (WarningKind::ApproximatedSetting, "reasoning.effort"),
+        ]
+    );
+}
+
+#[tokio::test]
+async fn models_without_tool_support_reject_tool_requests() {
+    let profile = ApiProfile::OpenAiChatCompletions;
+    let model_data = ModelCapabilities {
+        tools: false,
+        ..ModelCapabilities::for_profile(profile)
+    };
+    let mock = MockTransport::shared();
+    let model = provider_with(&mock, config(profile))
+        .language_model("m")
+        .with_capabilities(&model_data);
+
+    let error = model
+        .generate(everything())
+        .await
+        .expect_err("tools cannot be dropped silently");
+
+    assert_eq!(error.kind(), ErrorKind::UnsupportedCapability);
+    assert!(mock.requests().is_empty());
 }

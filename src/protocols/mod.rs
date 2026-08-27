@@ -4,6 +4,7 @@ mod error;
 mod handler;
 mod normalize;
 mod reasoning;
+mod restrict;
 
 use serde_json::json;
 
@@ -26,6 +27,7 @@ pub(crate) use self::handler::{
 };
 pub(crate) use self::normalize::normalize_usage;
 pub(crate) use self::reasoning::{ResolvedReasoning, resolve as resolve_reasoning};
+pub(crate) use self::restrict::restrict_request;
 
 /// Request, response, and streaming behavior for a provider API.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

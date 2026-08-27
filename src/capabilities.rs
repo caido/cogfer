@@ -1,13 +1,16 @@
 //! What a model can do on its API profile.
 //!
 //! Every [`Request`](crate::Request) setting is expressible, but not every
-//! profile can send every setting. Lowering drops most of what a profile
-//! cannot express with a [`Warning`](crate::Warning). These types say up
-//! front what will survive so hosts can hide or disable the controls that
-//! would not.
+//! model accepts every setting. Requests are fitted to the model's
+//! capabilities before lowering: most unsupported settings are dropped with
+//! a [`Warning`](crate::Warning), reasoning is mapped onto the closest
+//! control, and tools, structured output, and compaction fail the request.
+//! These types say up front what will survive so hosts can hide or disable
+//! the controls that would not.
 //!
-//! The values here are profile defaults. Per-model data (a models.dev listing,
-//! for example) can later refine them without changing this shape.
+//! [`ModelCapabilities::for_profile`] gives the profile defaults. Per-model
+//! data (a models.dev listing, for example) narrows them through
+//! [`LanguageModel::with_capabilities`](crate::LanguageModel::with_capabilities).
 
 use std::num::NonZeroU32;
 
@@ -16,7 +19,6 @@ use crate::request::ReasoningEffort;
 
 /// How a profile controls reasoning.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[non_exhaustive]
 pub struct ReasoningSupport {
     /// The discrete efforts accepted on the wire, from least to most. Empty
     /// when the profile has no effort control.
@@ -64,6 +66,21 @@ impl ReasoningSupport {
         self.nearest_effort(effort)
     }
 
+    /// The controls both `self` and `other` offer.
+    pub fn restrict(&self, other: &Self) -> Self {
+        Self {
+            efforts: self
+                .efforts
+                .iter()
+                .copied()
+                .filter(|effort| other.efforts.contains(effort))
+                .collect(),
+            budget: self.budget && other.budget,
+            disable: self.disable && other.disable,
+            output: self.output && other.output,
+        }
+    }
+
     /// The token budget that approximates a discrete effort.
     pub(crate) fn budget_for_effort(effort: ReasoningEffort) -> NonZeroU32 {
         let tokens = match effort {
@@ -79,8 +96,11 @@ impl ReasoningSupport {
 }
 
 /// The settings a model accepts.
+///
+/// Build a model-specific value from the profile defaults with struct
+/// update syntax, `ModelCapabilities { seed: false, ..ModelCapabilities::for_profile(profile) }`,
+/// and hand it to [`LanguageModel::with_capabilities`](crate::LanguageModel::with_capabilities).
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[non_exhaustive]
 pub struct ModelCapabilities {
     pub reasoning: ReasoningSupport,
     pub tools: bool,
@@ -104,6 +124,26 @@ pub struct ModelCapabilities {
 }
 
 impl ModelCapabilities {
+    /// The settings both `self` and `other` accept.
+    pub fn restrict(&self, other: &Self) -> Self {
+        Self {
+            reasoning: self.reasoning.restrict(&other.reasoning),
+            tools: self.tools && other.tools,
+            strict_tools: self.strict_tools && other.strict_tools,
+            parallel_tool_calls: self.parallel_tool_calls && other.parallel_tool_calls,
+            structured_output: self.structured_output && other.structured_output,
+            native_compaction: self.native_compaction && other.native_compaction,
+            max_output_tokens: self.max_output_tokens && other.max_output_tokens,
+            temperature: self.temperature && other.temperature,
+            top_p: self.top_p && other.top_p,
+            top_k: self.top_k && other.top_k,
+            stop_sequences: self.stop_sequences && other.stop_sequences,
+            seed: self.seed && other.seed,
+            presence_penalty: self.presence_penalty && other.presence_penalty,
+            frequency_penalty: self.frequency_penalty && other.frequency_penalty,
+        }
+    }
+
     /// The defaults for every model on `profile`.
     pub fn for_profile(profile: ApiProfile) -> Self {
         use ReasoningEffort::{High, Low, Max, Medium, Minimal, XHigh};

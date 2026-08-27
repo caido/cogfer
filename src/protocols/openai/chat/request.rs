@@ -34,7 +34,7 @@ pub(crate) fn lower_chat(
         );
     }
     insert_reasoning(ctx, dialect, object, &mut warnings);
-    insert_generation_settings(request, dialect, object, &mut warnings);
+    insert_generation_settings(request, dialect, object);
 
     if streaming {
         object.insert("stream".into(), json!(true));
@@ -116,7 +116,6 @@ fn insert_generation_settings(
     request: &Request,
     dialect: ChatDialect,
     object: &mut Map<String, Value>,
-    warnings: &mut Vec<Warning>,
 ) {
     if let Some(max) = request.max_output_tokens {
         // OpenAI deprecated `max_tokens` in favour of `max_completion_tokens`,
@@ -134,17 +133,7 @@ fn insert_generation_settings(
         object.insert("top_p".into(), json!(top_p));
     }
     if let Some(top_k) = request.top_k {
-        match dialect {
-            ChatDialect::OpenAi | ChatDialect::Compatible | ChatDialect::Xai => {
-                warnings.push(Warning::unsupported_setting(
-                    "top_k",
-                    format!("{} does not support `top_k`", dialect.profile()),
-                ));
-            }
-            ChatDialect::OpenRouter => {
-                object.insert("top_k".into(), json!(top_k));
-            }
-        }
+        object.insert("top_k".into(), json!(top_k));
     }
     if !request.stop_sequences.is_empty() {
         object.insert("stop".into(), json!(request.stop_sequences));

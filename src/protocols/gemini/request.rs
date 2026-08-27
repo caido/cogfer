@@ -195,19 +195,9 @@ fn add_system_instruction(object: &mut Map<String, Value>, request: &Request) {
     }
 }
 
-fn add_tool_declarations(
-    object: &mut Map<String, Value>,
-    request: &Request,
-    warnings: &mut Vec<Warning>,
-) {
+fn add_tool_declarations(object: &mut Map<String, Value>, request: &Request) {
     if request.tools.is_empty() {
         return;
-    }
-    if request.tools.iter().any(|tool| tool.strict.is_some()) {
-        warnings.push(Warning::unsupported_setting(
-            "tools.strict",
-            "gemini cannot represent strict tool-schema validation",
-        ));
     }
     let declarations: Vec<Value> = request
         .tools
@@ -229,11 +219,7 @@ fn add_tool_declarations(
     );
 }
 
-fn add_tool_config(
-    object: &mut Map<String, Value>,
-    request: &Request,
-    warnings: &mut Vec<Warning>,
-) {
+fn add_tool_config(object: &mut Map<String, Value>, request: &Request) {
     if let Some(choice) = &request.tool_choice {
         let config = match choice {
             ToolChoice::Auto => json!({"mode": "AUTO"}),
@@ -247,12 +233,6 @@ fn add_tool_config(
             "toolConfig".into(),
             json!({"functionCallingConfig": config}),
         );
-    }
-    if request.parallel_tool_calls.is_some() {
-        warnings.push(Warning::unsupported_setting(
-            "parallel_tool_calls",
-            "gemini has no parallel-tool-call switch",
-        ));
     }
 }
 
@@ -339,8 +319,8 @@ pub(crate) fn lower_gemini_request(
     });
     let object = body.as_object_mut().expect("body is an object");
     add_system_instruction(object, request);
-    add_tool_declarations(object, request, &mut warnings);
-    add_tool_config(object, request, &mut warnings);
+    add_tool_declarations(object, request);
+    add_tool_config(object, request);
     let generation = generation_config(ctx, &mut warnings);
     if !generation.is_empty() {
         object.insert("generationConfig".into(), Value::Object(generation));

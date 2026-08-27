@@ -324,48 +324,17 @@ fn insert_compaction_configuration(
 
 fn insert_sampling_configuration(
     ctx: &ProtocolContext<'_>,
-    chatgpt: bool,
     object: &mut serde_json::Map<String, Value>,
-    warnings: &mut Vec<Warning>,
 ) {
     let request = ctx.request;
-    if chatgpt {
-        for (setting, present) in [
-            ("max_output_tokens", request.max_output_tokens.is_some()),
-            ("temperature", request.temperature.is_some()),
-            ("top_p", request.top_p.is_some()),
-        ] {
-            if present {
-                warnings.push(Warning::unsupported_setting(
-                    setting,
-                    format!("the chatgpt backend does not accept `{setting}`"),
-                ));
-            }
-        }
-    } else {
-        if let Some(max) = request.max_output_tokens {
-            object.insert("max_output_tokens".into(), json!(max));
-        }
-        if let Some(temperature) = request.temperature {
-            object.insert("temperature".into(), json!(temperature));
-        }
-        if let Some(top_p) = request.top_p {
-            object.insert("top_p".into(), json!(top_p));
-        }
+    if let Some(max) = request.max_output_tokens {
+        object.insert("max_output_tokens".into(), json!(max));
     }
-    for (setting, present) in [
-        ("top_k", request.top_k.is_some()),
-        ("stop_sequences", !request.stop_sequences.is_empty()),
-        ("presence_penalty", request.presence_penalty.is_some()),
-        ("frequency_penalty", request.frequency_penalty.is_some()),
-        ("seed", request.seed.is_some()),
-    ] {
-        if present {
-            warnings.push(Warning::unsupported_setting(
-                setting,
-                format!("openai-responses does not support `{setting}`"),
-            ));
-        }
+    if let Some(temperature) = request.temperature {
+        object.insert("temperature".into(), json!(temperature));
+    }
+    if let Some(top_p) = request.top_p {
+        object.insert("top_p".into(), json!(top_p));
     }
 }
 
@@ -421,7 +390,7 @@ pub(crate) fn lower_body(
     }
     insert_reasoning_configuration(ctx, object, &mut warnings);
     insert_compaction_configuration(ctx, object, &mut warnings);
-    insert_sampling_configuration(ctx, chatgpt, object, &mut warnings);
+    insert_sampling_configuration(ctx, object);
     insert_streaming_configuration(object, streaming, chatgpt);
 
     if let Some(options) = request.provider_options.get("openai") {

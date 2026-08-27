@@ -226,6 +226,7 @@ impl Provider {
         LanguageModel {
             provider: self.clone(),
             id: id.into(),
+            capabilities: self.capabilities(),
         }
     }
 }

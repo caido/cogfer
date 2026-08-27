@@ -27,30 +27,37 @@ struct Prepared {
     http: HttpRequest,
     warnings: Vec<Warning>,
     base_url: url::Url,
-    capabilities: ModelCapabilities,
+    /// The request as lowered: without the settings the model cannot accept.
+    request: Request,
 }
 
 async fn prepare(
     provider: &Provider,
     model: &str,
+    capabilities: &ModelCapabilities,
     request: &Request,
     streaming: bool,
 ) -> Result<Prepared> {
     let handler = super::handler(provider.profile());
-    super::validate::validate(request, model, provider.profile())?;
+    super::validate::validate(request, model, provider.profile(), capabilities)?;
+    let (request, mut warnings) =
+        super::restrict_request(request, capabilities, provider.profile());
 
     let base_url = provider.base_url();
-    let capabilities = provider.capabilities();
     let ctx = ProtocolContext {
         profile: provider.profile(),
         model,
-        request,
+        request: &request,
         base_url: &base_url,
-        capabilities: &capabilities,
+        capabilities,
     };
-    let LoweredRequest { mut http, warnings } = handler
+    let LoweredRequest {
+        mut http,
+        warnings: lowering_warnings,
+    } = handler
         .lower(&ctx, streaming)
         .map_err(|e| annotate(e, provider, model))?;
+    warnings.extend(lowering_warnings);
 
     // Merge anthropic-beta so user flags preserve protocol requirements.
     for (name, value) in provider.inner.config.default_headers() {
@@ -77,7 +84,7 @@ async fn prepare(
         http,
         warnings,
         base_url,
-        capabilities,
+        request,
     })
 }
 
@@ -197,6 +204,7 @@ fn decode_buffered_response(
 pub(crate) async fn generate(
     provider: &Provider,
     model: &str,
+    capabilities: &ModelCapabilities,
     request: Request,
 ) -> Result<GenerateResult> {
     log::debug!(target: TARGET, "generate: profile={} model={model}", provider.profile());
@@ -205,8 +213,8 @@ pub(crate) async fn generate(
         http,
         warnings,
         base_url,
-        capabilities,
-    } = prepare(provider, model, &request, false).await?;
+        request,
+    } = prepare(provider, model, capabilities, &request, false).await?;
     trace_wire_request(&http);
     let retry_request = retry_copy(provider, &http);
     let mut response = provider
@@ -248,7 +256,7 @@ pub(crate) async fn generate(
         model,
         request: &request,
         base_url: &base_url,
-        capabilities: &capabilities,
+        capabilities,
     };
     decode_buffered_response(handler, &ctx, warnings, provider, &response)
 }
@@ -256,6 +264,7 @@ pub(crate) async fn generate(
 pub(crate) async fn stream(
     provider: &Provider,
     model: &str,
+    capabilities: &ModelCapabilities,
     request: Request,
 ) -> Result<EventStream> {
     log::debug!(target: TARGET, "stream: profile={} model={model}", provider.profile());
@@ -264,8 +273,8 @@ pub(crate) async fn stream(
         http,
         warnings,
         base_url,
-        capabilities,
-    } = prepare(provider, model, &request, true).await?;
+        request,
+    } = prepare(provider, model, capabilities, &request, true).await?;
     trace_wire_request(&http);
     let retry_request = retry_copy(provider, &http);
     let mut byte_stream = provider
@@ -348,7 +357,7 @@ pub(crate) async fn stream(
             model,
             request: &request,
             base_url: &base_url,
-            capabilities: &capabilities,
+            capabilities,
         };
         let result = decode_buffered_response(handler, &ctx, Vec::new(), provider, &response)?;
         let mut out = Vec::new();
@@ -363,7 +372,7 @@ pub(crate) async fn stream(
         model,
         request: &request,
         base_url: &base_url,
-        capabilities: &capabilities,
+        capabilities,
     });
     let state = StreamState {
         bytes: byte_stream.bytes,

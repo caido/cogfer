@@ -398,18 +398,6 @@ pub(crate) fn lower_anthropic_request(
     if !request.stop_sequences.is_empty() {
         object.insert("stop_sequences".into(), json!(request.stop_sequences));
     }
-    for (setting, present) in [
-        ("presence_penalty", request.presence_penalty.is_some()),
-        ("frequency_penalty", request.frequency_penalty.is_some()),
-        ("seed", request.seed.is_some()),
-    ] {
-        if present {
-            warnings.push(Warning::unsupported_setting(
-                setting,
-                format!("anthropic does not support `{setting}`"),
-            ));
-        }
-    }
     // Bedrock selects streaming by endpoint rather than a body flag.
     if streaming && dialect == AnthropicDialect::Direct {
         object.insert("stream".into(), json!(true));

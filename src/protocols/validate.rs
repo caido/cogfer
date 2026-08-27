@@ -10,9 +10,14 @@ use crate::message::{AssistantPart, Message, ToolCall, ToolResultPart};
 use crate::protocols::ApiProfile;
 use crate::request::{Request, ToolChoice};
 
-pub(crate) fn validate(request: &Request, model: &str, profile: ApiProfile) -> Result<()> {
+pub(crate) fn validate(
+    request: &Request,
+    model: &str,
+    profile: ApiProfile,
+    capabilities: &ModelCapabilities,
+) -> Result<()> {
     validate_structure(request, model, profile)
-        .and_then(|()| validate_profile(request, profile))
+        .and_then(|()| validate_profile(request, profile, capabilities))
         .map_err(|error| error.with_origin(profile.as_str()).with_model(model))
 }
 
@@ -277,7 +282,26 @@ fn validate_matching_identity(result: &ToolResultPart, call: &ToolCall, path: &s
     Ok(())
 }
 
-fn validate_profile(request: &Request, profile: ApiProfile) -> Result<()> {
+/// Reject what the model cannot do at all. Dropping these silently would
+/// change the meaning of the request, unlike the sampling settings that
+/// [`restrict_request`](super::restrict_request) clears with a warning.
+fn validate_profile(
+    request: &Request,
+    profile: ApiProfile,
+    capabilities: &ModelCapabilities,
+) -> Result<()> {
+    let unsupported = |what: &str| {
+        Error::new(
+            ErrorKind::UnsupportedCapability,
+            format!("protocol `{profile}` cannot represent {what}"),
+        )
+    };
+    if !capabilities.tools && !request.tools.is_empty() {
+        return Err(unsupported("tool calls"));
+    }
+    if !capabilities.structured_output && request.structured_output.is_some() {
+        return Err(unsupported("structured output"));
+    }
     let requires_native_compaction = request.compaction.is_some()
         || request.messages.iter().any(|message| {
             matches!(message, Message::Assistant { content, .. }
@@ -286,12 +310,8 @@ fn validate_profile(request: &Request, profile: ApiProfile) -> Result<()> {
                 AssistantPart::Compaction(compaction) if compaction.content.is_none()
             )))
         });
-    let supports_native_compaction = ModelCapabilities::for_profile(profile).native_compaction;
-    if requires_native_compaction && !supports_native_compaction {
-        return Err(Error::new(
-            ErrorKind::UnsupportedCapability,
-            format!("protocol `{profile}` cannot represent native compaction"),
-        ));
+    if requires_native_compaction && !capabilities.native_compaction {
+        return Err(unsupported("native compaction"));
     }
     Ok(())
 }
@@ -336,7 +356,12 @@ mod tests {
     }
 
     fn validate_request(request: &Request) -> Result<()> {
-        validate(request, "model", ApiProfile::OpenAiChatCompletions)
+        validate(
+            request,
+            "model",
+            ApiProfile::OpenAiChatCompletions,
+            &ModelCapabilities::for_profile(ApiProfile::OpenAiChatCompletions),
+        )
     }
 
     #[test]
@@ -351,7 +376,13 @@ mod tests {
         ];
 
         for (expected, request, model) in cases {
-            let error = validate(&request, model, ApiProfile::OpenAiChatCompletions).unwrap_err();
+            let error = validate(
+                &request,
+                model,
+                ApiProfile::OpenAiChatCompletions,
+                &ModelCapabilities::for_profile(ApiProfile::OpenAiChatCompletions),
+            )
+            .unwrap_err();
             assert_eq!(error.kind(), ErrorKind::InvalidRequest);
             assert!(error.message().contains(expected), "{error}");
         }
@@ -524,7 +555,15 @@ mod tests {
         ];
 
         for (profile, request) in requests {
-            assert!(validate(&request, "model", profile).is_ok());
+            assert!(
+                validate(
+                    &request,
+                    "model",
+                    profile,
+                    &ModelCapabilities::for_profile(profile)
+                )
+                .is_ok()
+            );
         }
     }
 
@@ -700,7 +739,13 @@ mod tests {
         let mut request = request();
         request.max_output_tokens = Some(0);
 
-        let error = validate(&request, "model", ApiProfile::OpenAiChatCompletions).unwrap_err();
+        let error = validate(
+            &request,
+            "model",
+            ApiProfile::OpenAiChatCompletions,
+            &ModelCapabilities::for_profile(ApiProfile::OpenAiChatCompletions),
+        )
+        .unwrap_err();
 
         assert_eq!(
             error.origin(),
@@ -728,7 +773,15 @@ mod tests {
             .compaction(Compaction::enabled())
             .build();
 
-        assert!(validate(&request, "model", ApiProfile::ChatGptResponses).is_ok());
+        assert!(
+            validate(
+                &request,
+                "model",
+                ApiProfile::ChatGptResponses,
+                &ModelCapabilities::for_profile(ApiProfile::ChatGptResponses)
+            )
+            .is_ok()
+        );
     }
 
     #[test]
