@@ -368,6 +368,55 @@ mod sigv4 {
         assert!(header(&requests[1], "authorization").is_some());
     }
 
+    /// Credentials that rotate on every fetch, like an STS session would.
+    struct Rotating(std::sync::atomic::AtomicU32);
+
+    #[async_trait::async_trait]
+    impl caido_ai::aws::AwsCredentialsProvider for Rotating {
+        async fn credentials(&self) -> caido_ai::Result<AwsCredentials> {
+            let generation = self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
+            Ok(AwsCredentials::new(format!("AKID{generation}"), "secret"))
+        }
+    }
+
+    #[tokio::test]
+    async fn expired_credentials_are_refetched_before_re_signing() {
+        let mock = MockTransport::shared();
+        mock.push_response(
+            403,
+            headers(&[("x-amzn-errortype", "ExpiredTokenException")]),
+            r#"{"message":"The security token included in the request is expired"}"#,
+        );
+        mock.push_json(200, &message("ok"));
+        let provider = provider_with(
+            &mock,
+            ProviderConfig::bedrock_anthropic("eu-west-1", Credentials::none())
+                .expect("region is valid")
+                .with_authenticator(Arc::new(SigV4Authenticator::with_provider(
+                    "eu-west-1",
+                    Arc::new(Rotating(Default::default())),
+                ))),
+        );
+
+        provider
+            .language_model(MODEL)
+            .generate(text_request("hi"))
+            .await
+            .expect("the re-signed request succeeds");
+
+        let requests = mock.requests();
+        assert!(
+            header(&requests[0], "authorization")
+                .unwrap()
+                .contains("Credential=AKID1/")
+        );
+        assert!(
+            header(&requests[1], "authorization")
+                .unwrap()
+                .contains("Credential=AKID2/")
+        );
+    }
+
     #[tokio::test]
     async fn a_permission_denial_is_not_retried() {
         let mock = MockTransport::shared();

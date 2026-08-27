@@ -1,13 +1,15 @@
 //! AWS request signing for Amazon Bedrock.
 //!
 //! [`SigV4Authenticator`] is a [`RequestAuthenticator`] that signs each
-//! request with AWS Signature Version 4 from static credentials. Hosts that
-//! obtain credentials elsewhere (STS, an instance role, SSO) implement their
-//! own authenticator and call [`sign_request`] with the credentials they hold.
+//! request with AWS Signature Version 4. It takes static [`AwsCredentials`]
+//! or an [`AwsCredentialsProvider`] for credentials that rotate (STS, an
+//! instance role, SSO). Hosts with their own signing pipeline can call
+//! [`sign_request`] directly.
 
 mod sigv4;
 
 use std::fmt;
+use std::sync::Arc;
 
 pub use self::sigv4::sign_request;
 use crate::auth::{Rejection, RequestAuthenticator, SecretString};
@@ -51,19 +53,57 @@ impl fmt::Debug for AwsCredentials {
     }
 }
 
-/// Signs Bedrock requests with static credentials. A 403 naming a signature
-/// or clock problem is answered by signing again; other rejections are final.
-#[derive(Debug, Clone)]
+/// A source of AWS credentials, called before every signature so rotating
+/// credentials (STS sessions, instance roles) stay current.
+#[async_trait::async_trait]
+pub trait AwsCredentialsProvider: Send + Sync {
+    /// The credentials to sign the next request with.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when credentials cannot be obtained.
+    async fn credentials(&self) -> Result<AwsCredentials>;
+}
+
+/// Static credentials are their own provider.
+#[async_trait::async_trait]
+impl AwsCredentialsProvider for AwsCredentials {
+    async fn credentials(&self) -> Result<AwsCredentials> {
+        Ok(self.clone())
+    }
+}
+
+/// Signs Bedrock requests. A 403 naming a signature, clock, or expired-token
+/// problem is answered by fetching credentials and signing again. Other
+/// rejections are final.
+#[derive(Clone)]
 #[must_use = "authenticators must be attached to a ProviderConfig"]
 pub struct SigV4Authenticator {
-    credentials: AwsCredentials,
+    provider: Arc<dyn AwsCredentialsProvider>,
     region: String,
 }
 
+impl fmt::Debug for SigV4Authenticator {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("SigV4Authenticator")
+            .field("region", &self.region)
+            .finish_non_exhaustive()
+    }
+}
+
 impl SigV4Authenticator {
+    /// Sign with static credentials.
     pub fn new(region: impl Into<String>, credentials: AwsCredentials) -> Self {
+        Self::with_provider(region, Arc::new(credentials))
+    }
+
+    /// Sign with whatever `provider` returns for each request.
+    pub fn with_provider(
+        region: impl Into<String>,
+        provider: Arc<dyn AwsCredentialsProvider>,
+    ) -> Self {
         Self {
-            credentials,
+            provider,
             region: region.into(),
         }
     }
@@ -74,7 +114,8 @@ const SERVICE: &str = "bedrock";
 #[async_trait::async_trait]
 impl RequestAuthenticator for SigV4Authenticator {
     async fn authenticate(&self, request: &mut HttpRequest) -> Result<()> {
-        sign_request(request, &self.credentials, &self.region, SERVICE)
+        let credentials = self.provider.credentials().await?;
+        sign_request(request, &credentials, &self.region, SERVICE)
     }
 
     async fn reauthenticate(
