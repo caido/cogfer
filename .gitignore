@@ -1,4 +1,5 @@
 /target
+/target-*/
 .env
 coding_agent.log
 # Local-only desktop app + agent engine; never shipped.
