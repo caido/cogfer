@@ -170,36 +170,32 @@ pub enum ReasoningContent {
 ///
 /// # Identity
 ///
-/// A call carries up to three ids. Only [`call_id`](Self::call_id) matters to
-/// callers: it is always present and it is what a [`ToolResultPart`] correlates
-/// on. The other two are opaque provider handles that exist so a conversation
-/// can be replayed to the provider that produced it. Keep them even when they
-/// duplicate `call_id`, as Gemini's do. Build results with
-/// [`ToolResultPart::for_call`] and they are carried over automatically.
+/// Only [`call_id`](Self::call_id) matters to callers: it is always present
+/// and it is what a [`ToolResultPart`] correlates on. [`item_id`](Self::item_id)
+/// is an opaque provider handle that exists so a conversation can be replayed
+/// to the provider that produced it. Build results with
+/// [`ToolResultPart::for_call`] and it is carried over automatically.
 ///
-/// | Profile | `call_id` | `item_id` | `provider_call_id` |
-/// |---|---|---|---|
-/// | Anthropic | `toolu_...` | none | none |
-/// | OpenAI Chat, xAI Chat, OpenRouter | `call_...` | none | none |
-/// | OpenAI Responses, ChatGPT, xAI Responses | `call_...` | `fc_...` | `call_...` |
-/// | Gemini | provider id or synthesized | provider id, if any | provider id, if any |
+/// | Profile | `call_id` | `item_id` |
+/// |---|---|---|
+/// | Anthropic | `toolu_...` | none |
+/// | OpenAI Chat, xAI Chat, OpenRouter | `call_...` | none |
+/// | OpenAI Responses, ChatGPT, xAI Responses | `call_...` | `fc_...` |
+/// | Gemini | provider id, or synthesized when Gemini omits one | provider id, if any |
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ToolCall {
     /// Stable correlation id, synthesized when the provider omits one. Tool
     /// results reference this id. Whenever the provider supplies a single id,
     /// this is it.
     pub call_id: String,
-    /// Provider handle for the call *item* where the protocol has one
-    /// distinct from the call id: OpenAI Responses `fc_...` (replayed as
-    /// `function_call.id`) and the Gemini `functionCall.id`. `None` for
-    /// Anthropic and Chat Completions, whose block id is already `call_id`.
+    /// The provider's own handle for the call, sent back on replay: OpenAI
+    /// Responses `fc_...` (as `function_call.id`) and Gemini's
+    /// `functionCall.id` (on the call and on its `functionResponse`). `None`
+    /// when the provider keeps a single id, which is already `call_id`
+    /// (Anthropic, Chat Completions), or gave none at all (a Gemini call with
+    /// a synthesized `call_id`, which then stays local).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub item_id: Option<String>,
-    /// The provider's own call correlation id where the protocol separates it
-    /// from the item id: OpenAI Responses `call_...` (replayed as
-    /// `function_call.call_id`). `None` for Anthropic and Chat Completions.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub provider_call_id: Option<String>,
     pub name: String,
     /// Raw provider JSON arguments. A blank
     /// value (zero-argument call) is normalized to `{}`.
@@ -238,11 +234,11 @@ impl ToolCall {
 
 /// The result of executing one tool call, sent back to the model.
 ///
-/// Only [`call_id`](Self::call_id) is required. The remaining identity fields
-/// mirror the originating [`ToolCall`] (see its *Identity* section) and are
-/// recovered from the matching call earlier in the conversation when left
-/// `None`. Set them explicitly only when that call is not part of the request.
-/// [`ToolResultPart::for_call`] copies everything for you.
+/// Only [`call_id`](Self::call_id) is required. [`item_id`](Self::item_id)
+/// and [`name`](Self::name) mirror the originating [`ToolCall`] (see its
+/// *Identity* section) and are recovered from the matching call earlier in
+/// the conversation when left `None`. Set them explicitly only when that call
+/// is not part of the request. [`ToolResultPart::for_call`] copies them for you.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ToolResultPart {
     /// Correlates with [`ToolCall::call_id`].
@@ -250,9 +246,6 @@ pub struct ToolResultPart {
     /// [`ToolCall::item_id`] of the originating call.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub item_id: Option<String>,
-    /// [`ToolCall::provider_call_id`] of the originating call.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub provider_call_id: Option<String>,
     /// [`ToolCall::name`] of the originating call. Required on the wire by
     /// Gemini.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -264,13 +257,12 @@ pub struct ToolResultPart {
 }
 
 impl ToolResultPart {
-    /// Text-result constructor referencing a prior [`ToolCall`]. Copies every
-    /// identity field and the name so replay needs no history scan.
+    /// Text-result constructor referencing a prior [`ToolCall`]. Copies the
+    /// item id and the name so replay needs no history scan.
     pub fn for_call(call: &ToolCall, content: impl Into<String>) -> Self {
         Self {
             call_id: call.call_id.clone(),
             item_id: call.item_id.clone(),
-            provider_call_id: call.provider_call_id.clone(),
             name: Some(call.name.clone()),
             content: ToolResultContent::Text {
                 text: content.into(),

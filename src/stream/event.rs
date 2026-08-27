@@ -84,7 +84,6 @@ pub enum StreamEvent {
         call_id: String,
         name: String,
         item_id: Option<String>,
-        provider_call_id: Option<String>,
     },
     /// Incremental raw-JSON argument text.
     ToolInputDelta {

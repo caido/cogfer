@@ -262,7 +262,7 @@ impl AnthropicStreamDecoder {
                 accumulated: String::new(),
             },
         );
-        normalizer.start_tool(out, call_id, name, None, None);
+        normalizer.start_tool(out, call_id, name, None);
     }
 
     fn start_other_block(

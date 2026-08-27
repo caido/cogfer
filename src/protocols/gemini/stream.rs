@@ -163,13 +163,7 @@ impl GeminiStreamDecoder {
         self.close_reasoning(normalizer, out);
         self.close_text(normalizer, out);
         let call = decode_function_call(part, function_call);
-        normalizer.start_tool(
-            out,
-            call.call_id.clone(),
-            call.name,
-            call.item_id,
-            call.provider_call_id,
-        );
+        normalizer.start_tool(out, call.call_id.clone(), call.name, call.item_id);
         normalizer.tool_metadata(&call.call_id, call.provider_metadata);
         normalizer.tool_delta(out, &call.call_id, call.arguments);
         normalizer.complete_tool(&call.call_id, None);

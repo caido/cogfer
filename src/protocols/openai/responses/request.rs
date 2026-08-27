@@ -1,4 +1,4 @@
-use std::collections::{BTreeSet, HashMap};
+use std::collections::BTreeSet;
 
 use serde_json::{Value, json};
 
@@ -26,7 +26,6 @@ fn lower_input(ctx: &ProtocolContext<'_>, warnings: &mut Vec<Warning>) -> Result
         foreign_origins: BTreeSet::new(),
         warnings,
     };
-    let mut call_index = HashMap::new();
     for message in &ctx.request.messages {
         match message {
             Message::User { content } => {
@@ -45,25 +44,14 @@ fn lower_input(ctx: &ProtocolContext<'_>, warnings: &mut Vec<Warning>) -> Result
             } => {
                 let origin = foreign_origin(provider_metadata, ctx.profile);
                 for part in content {
-                    if let AssistantPart::ToolCall(call) = part {
-                        call_index.insert(
-                            call.call_id.as_str(),
-                            call.provider_call_id.as_deref().unwrap_or(&call.call_id),
-                        );
-                    }
                     lowering.lower_assistant_part(part, origin)?;
                 }
             }
             Message::Tool { content } => {
                 for result in content {
-                    let call_id = result
-                        .provider_call_id
-                        .as_deref()
-                        .or_else(|| call_index.get(result.call_id.as_str()).copied())
-                        .unwrap_or(&result.call_id);
                     lowering.items.push(json!({
                         "type": "function_call_output",
-                        "call_id": call_id,
+                        "call_id": result.call_id,
                         "output": result.content.to_text(),
                     }));
                 }
@@ -188,7 +176,7 @@ impl InputLowering<'_> {
             AssistantPart::ToolCall(call) => {
                 let mut item = json!({
                     "type": "function_call",
-                    "call_id": call.provider_call_id.as_deref().unwrap_or(&call.call_id),
+                    "call_id": call.call_id,
                     "name": call.name,
                     "arguments": call.arguments,
                 });

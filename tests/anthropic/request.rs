@@ -171,7 +171,6 @@ async fn consecutive_tool_results_merge_into_one_user_message() {
     let call_a = caido_ai::ToolCall {
         call_id: "toolu_a".into(),
         item_id: None,
-        provider_call_id: None,
         name: "get_weather".into(),
         arguments: "{}".into(),
         provider_metadata: ProviderMetadata::default(),
@@ -214,7 +213,6 @@ async fn malformed_tool_arguments_are_rejected() {
     let call = caido_ai::ToolCall {
         call_id: "toolu_x".into(),
         item_id: None,
-        provider_call_id: None,
         name: "t".into(),
         arguments: "{\"a\":".into(),
         provider_metadata: ProviderMetadata::default(),

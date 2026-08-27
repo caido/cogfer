@@ -270,9 +270,8 @@ pub(crate) fn decode_output_item(raw: &Value) -> Result<Option<Vec<AssistantPart
                 Error::malformed("openai-responses: function_call item missing call_id")
             })?;
             Ok(Some(vec![AssistantPart::ToolCall(ToolCall {
-                call_id: call_id.clone(),
-                item_id: item.id,
-                provider_call_id: Some(call_id),
+                call_id,
+                item_id: item.id.filter(|id| !id.is_empty()),
                 name: item.name.unwrap_or_default(),
                 arguments: item.arguments.unwrap_or_default(),
                 provider_metadata: ProviderMetadata::default(),
@@ -431,6 +430,21 @@ mod tests {
             .expect_err("invalid item must not be silently dropped");
 
         assert_eq!(error.kind(), ErrorKind::MalformedResponse);
+    }
+
+    #[test]
+    fn function_call_with_a_blank_id_has_no_item_id() {
+        let parts = decode_output_item(&json!({
+            "type": "function_call", "id": "", "call_id": "call_1",
+            "name": "lookup", "arguments": "{}", "status": "completed",
+        }))
+        .unwrap()
+        .unwrap();
+
+        let AssistantPart::ToolCall(call) = &parts[0] else {
+            panic!("expected a tool call");
+        };
+        assert_eq!(call.item_id, None);
     }
 
     #[test]

@@ -253,7 +253,6 @@ mod tests {
                 call_id: call_id.into(),
                 name: "search".into(),
                 item_id: None,
-                provider_call_id: None,
             });
         }
         accumulator.push(StreamEvent::TextStart {
@@ -271,7 +270,6 @@ mod tests {
             accumulator.push(StreamEvent::ToolCall(crate::message::ToolCall {
                 call_id: call_id.into(),
                 item_id: None,
-                provider_call_id: None,
                 name: "search".into(),
                 arguments: "{}".into(),
                 provider_metadata: ProviderMetadata::default(),

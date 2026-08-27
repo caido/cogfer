@@ -45,7 +45,6 @@ enum OpenBlock {
         call_id: String,
         name: String,
         item_id: Option<String>,
-        provider_call_id: Option<String>,
         arguments: String,
         provider_metadata: ProviderMetadata,
         /// Whether the provider completed the call.
@@ -259,14 +258,12 @@ impl StreamNormalizer {
         call_id: String,
         name: String,
         item_id: Option<String>,
-        provider_call_id: Option<String>,
     ) {
         if !self.tool_is_open(&call_id) {
             self.open.push(OpenBlock::Tool {
                 call_id: call_id.clone(),
                 name: name.clone(),
                 item_id: item_id.clone(),
-                provider_call_id: provider_call_id.clone(),
                 arguments: String::new(),
                 provider_metadata: ProviderMetadata::default(),
                 completed: false,
@@ -276,7 +273,6 @@ impl StreamNormalizer {
                 call_id,
                 name,
                 item_id,
-                provider_call_id,
             });
         }
     }
@@ -348,7 +344,6 @@ impl StreamNormalizer {
                 call_id,
                 name,
                 item_id,
-                provider_call_id,
                 arguments,
                 provider_metadata,
                 final_arguments,
@@ -366,7 +361,6 @@ impl StreamNormalizer {
             let mut call = ToolCall {
                 call_id,
                 item_id,
-                provider_call_id,
                 name,
                 arguments: final_arguments.unwrap_or(arguments),
                 provider_metadata,
@@ -542,13 +536,7 @@ impl StreamNormalizer {
                     self.end_reasoning(out, &id, Some(part));
                 }
                 AssistantPart::ToolCall(call) => {
-                    self.start_tool(
-                        out,
-                        call.call_id.clone(),
-                        call.name,
-                        call.item_id,
-                        call.provider_call_id,
-                    );
+                    self.start_tool(out, call.call_id.clone(), call.name, call.item_id);
                     self.tool_metadata(&call.call_id, call.provider_metadata);
                     self.tool_delta(out, &call.call_id, call.arguments);
                     self.complete_tool(&call.call_id, None);
@@ -700,7 +688,7 @@ mod tests {
         let mut normalizer = StreamNormalizer::new(false);
         let mut out = Vec::new();
         normalizer.text_delta(&mut out, "t0".into(), "hello".into());
-        normalizer.start_tool(&mut out, "call_1".into(), "search".into(), None, None);
+        normalizer.start_tool(&mut out, "call_1".into(), "search".into(), None);
         normalizer.tool_delta(&mut out, "call_1", "{\"q\":1}".into());
         normalizer.finish(&mut out, Finish::new(FinishReason::Stop));
 
@@ -736,7 +724,7 @@ mod tests {
     fn truncated_tool_block_never_becomes_a_tool_call() {
         let mut normalizer = StreamNormalizer::new(false);
         let mut out = Vec::new();
-        normalizer.start_tool(&mut out, "call_1".into(), "delete_all".into(), None, None);
+        normalizer.start_tool(&mut out, "call_1".into(), "delete_all".into(), None);
         normalizer.tool_delta(&mut out, "call_1", "{\"path\":\"/ho".into());
         normalizer.on_eof(
             &mut out,
@@ -799,7 +787,7 @@ mod tests {
     fn length_finish_aborts_open_tool_blocks() {
         let mut normalizer = StreamNormalizer::new(false);
         let mut out = Vec::new();
-        normalizer.start_tool(&mut out, "call_1".into(), "search".into(), None, None);
+        normalizer.start_tool(&mut out, "call_1".into(), "search".into(), None);
         normalizer.tool_delta(&mut out, "call_1", "{\"q\":\"trunc".into());
         normalizer.finish(&mut out, Finish::new(FinishReason::Length));
         assert!(
@@ -820,7 +808,7 @@ mod tests {
     fn completed_tools_are_promoted_even_when_the_provider_says_stop() {
         let mut normalizer = StreamNormalizer::new(false);
         let mut out = Vec::new();
-        normalizer.start_tool(&mut out, "call_1".into(), "search".into(), None, None);
+        normalizer.start_tool(&mut out, "call_1".into(), "search".into(), None);
         normalizer.tool_delta(&mut out, "call_1", "{\"q\":1}".into());
         normalizer.complete_tool("call_1", None);
         normalizer.finish(&mut out, Finish::with_raw(FinishReason::Stop, "stop"));
@@ -846,7 +834,7 @@ mod tests {
     fn completed_tools_are_not_promoted_when_output_was_truncated() {
         let mut normalizer = StreamNormalizer::new(false);
         let mut out = Vec::new();
-        normalizer.start_tool(&mut out, "call_1".into(), "search".into(), None, None);
+        normalizer.start_tool(&mut out, "call_1".into(), "search".into(), None);
         normalizer.tool_delta(&mut out, "call_1", "{\"q\":1}".into());
         normalizer.complete_tool("call_1", None);
         normalizer.finish(&mut out, Finish::with_raw(FinishReason::Length, "length"));
@@ -869,7 +857,7 @@ mod tests {
     fn final_arguments_override_accumulated_deltas() {
         let mut normalizer = StreamNormalizer::new(false);
         let mut out = Vec::new();
-        normalizer.start_tool(&mut out, "call_1".into(), "search".into(), None, None);
+        normalizer.start_tool(&mut out, "call_1".into(), "search".into(), None);
         normalizer.tool_delta(&mut out, "call_1", "{\"q\":".into());
         normalizer.complete_tool("call_1", Some("{\"q\":1}".into()));
         normalizer.finish(&mut out, Finish::new(FinishReason::ToolCalls));
@@ -889,7 +877,7 @@ mod tests {
         let mut normalizer = StreamNormalizer::new(false);
         let mut out = Vec::new();
         for (id, arguments) in [("invalid", "{"), ("valid", "{}")] {
-            normalizer.start_tool(&mut out, id.into(), "tool".into(), None, None);
+            normalizer.start_tool(&mut out, id.into(), "tool".into(), None);
             normalizer.tool_delta(&mut out, id, arguments.into());
         }
 

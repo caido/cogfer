@@ -166,7 +166,6 @@ pub(crate) fn decode_content_block(block: &ContentBlock) -> Option<AssistantPart
         "tool_use" => Some(AssistantPart::ToolCall(ToolCall {
             call_id: block.id.clone().unwrap_or_default(),
             item_id: None,
-            provider_call_id: None,
             name: block.name.clone().unwrap_or_default(),
             arguments: block
                 .input

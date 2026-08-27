@@ -9,7 +9,6 @@ async fn request_golden() {
     let call = ToolCall {
         call_id: "call_a".into(),
         item_id: None,
-        provider_call_id: None,
         name: "get_weather".into(),
         arguments: "{\"location\":\"Paris\"}".into(),
         provider_metadata: ProviderMetadata::default(),

@@ -354,7 +354,6 @@ fn decode_chat_message(message: ChatMessage, dialect: ChatDialect) -> Vec<Assist
         content.push(AssistantPart::ToolCall(ToolCall {
             call_id: "call_0".to_string(),
             item_id: None,
-            provider_call_id: None,
             name: function.name.unwrap_or_default(),
             arguments: function.arguments.unwrap_or_default(),
             provider_metadata: ProviderMetadata::default(),
@@ -373,7 +372,6 @@ fn decode_chat_message(message: ChatMessage, dialect: ChatDialect) -> Vec<Assist
         content.push(AssistantPart::ToolCall(ToolCall {
             call_id: call.id.unwrap_or_else(|| format!("call_{index}")),
             item_id: None,
-            provider_call_id: None,
             name: function.name.unwrap_or_default(),
             arguments: function.arguments.unwrap_or_default(),
             provider_metadata: ProviderMetadata::default(),

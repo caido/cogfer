@@ -77,7 +77,7 @@ impl ChatStreamDecoder {
             let Some(name) = pending.name else { continue };
             let call_id = pending.call_id.unwrap_or_else(|| format!("call_{index}"));
             self.calls_by_index.insert(index, call_id.clone());
-            normalizer.start_tool(out, call_id.clone(), name, None, None);
+            normalizer.start_tool(out, call_id.clone(), name, None);
             if !pending.arguments.is_empty() {
                 normalizer.tool_delta(out, &call_id, pending.arguments);
             }
@@ -284,7 +284,7 @@ impl ChatStreamDecoder {
             let call_id = pending.call_id.expect("checked");
             let name = pending.name.expect("checked");
             self.calls_by_index.insert(index, call_id.clone());
-            normalizer.start_tool(out, call_id.clone(), name, None, None);
+            normalizer.start_tool(out, call_id.clone(), name, None);
             if !pending.arguments.is_empty() {
                 normalizer.tool_delta(out, &call_id, pending.arguments);
             }

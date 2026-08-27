@@ -636,3 +636,44 @@ async fn streamed_turns_record_their_origin_profile() {
         "openai-responses"
     );
 }
+
+#[tokio::test]
+async fn function_call_item_without_an_id_has_no_item_id() {
+    let mock = MockTransport::shared();
+    mock.push_sse(&[
+        r#"{"type":"response.created","response":{"id":"resp_6","model":"gpt-5.6","status":"in_progress"},"sequence_number":0}"#,
+        r#"{"type":"response.output_item.added","output_index":0,"item":{"type":"function_call","call_id":"call_6","name":"get_weather","arguments":"","status":"in_progress"},"sequence_number":1}"#,
+        r#"{"type":"response.output_item.done","output_index":0,"item":{"type":"function_call","call_id":"call_6","name":"get_weather","arguments":"{}","status":"completed"},"sequence_number":2}"#,
+        r#"{"type":"response.completed","response":{"id":"resp_6","status":"completed","output":[],"usage":{"input_tokens":5,"output_tokens":2,"total_tokens":7}},"sequence_number":3}"#,
+    ]);
+    let provider = openai_responses(&mock);
+    let events = drain(
+        provider
+            .language_model("gpt-5.6")
+            .stream(tool_request("weather?"))
+            .await
+            .expect("stream establishes"),
+    )
+    .await;
+
+    assert_terminal_contract(&events);
+    let start = events
+        .iter()
+        .find_map(|event| match event {
+            StreamEvent::ToolInputStart {
+                call_id, item_id, ..
+            } => Some((call_id.clone(), item_id.clone())),
+            _ => None,
+        })
+        .expect("tool input start");
+    assert_eq!(start, ("call_6".to_string(), None));
+    let call = events
+        .iter()
+        .find_map(|event| match event {
+            StreamEvent::ToolCall(call) => Some(call.clone()),
+            _ => None,
+        })
+        .expect("tool call event");
+    assert_eq!(call.call_id, "call_6");
+    assert_eq!(call.item_id, None);
+}

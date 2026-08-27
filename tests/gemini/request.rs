@@ -9,7 +9,6 @@ async fn request_golden_with_signature_replay() {
     let call = ToolCall {
         call_id: "fc_1".into(),
         item_id: Some("fc_1".into()),
-        provider_call_id: Some("fc_1".into()),
         name: "get_weather".into(),
         arguments: "{\"location\":\"Paris\"}".into(),
         provider_metadata: ProviderMetadata::with(
@@ -148,7 +147,6 @@ async fn consecutive_tool_results_merge_into_one_turn() {
     let call_a = ToolCall {
         call_id: "fc_a".into(),
         item_id: Some("fc_a".into()),
-        provider_call_id: Some("fc_a".into()),
         name: "get_weather".into(),
         arguments: "{\"location\":\"Paris\"}".into(),
         provider_metadata: ProviderMetadata::default(),
@@ -156,7 +154,6 @@ async fn consecutive_tool_results_merge_into_one_turn() {
     let call_b = ToolCall {
         call_id: "fc_b".into(),
         item_id: Some("fc_b".into()),
-        provider_call_id: Some("fc_b".into()),
         name: "get_weather".into(),
         arguments: "{\"location\":\"London\"}".into(),
         provider_metadata: ProviderMetadata::default(),
@@ -226,7 +223,6 @@ async fn non_object_tool_arguments_are_rejected() {
             content: vec![AssistantPart::ToolCall(ToolCall {
                 call_id: "fc_9".into(),
                 item_id: None,
-                provider_call_id: None,
                 name: "lookup".into(),
                 arguments: "null".into(),
                 provider_metadata: ProviderMetadata::default(),

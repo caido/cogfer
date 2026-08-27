@@ -127,10 +127,9 @@ impl ResponsesStreamDecoder {
                     .to_string();
                 normalizer.start_tool(
                     out,
-                    call_id.clone(),
+                    call_id,
                     name,
-                    Some(item_id.to_string()),
-                    Some(call_id),
+                    (!item_id.is_empty()).then(|| item_id.to_string()),
                 );
             }
             "reasoning" => {

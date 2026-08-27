@@ -175,8 +175,9 @@ pub(crate) fn flush_thoughts(
 }
 
 /// Build the tool call for a `functionCall` part. Gemini may omit call ids,
-/// so a stable one is synthesized. The provider id, when present, doubles as
-/// item and call id for replay.
+/// so a stable one is synthesized. The provider id, when present, is both
+/// `call_id` and `item_id`, so replay sends it back. A synthesized id stays
+/// local: `item_id` is `None` and nothing is echoed to Gemini.
 pub(crate) fn decode_function_call(
     part: &GeminiPart,
     function_call: &GeminiFunctionCall,
@@ -187,8 +188,7 @@ pub(crate) fn decode_function_call(
         .unwrap_or_else(|| format!("call_{}", uuid::Uuid::new_v4().simple()));
     ToolCall {
         call_id,
-        item_id: provider_id.clone(),
-        provider_call_id: provider_id,
+        item_id: provider_id,
         name: function_call.name.clone().unwrap_or_default(),
         arguments: function_call
             .args

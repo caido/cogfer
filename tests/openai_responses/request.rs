@@ -10,7 +10,6 @@ async fn request_golden() {
     let call = ToolCall {
         call_id: "call_1".into(),
         item_id: Some("fc_1".into()),
-        provider_call_id: Some("call_1".into()),
         name: "get_weather".into(),
         arguments: "{\"location\":\"Paris\"}".into(),
         provider_metadata: ProviderMetadata::default(),
@@ -165,22 +164,23 @@ async fn disabled_reasoning_is_sent_as_none_effort() {
     assert_eq!(mock.request_json(0)["reasoning"], json!({"effort": "none"}));
 }
 
+/// Responses never needs `name` or `item_id` on a result, unlike Gemini.
 #[tokio::test]
-async fn tool_result_recovers_provider_call_id_from_history() {
+async fn bare_tool_result_lowers_through_call_id_alone() {
     let mock = MockTransport::shared();
     mock.push_json(200, &minimal_completed());
     let provider = openai_responses(&mock);
     let call = ToolCall {
-        call_id: "consumer_call_1".into(),
+        call_id: "call_1".into(),
         item_id: Some("fc_1".into()),
-        provider_call_id: Some("call_provider_1".into()),
         name: "lookup".into(),
         arguments: r#"{"query":"value"}"#.into(),
         provider_metadata: ProviderMetadata::default(),
     };
+    // A bare result: only the correlation id, as a host that keeps no
+    // provider identity would send it.
     let mut result = ToolResultPart::for_call(&call, "found");
     result.item_id = None;
-    result.provider_call_id = None;
     result.name = None;
     let request = Request::builder()
         .message(Message::Assistant {
@@ -197,7 +197,8 @@ async fn tool_result_recovers_provider_call_id_from_history() {
         .expect("generate succeeds");
 
     let body = mock.request_json(0);
-    assert_eq!(body["input"][1]["call_id"], "call_provider_1");
+    assert_eq!(body["input"][1]["type"], "function_call_output");
+    assert_eq!(body["input"][1]["call_id"], "call_1");
 }
 
 #[tokio::test]
@@ -208,7 +209,6 @@ async fn orphan_tool_result_keeps_its_self_contained_call_id() {
     let call = ToolCall {
         call_id: "call_from_previous_response".into(),
         item_id: None,
-        provider_call_id: None,
         name: "lookup".into(),
         arguments: "{}".into(),
         provider_metadata: ProviderMetadata::default(),
@@ -238,7 +238,6 @@ fn opaque_turn(origin: ProviderMetadata) -> (ToolCall, Message) {
     let call = ToolCall {
         call_id: "call_1".into(),
         item_id: Some("fc_1".into()),
-        provider_call_id: Some("call_1".into()),
         name: "get_weather".into(),
         arguments: "{}".into(),
         provider_metadata: ProviderMetadata::default(),

@@ -214,15 +214,14 @@ fn validate_tool_call(call: &ToolCall, path: &str) -> Result<()> {
             "{path}.name must not be blank"
         )));
     }
-    for (field, value) in [
-        ("item_id", call.item_id.as_deref()),
-        ("provider_call_id", call.provider_call_id.as_deref()),
-    ] {
-        if value.is_some_and(|value| value.trim().is_empty()) {
-            return Err(Error::invalid_request(format!(
-                "{path}.{field} must not be blank when present"
-            )));
-        }
+    if call
+        .item_id
+        .as_deref()
+        .is_some_and(|value| value.trim().is_empty())
+    {
+        return Err(Error::invalid_request(format!(
+            "{path}.item_id must not be blank when present"
+        )));
     }
 
     let arguments = call.arguments_value().map_err(|source| {
@@ -247,7 +246,6 @@ fn validate_tool_result(result: &ToolResultPart, path: &str) -> Result<()> {
     }
     for (field, value) in [
         ("item_id", result.item_id.as_deref()),
-        ("provider_call_id", result.provider_call_id.as_deref()),
         ("name", result.name.as_deref()),
     ] {
         if value.is_some_and(|value| value.trim().is_empty()) {
@@ -266,11 +264,6 @@ fn validate_matching_identity(result: &ToolResultPart, call: &ToolCall, path: &s
             "item_id",
             result.item_id.as_deref(),
             call.item_id.as_deref(),
-        ),
-        (
-            "provider_call_id",
-            result.provider_call_id.as_deref(),
-            call.provider_call_id.as_deref(),
         ),
     ] {
         if matches!((actual, expected), (Some(actual), Some(expected)) if actual != expected) {
@@ -337,7 +330,6 @@ mod tests {
         ToolCall {
             call_id: call_id.into(),
             item_id: Some(format!("item_{call_id}")),
-            provider_call_id: Some(format!("provider_{call_id}")),
             name: name.into(),
             arguments: arguments.into(),
             provider_metadata: ProviderMetadata::default(),
@@ -348,7 +340,6 @@ mod tests {
         ToolResultPart {
             call_id: call_id.into(),
             item_id: Some(format!("item_{call_id}")),
-            provider_call_id: Some(format!("provider_{call_id}")),
             name: Some("lookup".into()),
             content: ToolResultContent::Text { text: "ok".into() },
             is_error: false,
@@ -584,13 +575,10 @@ mod tests {
     fn invalid_historical_tool_calls_are_rejected() {
         let mut blank_item_id = call("call_a", "lookup", "{}");
         blank_item_id.item_id = Some(" ".into());
-        let mut blank_provider_call_id = call("call_a", "lookup", "{}");
-        blank_provider_call_id.provider_call_id = Some(" ".into());
         let cases = [
             ("call_id", call(" ", "lookup", "{}")),
             ("name", call("call_a", " ", "{}")),
             ("item_id", blank_item_id),
-            ("provider_call_id", blank_provider_call_id),
             ("valid JSON", call("call_a", "lookup", "{")),
             ("JSON object", call("call_a", "lookup", "[]")),
         ];
@@ -629,22 +617,16 @@ mod tests {
         blank_name.name = Some(" ".into());
         let mut blank_item = valid.clone();
         blank_item.item_id = Some(" ".into());
-        let mut blank_provider = valid.clone();
-        blank_provider.provider_call_id = Some(" ".into());
         let mut wrong_name = valid.clone();
         wrong_name.name = Some("other".into());
         let mut wrong_item = valid.clone();
         wrong_item.item_id = Some("other".into());
-        let mut wrong_provider = valid.clone();
-        wrong_provider.provider_call_id = Some("other".into());
         let cases = [
             ("call_id", vec![blank]),
             ("name", vec![blank_name]),
             ("item_id", vec![blank_item]),
-            ("provider_call_id", vec![blank_provider]),
             ("name", vec![wrong_name]),
             ("item_id", vec![wrong_item]),
-            ("provider_call_id", vec![wrong_provider]),
             ("more than one result", vec![valid.clone(), valid]),
         ];
 
@@ -718,7 +700,6 @@ mod tests {
         let mut result = tool_result("call_0");
         result.name = Some("external_lookup".into());
         result.item_id = Some("external_item".into());
-        result.provider_call_id = Some("external_provider_call".into());
         let request = Request::builder()
             .message(Message::tool_result(result))
             .message(Message::Assistant {
