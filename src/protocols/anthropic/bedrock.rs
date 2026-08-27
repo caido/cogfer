@@ -12,7 +12,6 @@ use crate::error::{Error, ErrorKind, Result};
 use crate::http::{enrich_error_from_headers, error_kind_for_status};
 use crate::protocols::{ApiProfile, StreamDecoder};
 use crate::stream::{StreamEvent, StreamNormalizer};
-use crate::transport::framing::StreamFrame;
 use crate::transport::{HeaderMap, HeaderName};
 use crate::util::base64_decode;
 
@@ -104,28 +103,33 @@ impl BedrockStreamDecoder {
 impl StreamDecoder for BedrockStreamDecoder {
     fn on_frame(
         &mut self,
-        frame: StreamFrame,
+        data: String,
         normalizer: &mut StreamNormalizer,
         out: &mut Vec<StreamEvent>,
     ) -> Result<()> {
-        if let Some(exception) = frame.exception {
-            let kind = bedrock_error_kind(Some(&exception), 200);
-            let message = exception_message(frame.data.as_bytes())
-                .unwrap_or_else(|| format!("bedrock stream failed with {exception}"));
-            let error = Error::new(kind, message)
-                .with_origin(ApiProfile::BedrockAnthropic.as_str())
-                .with_code(exception);
-            normalizer.fail(out, error);
-            return Ok(());
-        }
-        let part: PayloadPart = serde_json::from_str(&frame.data)
+        let part: PayloadPart = serde_json::from_str(&data)
             .map_err(|error| Error::malformed(format!("bedrock: invalid stream chunk: {error}")))?;
         let bytes = base64_decode(&part.bytes, false)
             .ok_or_else(|| Error::malformed("bedrock: stream chunk is not valid base64"))?;
-        let data = String::from_utf8(bytes)
+        let event = String::from_utf8(bytes)
             .map_err(|_| Error::malformed("bedrock: stream chunk is not valid UTF-8"))?;
-        self.inner
-            .on_frame(StreamFrame::data(data), normalizer, out)
+        self.inner.on_frame(event, normalizer, out)
+    }
+
+    fn on_exception(
+        &mut self,
+        kind: String,
+        payload: String,
+        normalizer: &mut StreamNormalizer,
+        out: &mut Vec<StreamEvent>,
+    ) {
+        let error_kind = bedrock_error_kind(Some(&kind), 200);
+        let message = exception_message(payload.as_bytes())
+            .unwrap_or_else(|| format!("bedrock stream failed with {kind}"));
+        let error = Error::new(error_kind, message)
+            .with_origin(ApiProfile::BedrockAnthropic.as_str())
+            .with_code(kind);
+        normalizer.fail(out, error);
     }
 
     fn on_eof(&mut self, normalizer: &mut StreamNormalizer, out: &mut Vec<StreamEvent>) {

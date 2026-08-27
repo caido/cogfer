@@ -4,8 +4,8 @@
 //! headers, a payload, and a CRC over everything before it. Bedrock
 //! marks messages with `:message-type` (`event`, `exception`, or `error`) and
 //! names them with `:event-type` or `:exception-type`. Events become
-//! [`StreamFrame`]s carrying the payload. Exceptions and errors become frames
-//! with [`StreamFrame::exception`] set so the decoder can fail the stream.
+//! [`StreamFrame::Data`]. Exceptions and errors become
+//! [`StreamFrame::Exception`] so the decoder can fail the stream.
 
 use super::framing::{FrameSource, StreamFrame};
 use crate::util::crc32;
@@ -114,14 +114,14 @@ fn decode_message(message: &[u8]) -> Result<Option<StreamFrame>, &'static str> {
             .map(|(_, value)| value.as_str())
     };
     let frame = match header(":message-type") {
-        Some("event") => StreamFrame::data(data),
-        Some("exception") => StreamFrame {
-            data,
-            exception: Some(header(":exception-type").unwrap_or("exception").to_owned()),
+        Some("event") => StreamFrame::Data(data),
+        Some("exception") => StreamFrame::Exception {
+            kind: header(":exception-type").unwrap_or("exception").to_owned(),
+            payload: data,
         },
-        Some("error") => StreamFrame {
-            data: header(":error-message").unwrap_or_default().to_owned(),
-            exception: Some(header(":error-code").unwrap_or("error").to_owned()),
+        Some("error") => StreamFrame::Exception {
+            kind: header(":error-code").unwrap_or("error").to_owned(),
+            payload: header(":error-message").unwrap_or_default().to_owned(),
         },
         _ => return Ok(None),
     };
@@ -213,7 +213,10 @@ mod tests {
         assert!(parser.push(head).is_empty());
         let frames = parser.push(tail);
 
-        assert_eq!(frames, vec![StreamFrame::data(r#"{"bytes":"e30="}"#)]);
+        assert_eq!(
+            frames,
+            vec![StreamFrame::Data(r#"{"bytes":"e30="}"#.into())]
+        );
         assert!(parser.finish().is_none());
         assert_eq!(parser.corruption(), None);
     }
@@ -225,7 +228,10 @@ mod tests {
 
         let frames = AwsEventStreamParser::new().push(&bytes);
 
-        assert_eq!(frames, vec![StreamFrame::data("1"), StreamFrame::data("2")]);
+        assert_eq!(
+            frames,
+            vec![StreamFrame::Data("1".into()), StreamFrame::Data("2".into())]
+        );
     }
 
     #[test]
@@ -243,9 +249,9 @@ mod tests {
 
         assert_eq!(
             frames,
-            vec![StreamFrame {
-                data: r#"{"message":"slow down"}"#.into(),
-                exception: Some("throttlingException".into()),
+            vec![StreamFrame::Exception {
+                kind: "throttlingException".into(),
+                payload: r#"{"message":"slow down"}"#.into(),
             }]
         );
     }
@@ -280,7 +286,7 @@ mod tests {
 
         let frames = AwsEventStreamParser::new().push(&message);
 
-        assert_eq!(frames, vec![StreamFrame::data("{}")]);
+        assert_eq!(frames, vec![StreamFrame::Data("{}".into())]);
     }
 
     #[test]
@@ -316,7 +322,7 @@ mod tests {
 
         let frames = parser.push(&bytes);
 
-        assert_eq!(frames, vec![StreamFrame::data("1")]);
+        assert_eq!(frames, vec![StreamFrame::Data("1".into())]);
         assert!(parser.corruption().is_some());
     }
 

@@ -103,7 +103,7 @@ impl SseParser {
         self.data_bytes = 0;
         self.has_data = false;
         let data = std::mem::take(&mut self.data);
-        Some(StreamFrame::data(data))
+        Some(StreamFrame::Data(data))
     }
 }
 
@@ -229,8 +229,8 @@ mod tests {
         let mut parser = SseParser::new();
         let frames = collect(&mut parser, b"data: {\"a\":1}\n\ndata: {\"b\":2}\n\n");
         assert_eq!(frames.len(), 2);
-        assert_eq!(frames[0].data, "{\"a\":1}");
-        assert_eq!(frames[1].data, "{\"b\":2}");
+        assert_eq!(frames[0], StreamFrame::Data("{\"a\":1}".into()));
+        assert_eq!(frames[1], StreamFrame::Data("{\"b\":2}".into()));
     }
 
     #[test]
@@ -241,7 +241,10 @@ mod tests {
             b"event: message_start\r\ndata: {\"type\":\"message_start\"}\r\n\r\n",
         );
         assert_eq!(frames.len(), 1);
-        assert_eq!(frames[0].data, "{\"type\":\"message_start\"}");
+        assert_eq!(
+            frames[0],
+            StreamFrame::Data("{\"type\":\"message_start\"}".into())
+        );
     }
 
     #[test]
@@ -251,7 +254,10 @@ mod tests {
 
         assert_eq!(
             frames,
-            vec![StreamFrame::data("one"), StreamFrame::data("two"),]
+            vec![
+                StreamFrame::Data("one".into()),
+                StreamFrame::Data("two".into()),
+            ]
         );
     }
 
@@ -264,7 +270,7 @@ mod tests {
         let frames = parser.push(b"\n");
 
         assert_eq!(frames.len(), 1);
-        assert_eq!(frames[0].data, "split");
+        assert_eq!(frames[0], StreamFrame::Data("split".into()));
     }
 
     #[test]
@@ -272,7 +278,7 @@ mod tests {
         let mut parser = SseParser::new();
         let frames = collect(&mut parser, b"data: line1\ndata: line2\n\n");
         assert_eq!(frames.len(), 1);
-        assert_eq!(frames[0].data, "line1\nline2");
+        assert_eq!(frames[0], StreamFrame::Data("line1\nline2".into()));
     }
 
     #[test]
@@ -284,7 +290,7 @@ mod tests {
         assert!(frames.is_empty());
         frames.extend(parser.push(b"\n"));
         assert_eq!(frames.len(), 1);
-        assert_eq!(frames[0].data, "{\"a\":1}");
+        assert_eq!(frames[0], StreamFrame::Data("{\"a\":1}".into()));
     }
 
     #[test]
@@ -292,7 +298,7 @@ mod tests {
         let mut parser = SseParser::new();
         let frames = collect(&mut parser, b"\xEF\xBB\xBFdata:{\"a\":1}\n\n");
         assert_eq!(frames.len(), 1);
-        assert_eq!(frames[0].data, "{\"a\":1}");
+        assert_eq!(frames[0], StreamFrame::Data("{\"a\":1}".into()));
     }
 
     #[test]
@@ -304,14 +310,14 @@ mod tests {
             frames.push(frame);
         }
         assert_eq!(frames.len(), 1);
-        assert_eq!(frames[0].data, "{\"a\":1}");
+        assert_eq!(frames[0], StreamFrame::Data("{\"a\":1}".into()));
     }
 
     #[test]
     fn flushes_frame_dispatched_by_trailing_carriage_return() {
         let mut parser = SseParser::new();
         let frames = collect(&mut parser, b"data: hi\r\n\r");
-        assert_eq!(frames, vec![StreamFrame::data("hi")]);
+        assert_eq!(frames, vec![StreamFrame::Data("hi".into())]);
     }
 
     #[test]
@@ -342,7 +348,7 @@ mod tests {
         let mut parser = SseParser::new();
         let frames = collect(&mut parser, b"data: [DONE]\n\n");
         assert_eq!(frames.len(), 1);
-        assert_eq!(frames[0].data, "[DONE]");
+        assert_eq!(frames[0], StreamFrame::Data("[DONE]".into()));
     }
 
     #[test]
@@ -365,7 +371,7 @@ mod utf8_tests {
         let mut frames = parser.push(&payload[..split]);
         frames.extend(parser.push(&payload[split..]));
         assert_eq!(frames.len(), 1);
-        assert_eq!(frames[0].data, "{\"t\":\"é\"}");
+        assert_eq!(frames[0], StreamFrame::Data("{\"t\":\"é\"}".into()));
         assert!(!parser.saw_invalid_utf8());
     }
 
@@ -390,7 +396,7 @@ mod utf8_tests {
         let frames = parser.push(&bytes);
 
         assert_eq!(frames.len(), 1);
-        assert_eq!(frames[0].data, "{\"t\":\"valid\"}");
+        assert_eq!(frames[0], StreamFrame::Data("{\"t\":\"valid\"}".into()));
         assert!(parser.saw_invalid_utf8());
     }
 }

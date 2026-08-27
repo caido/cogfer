@@ -5,23 +5,14 @@
 //! [`FrameSource`] turns raw body chunks into those payloads so the protocol
 //! decoders never see the framing.
 
-/// One payload from a streamed response.
+/// One frame from a streamed response.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct StreamFrame {
-    /// The frame payload, normally one JSON document.
-    pub(crate) data: String,
-    /// Set when the framing layer itself carried an error (an AWS event
-    /// stream exception, for example). `data` then holds the error payload.
-    pub(crate) exception: Option<String>,
-}
-
-impl StreamFrame {
-    pub(crate) fn data(data: impl Into<String>) -> Self {
-        Self {
-            data: data.into(),
-            exception: None,
-        }
-    }
+pub(crate) enum StreamFrame {
+    /// A payload for the protocol decoder, normally one JSON document.
+    Data(String),
+    /// An error the framing layer itself carried (an AWS event stream
+    /// exception, for example), named by `kind` with its error payload.
+    Exception { kind: String, payload: String },
 }
 
 /// Incremental framing of a streamed body.

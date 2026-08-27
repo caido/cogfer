@@ -103,13 +103,21 @@ impl ProtocolHandler for Handler {
 /// Chunking matters because the parser bounds one line, not the total body.
 /// A single push of a large transcript could otherwise look like an oversized
 /// line.
-fn transcript_frames(body: &[u8]) -> Result<Vec<StreamFrame>> {
+fn transcript_frames(body: &[u8]) -> Result<Vec<String>> {
     let mut parser = SseParser::new();
     let mut frames = Vec::new();
     for chunk in body.chunks(64 * 1024) {
         frames.extend(parser.push(chunk));
     }
     frames.extend(parser.finish());
+    // Server-Sent Events carry no framing-level exceptions.
+    let frames = frames
+        .into_iter()
+        .filter_map(|frame| match frame {
+            StreamFrame::Data(data) => Some(data),
+            StreamFrame::Exception { .. } => None,
+        })
+        .collect();
     if parser.saw_invalid_utf8() {
         return Err(Error::malformed(
             "chatgpt: response transcript contained invalid UTF-8",
@@ -126,11 +134,11 @@ fn transcript_frames(body: &[u8]) -> Result<Vec<StreamFrame>> {
 /// Find the terminal response object (`response.completed` / `.failed` /
 /// `.incomplete`, whose status [`decode_response_object`] translates) and
 /// any top-level `error` event in the transcript.
-fn scan_terminal(frames: &[StreamFrame]) -> Result<(Option<ResponseObject>, Option<Error>)> {
+fn scan_terminal(frames: &[String]) -> Result<(Option<ResponseObject>, Option<Error>)> {
     let mut stream_error: Option<Error> = None;
     let mut terminal: Option<ResponseObject> = None;
     for frame in frames {
-        let data = frame.data.trim();
+        let data = frame.trim();
         if data.is_empty() || data == "[DONE]" {
             continue;
         }
@@ -159,7 +167,7 @@ fn scan_terminal(frames: &[StreamFrame]) -> Result<(Option<ResponseObject>, Opti
 }
 
 /// Build a blocking result by replaying the transcript through the stream decoder.
-fn reconstruct_from_transcript(frames: Vec<StreamFrame>) -> Result<GenerateResult> {
+fn reconstruct_from_transcript(frames: Vec<String>) -> Result<GenerateResult> {
     let mut decoder = ResponsesStreamDecoder::new(ApiProfile::ChatGptResponses);
     let mut normalizer = StreamNormalizer::new(false);
     let mut events = Vec::new();

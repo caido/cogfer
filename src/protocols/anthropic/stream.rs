@@ -11,7 +11,6 @@ use crate::metadata::ProviderMetadata;
 use crate::protocols::{ApiProfile, StreamDecoder};
 use crate::response::{Finish, FinishReason, ResponseMetadata};
 use crate::stream::{Citation, StreamEvent, StreamNormalizer};
-use crate::transport::framing::StreamFrame;
 
 /// The block's own id (`server_tool_use`) or the id of the call it answers
 /// (`*_tool_result`).
@@ -516,7 +515,7 @@ impl AnthropicStreamDecoder {
 impl StreamDecoder for AnthropicStreamDecoder {
     fn on_frame(
         &mut self,
-        frame: StreamFrame,
+        data: String,
         normalizer: &mut StreamNormalizer,
         out: &mut Vec<StreamEvent>,
     ) -> Result<()> {
@@ -525,9 +524,9 @@ impl StreamDecoder for AnthropicStreamDecoder {
         }
         // Type mismatches fail the stream: demoting them would silently lose
         // the stop reason or usage.
-        let envelope: StreamEnvelope = serde_json::from_str(&frame.data)
+        let envelope: StreamEnvelope = serde_json::from_str(&data)
             .map_err(|e| Error::malformed(format!("anthropic: invalid stream event: {e}")))?;
-        let raw = frame.data.as_str();
+        let raw = data.as_str();
 
         match envelope.event_type.as_str() {
             "message_start" => {

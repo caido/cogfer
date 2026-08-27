@@ -11,7 +11,6 @@ use crate::metadata::ProviderMetadata;
 use crate::protocols::{ApiProfile, StreamDecoder, origin_metadata};
 use crate::response::{Finish, FinishReason, ResponseMetadata};
 use crate::stream::{Citation, StreamEvent, StreamNormalizer};
-use crate::transport::framing::StreamFrame;
 
 pub(crate) struct ResponsesStreamDecoder {
     /// Profile used to attribute errors from this shared decoder.
@@ -419,20 +418,20 @@ impl ResponsesStreamDecoder {
 impl StreamDecoder for ResponsesStreamDecoder {
     fn on_frame(
         &mut self,
-        frame: StreamFrame,
+        data: String,
         normalizer: &mut StreamNormalizer,
         out: &mut Vec<StreamEvent>,
     ) -> Result<()> {
         // Some compatible proxies append a Chat-style [DONE] sentinel.
-        if frame.data.trim() == "[DONE]" {
+        if data.trim() == "[DONE]" {
             return Ok(());
         }
         // Type mismatches fail the stream: demoting them would silently lose
         // deltas or the terminal status.
-        let envelope: StreamEnvelope = serde_json::from_str(&frame.data).map_err(|e| {
+        let envelope: StreamEnvelope = serde_json::from_str(&data).map_err(|e| {
             Error::malformed(format!("{}: invalid stream event: {e}", self.profile))
         })?;
-        self.handle_event(&frame.data, envelope, normalizer, out)
+        self.handle_event(&data, envelope, normalizer, out)
     }
 
     fn on_eof(&mut self, _normalizer: &mut StreamNormalizer, _out: &mut Vec<StreamEvent>) {}

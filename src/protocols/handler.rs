@@ -7,7 +7,7 @@ use crate::error::{Error, Result};
 use crate::request::Request;
 use crate::response::{GenerateResult, Warning};
 use crate::stream::{StreamEvent, StreamNormalizer};
-use crate::transport::framing::{FrameSource, StreamFrame};
+use crate::transport::framing::FrameSource;
 use crate::transport::sse::SseParser;
 use crate::transport::{HeaderMap, HttpRequest, HttpResponse};
 
@@ -51,12 +51,30 @@ pub(crate) trait ProtocolHandler: Send + Sync {
 }
 
 pub(crate) trait StreamDecoder: Send {
+    /// Decode one frame payload.
     fn on_frame(
         &mut self,
-        frame: StreamFrame,
+        data: String,
         normalizer: &mut StreamNormalizer,
         out: &mut Vec<StreamEvent>,
     ) -> Result<()>;
+
+    /// An error carried by the framing layer. Ends the stream unless the
+    /// protocol knows how to classify it.
+    fn on_exception(
+        &mut self,
+        kind: String,
+        payload: String,
+        normalizer: &mut StreamNormalizer,
+        out: &mut Vec<StreamEvent>,
+    ) {
+        let error = Error::new(
+            crate::error::ErrorKind::Provider,
+            format!("stream failed with {kind}: {payload}"),
+        )
+        .with_code(kind);
+        normalizer.fail(out, error);
+    }
 
     fn on_eof(&mut self, normalizer: &mut StreamNormalizer, out: &mut Vec<StreamEvent>);
 }

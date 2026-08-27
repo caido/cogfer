@@ -10,7 +10,6 @@ use crate::metadata::ProviderMetadata;
 use crate::protocols::StreamDecoder;
 use crate::response::{Finish, FinishReason, ResponseMetadata};
 use crate::stream::{Citation, StreamEvent, StreamNormalizer};
-use crate::transport::framing::StreamFrame;
 
 const TEXT_BLOCK: &str = "t0";
 const REASONING_BLOCK: &str = "r0";
@@ -251,13 +250,13 @@ impl GeminiStreamDecoder {
 impl StreamDecoder for GeminiStreamDecoder {
     fn on_frame(
         &mut self,
-        frame: StreamFrame,
+        data: String,
         normalizer: &mut StreamNormalizer,
         out: &mut Vec<StreamEvent>,
     ) -> Result<()> {
         // Type mismatches fail the stream: demoting them would silently lose
         // candidates or the finish reason.
-        let chunk: GenerateContentResponse = serde_json::from_str(&frame.data)
+        let chunk: GenerateContentResponse = serde_json::from_str(&data)
             .map_err(|e| Error::malformed(format!("gemini: invalid stream chunk: {e}")))?;
         if let Some(error) = chunk.error {
             self.finish_error_frame(error.into_error(None), normalizer, out);

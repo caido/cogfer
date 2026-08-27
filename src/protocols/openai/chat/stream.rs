@@ -12,7 +12,6 @@ use crate::metadata::ProviderMetadata;
 use crate::protocols::StreamDecoder;
 use crate::response::{Finish, FinishReason, ResponseMetadata};
 use crate::stream::{Citation, StreamEvent, StreamNormalizer};
-use crate::transport::framing::StreamFrame;
 
 const TEXT_BLOCK: &str = "t0";
 const REASONING_BLOCK: &str = "r0";
@@ -356,20 +355,20 @@ pub(crate) struct ChatChunk {
 impl StreamDecoder for ChatStreamDecoder {
     fn on_frame(
         &mut self,
-        frame: StreamFrame,
+        data: String,
         normalizer: &mut StreamNormalizer,
         out: &mut Vec<StreamEvent>,
     ) -> Result<()> {
         if self.done {
             return Ok(());
         }
-        if frame.data.trim() == "[DONE]" {
+        if data.trim() == "[DONE]" {
             self.finish_now(normalizer, out);
             return Ok(());
         }
         // Type mismatches fail the stream: demoting them would silently lose
         // deltas or the terminal status.
-        let chunk: ChatChunk = serde_json::from_str(&frame.data).map_err(|e| {
+        let chunk: ChatChunk = serde_json::from_str(&data).map_err(|e| {
             Error::malformed(format!(
                 "{}: invalid stream chunk: {e}",
                 self.dialect.profile()

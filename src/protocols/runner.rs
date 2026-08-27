@@ -14,7 +14,7 @@ use crate::provider::{Authentication, Provider};
 use crate::request::Request;
 use crate::response::{GenerateResult, ResponseMetadata, Warning};
 use crate::stream::{EventStream, StreamEvent, StreamNormalizer};
-use crate::transport::framing::FrameSource;
+use crate::transport::framing::{FrameSource, StreamFrame};
 use crate::transport::{
     HeaderMap, HeaderName, HeaderValue, HttpByteStream, HttpRequest, HttpResponse, header,
 };
@@ -406,10 +406,7 @@ impl StreamState {
                 Some(Ok(chunk)) => {
                     let frames = self.parser.push(&chunk);
                     for frame in frames {
-                        log::trace!(target: TARGET, "stream frame: data_bytes={}", frame.data.len());
-                        if let Err(error) =
-                            self.decoder.on_frame(frame, &mut self.normalizer, &mut out)
-                        {
+                        if let Err(error) = self.dispatch(frame, &mut out) {
                             self.normalizer.fail(&mut out, error);
                             break;
                         }
@@ -437,16 +434,8 @@ impl StreamState {
                         self.queue.extend(out);
                         continue;
                     }
-                    if let Some(frame) = &final_frame {
-                        log::trace!(
-                            target: TARGET,
-                            "stream frame (final): data_bytes={}",
-                            frame.data.len(),
-                        );
-                    }
                     if let Some(frame) = final_frame
-                        && let Err(error) =
-                            self.decoder.on_frame(frame, &mut self.normalizer, &mut out)
+                        && let Err(error) = self.dispatch(frame, &mut out)
                     {
                         // Avoid reporting truncation after a malformed trailing frame.
                         self.normalizer.fail(&mut out, error);
@@ -466,6 +455,22 @@ impl StreamState {
                 }
             }
             self.queue.extend(out);
+        }
+    }
+
+    /// Hand one frame to the decoder.
+    fn dispatch(&mut self, frame: StreamFrame, out: &mut Vec<StreamEvent>) -> Result<()> {
+        match frame {
+            StreamFrame::Data(data) => {
+                log::trace!(target: TARGET, "stream frame: data_bytes={}", data.len());
+                self.decoder.on_frame(data, &mut self.normalizer, out)
+            }
+            StreamFrame::Exception { kind, payload } => {
+                log::trace!(target: TARGET, "stream exception: kind={kind}");
+                self.decoder
+                    .on_exception(kind, payload, &mut self.normalizer, out);
+                Ok(())
+            }
         }
     }
 
