@@ -29,7 +29,7 @@
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]
 
-pub use self::auth::{Credentials, RequestAuthenticator, SecretString, TokenStore};
+pub use self::auth::{Credentials, Rejection, RequestAuthenticator, SecretString, TokenStore};
 pub use self::capabilities::{ModelCapabilities, ReasoningSupport};
 pub use self::client::{Client, ClientBuilder};
 pub use self::error::{Error, ErrorKind, Result};

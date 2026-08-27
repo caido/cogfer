@@ -9,7 +9,7 @@ use futures_util::future::BoxFuture;
 
 use super::refresh::{RefreshState, refresh_operation};
 use super::{OAuthStatus, expires_within};
-use crate::auth::{RequestAuthenticator, TokenStore};
+use crate::auth::{Rejection, RequestAuthenticator, TokenStore};
 use crate::error::Result;
 use crate::transport::HttpRequest;
 
@@ -217,9 +217,13 @@ impl<T: OAuthTokens, R: TokenRefresher<T>> RequestAuthenticator for OAuthAuthent
         self.apply(request, RefreshTrigger::Proactive).await
     }
 
-    async fn reauthenticate(&self, request: &mut HttpRequest, status: u16) -> Result<bool> {
+    async fn reauthenticate(
+        &self,
+        request: &mut HttpRequest,
+        rejection: &Rejection<'_>,
+    ) -> Result<bool> {
         // Only an unauthorized response means the token itself was rejected.
-        if status != 401 {
+        if rejection.status != 401 {
             return Ok(false);
         }
         let rejected = request.bearer_token().map(str::to_owned);

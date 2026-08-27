@@ -7,6 +7,7 @@ use futures_util::StreamExt;
 
 use super::handler::LoweredRequest;
 use super::{ProtocolContext, ProtocolHandler, StreamDecoder};
+use crate::auth::Rejection;
 use crate::capabilities::ModelCapabilities;
 use crate::error::{Error, ErrorKind, Result};
 use crate::http::{enrich_error_from_headers, find_request_id, redact_headers, sanitized_url};
@@ -147,7 +148,7 @@ fn retry_copy(provider: &Provider, http: &HttpRequest) -> Option<HttpRequest> {
 
 async fn authentication_retry(
     provider: &Provider,
-    status: u16,
+    rejection: Rejection<'_>,
     request: Option<HttpRequest>,
 ) -> Result<Option<HttpRequest>> {
     let Some(mut request) = request else {
@@ -155,14 +156,17 @@ async fn authentication_retry(
     };
     // Rejected credentials: 401 from OAuth-style bearers, 403 from request
     // signers such as AWS SigV4.
-    if !matches!(status, 401 | 403) {
+    if !matches!(rejection.status, 401 | 403) {
         return Ok(None);
     }
     let Authentication::Authenticator(authenticator) = provider.inner.config.authentication()
     else {
         return Ok(None);
     };
-    if authenticator.reauthenticate(&mut request, status).await? {
+    if authenticator
+        .reauthenticate(&mut request, &rejection)
+        .await?
+    {
         Ok(Some(request))
     } else {
         Ok(None)
@@ -211,7 +215,11 @@ pub(crate) async fn generate(
         .execute(http)
         .await
         .map_err(|e| annotate(e, provider, model))?;
-    if let Some(request) = authentication_retry(provider, response.status, retry_request)
+    let rejection = Rejection {
+        status: response.status,
+        headers: &response.headers,
+    };
+    if let Some(request) = authentication_retry(provider, rejection, retry_request)
         .await
         .map_err(|e| annotate(e, provider, model))?
     {
@@ -266,7 +274,11 @@ pub(crate) async fn stream(
         .stream(http)
         .await
         .map_err(|e| annotate(e, provider, model))?;
-    if let Some(request) = authentication_retry(provider, byte_stream.status, retry_request)
+    let rejection = Rejection {
+        status: byte_stream.status,
+        headers: &byte_stream.headers,
+    };
+    if let Some(request) = authentication_retry(provider, rejection, retry_request)
         .await
         .map_err(|e| annotate(e, provider, model))?
     {

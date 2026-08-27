@@ -174,9 +174,9 @@ impl caido_ai::RequestAuthenticator for CountingSigner {
     async fn reauthenticate(
         &self,
         request: &mut caido_ai::transport::HttpRequest,
-        status: u16,
+        rejection: &caido_ai::Rejection<'_>,
     ) -> caido_ai::Result<bool> {
-        if status != 403 {
+        if rejection.status != 403 {
             return Ok(false);
         }
         self.authenticate(request).await?;

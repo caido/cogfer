@@ -6,7 +6,7 @@ use http::header::{self, HeaderName};
 
 use crate::error::Result;
 use crate::http::{bearer_value, header_value};
-use crate::transport::HttpRequest;
+use crate::transport::{HeaderMap, HttpRequest};
 
 /// A credential string with redacted `Debug` and `Display` output.
 ///
@@ -163,17 +163,31 @@ pub trait RequestAuthenticator: Send + Sync + fmt::Debug {
 
     /// Recover once after the provider rejects the prepared credentials.
     ///
-    /// Called only for an HTTP 401 or 403 `status` received before any
-    /// response output. The request contains the rejected credential headers.
-    /// Return `true` only after replacing them and when retrying the request
-    /// once is safe.
+    /// Called only for an HTTP 401 or 403 received before any response
+    /// output. The request contains the rejected credential headers. Return
+    /// `true` only after replacing them and when retrying the request once
+    /// is safe.
     ///
     /// # Errors
     ///
     /// Returns an error when recovery or credential refresh fails.
-    async fn reauthenticate(&self, _request: &mut HttpRequest, _status: u16) -> Result<bool> {
+    async fn reauthenticate(
+        &self,
+        _request: &mut HttpRequest,
+        _rejection: &Rejection<'_>,
+    ) -> Result<bool> {
         Ok(false)
     }
+}
+
+/// The response that rejected a request's credentials, as seen by
+/// [`RequestAuthenticator::reauthenticate`].
+#[derive(Debug, Clone, Copy)]
+pub struct Rejection<'a> {
+    pub status: u16,
+    /// Response headers, where providers name the failure (AWS
+    /// `x-amzn-errortype`, for example).
+    pub headers: &'a HeaderMap,
 }
 
 /// Durable storage for refreshed OAuth token sets.

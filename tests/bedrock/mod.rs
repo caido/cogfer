@@ -369,13 +369,32 @@ mod sigv4 {
     }
 
     #[tokio::test]
-    async fn a_second_rejection_is_terminal() {
+    async fn a_permission_denial_is_not_retried() {
+        let mock = MockTransport::shared();
+        mock.push_response(
+            403,
+            headers(&[("x-amzn-errortype", "AccessDeniedException")]),
+            r#"{"message":"not allowed"}"#,
+        );
+
+        let error = signed_provider(&mock)
+            .language_model(MODEL)
+            .generate(text_request("hi"))
+            .await
+            .expect_err("denied");
+
+        assert_eq!(error.kind(), ErrorKind::Permission);
+        assert_eq!(mock.requests().len(), 1, "re-signing cannot help");
+    }
+
+    #[tokio::test]
+    async fn a_second_signature_rejection_is_terminal() {
         let mock = MockTransport::shared();
         for _ in 0..2 {
             mock.push_response(
                 403,
-                headers(&[("x-amzn-errortype", "AccessDeniedException")]),
-                r#"{"message":"not allowed"}"#,
+                headers(&[("x-amzn-errortype", "RequestTimeTooSkewed")]),
+                r#"{"message":"clock skew"}"#,
             );
         }
 
@@ -383,9 +402,9 @@ mod sigv4 {
             .language_model(MODEL)
             .generate(text_request("hi"))
             .await
-            .expect_err("denied twice");
+            .expect_err("rejected twice");
 
-        assert_eq!(error.kind(), ErrorKind::Permission);
+        assert_eq!(error.kind(), ErrorKind::Authentication);
         assert_eq!(mock.requests().len(), 2);
     }
 }

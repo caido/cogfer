@@ -26,7 +26,12 @@ const ERROR_TYPE: HeaderName = HeaderName::from_static("x-amzn-errortype");
 fn bedrock_error_kind(exception: Option<&str>, status: u16) -> ErrorKind {
     let exception = exception.unwrap_or_default().to_ascii_lowercase();
     let mentions = |needle: &str| exception.contains(needle);
-    if mentions("signature") || mentions("token") || mentions("unrecognizedclient") {
+    if mentions("signature")
+        || mentions("token")
+        || mentions("unrecognizedclient")
+        || mentions("skew")
+        || mentions("requestexpired")
+    {
         ErrorKind::Authentication
     } else if mentions("accessdenied") {
         ErrorKind::Permission
@@ -154,6 +159,10 @@ mod tests {
         assert_eq!(
             bedrock_error_kind(Some("AccessDeniedException"), 403),
             ErrorKind::Permission
+        );
+        assert_eq!(
+            bedrock_error_kind(Some("RequestTimeTooSkewed"), 403),
+            ErrorKind::Authentication
         );
         assert_eq!(
             bedrock_error_kind(Some("modelStreamErrorException"), 200),

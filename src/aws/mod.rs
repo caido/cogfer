@@ -10,9 +10,9 @@ mod sigv4;
 use std::fmt;
 
 pub use self::sigv4::sign_request;
-use crate::auth::{RequestAuthenticator, SecretString};
+use crate::auth::{Rejection, RequestAuthenticator, SecretString};
 use crate::error::Result;
-use crate::transport::HttpRequest;
+use crate::transport::{HeaderMap, HeaderName, HttpRequest};
 
 /// An AWS access key pair, with the session token of temporary credentials.
 #[derive(Clone, PartialEq, Eq)]
@@ -51,9 +51,8 @@ impl fmt::Debug for AwsCredentials {
     }
 }
 
-/// Signs Bedrock requests with static credentials. Bedrock rejects a
-/// signature whose timestamp has drifted, so a 403 is answered by signing
-/// again.
+/// Signs Bedrock requests with static credentials. A 403 naming a signature
+/// or clock problem is answered by signing again; other rejections are final.
 #[derive(Debug, Clone)]
 #[must_use = "authenticators must be attached to a ProviderConfig"]
 pub struct SigV4Authenticator {
@@ -78,11 +77,37 @@ impl RequestAuthenticator for SigV4Authenticator {
         sign_request(request, &self.credentials, &self.region, SERVICE)
     }
 
-    async fn reauthenticate(&self, request: &mut HttpRequest, status: u16) -> Result<bool> {
-        if status != 403 {
+    async fn reauthenticate(
+        &self,
+        request: &mut HttpRequest,
+        rejection: &Rejection<'_>,
+    ) -> Result<bool> {
+        if rejection.status != 403 || !signature_rejected(rejection.headers) {
             return Ok(false);
         }
         self.authenticate(request).await?;
         Ok(true)
     }
 }
+
+/// Whether AWS blamed the signature rather than the caller's permissions.
+fn signature_rejected(headers: &HeaderMap) -> bool {
+    let Some(error_type) = headers
+        .get(ERROR_TYPE)
+        .and_then(|value| value.to_str().ok())
+    else {
+        return false;
+    };
+    let error_type = error_type.to_ascii_lowercase();
+    [
+        "signature",
+        "requesttimetooskewed",
+        "requestexpired",
+        "expiredtoken",
+    ]
+    .iter()
+    .any(|cause| error_type.contains(cause))
+}
+
+/// The header carrying the AWS exception class on error responses.
+const ERROR_TYPE: HeaderName = HeaderName::from_static("x-amzn-errortype");
