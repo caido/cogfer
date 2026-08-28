@@ -91,3 +91,51 @@ async fn refresh_uses_the_configured_client_without_narrowing_scope() {
     assert!(form.contains("client_id=caido-client"));
     assert!(!form.contains("scope="));
 }
+
+#[tokio::test]
+async fn device_flow_targets_the_configured_auth_base_url() {
+    let transport = MockTransport::shared();
+    transport.push_json(
+        200,
+        &json!({"device_auth_id": "da_1", "usercode": "ABCD-EFGH"}),
+    );
+    transport.push_json(
+        200,
+        &json!({"authorization_code": "code_1", "code_verifier": "verifier_1"}),
+    );
+    transport.push_json(200, &json!({"access_token": "opaque", "expires_in": 60}));
+    transport.push_json(200, &json!({"access_token": "opaque-2", "expires_in": 60}));
+
+    let oauth = ChatGptOAuth::new(transport.clone())
+        .with_auth_base_url(Url::parse("http://localhost:5857/chatgpt-auth/").unwrap());
+    let device = oauth
+        .start_device_authorization()
+        .await
+        .expect("device code issued");
+    assert_eq!(
+        device.verification_url,
+        "http://localhost:5857/chatgpt-auth/codex/device"
+    );
+    assert_eq!(device.expires_in, std::time::Duration::from_secs(15 * 60));
+    assert!(matches!(
+        oauth.poll_device_authorization(&device).await.unwrap(),
+        DevicePoll::Complete(_)
+    ));
+    let refreshed = oauth.refresh("refresh-1").await.expect("refresh succeeds");
+    assert_eq!(refreshed.access_token, "opaque-2");
+
+    let urls: Vec<_> = transport
+        .requests()
+        .iter()
+        .map(|request| request.url.to_string())
+        .collect();
+    assert_eq!(
+        urls,
+        [
+            "http://localhost:5857/chatgpt-auth/api/accounts/deviceauth/usercode",
+            "http://localhost:5857/chatgpt-auth/api/accounts/deviceauth/token",
+            "http://localhost:5857/chatgpt-auth/oauth/token",
+            "http://localhost:5857/chatgpt-auth/oauth/token",
+        ]
+    );
+}

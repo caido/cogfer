@@ -117,6 +117,13 @@ impl XaiOAuth {
         self
     }
 
+    /// Send device authorization and token requests to another auth server,
+    /// for example a local stand-in during tests.
+    pub fn with_auth_base_url(mut self, auth_base_url: Url) -> Self {
+        self.auth_base_url = auth_base_url;
+        self
+    }
+
     /// Begin a device-code sign-in: returns the code to show the user.
     ///
     /// # Errors

@@ -156,3 +156,52 @@ async fn device_code_response_requires_an_expiry() {
 
     assert_eq!(error.kind(), ErrorKind::MalformedResponse);
 }
+
+#[tokio::test]
+async fn device_flow_targets_the_configured_auth_base_url() {
+    let transport = MockTransport::shared();
+    transport.push_json(
+        200,
+        &json!({
+            "device_code": "dc_1",
+            "user_code": "ABCD-1234",
+            "verification_uri": "https://accounts.x.ai/activate",
+            "expires_in": 600,
+        }),
+    );
+    transport.push_json(
+        200,
+        &json!({"access_token": "xai-access", "expires_in": 3600}),
+    );
+    transport.push_json(
+        200,
+        &json!({"access_token": "xai-access-2", "expires_in": 3600}),
+    );
+
+    let oauth = XaiOAuth::new(transport.clone())
+        .with_auth_base_url(Url::parse("http://localhost:5857/xai-auth").unwrap());
+    let device = oauth
+        .start_device_authorization()
+        .await
+        .expect("device code issued");
+    assert!(matches!(
+        oauth.poll_device_authorization(&device).await.unwrap(),
+        DevicePoll::Complete(_)
+    ));
+    let refreshed = oauth.refresh("refresh-1").await.expect("refresh succeeds");
+    assert_eq!(refreshed.access_token, "xai-access-2");
+
+    let urls: Vec<_> = transport
+        .requests()
+        .iter()
+        .map(|request| request.url.to_string())
+        .collect();
+    assert_eq!(
+        urls,
+        [
+            "http://localhost:5857/xai-auth/oauth2/device/code",
+            "http://localhost:5857/xai-auth/oauth2/token",
+            "http://localhost:5857/xai-auth/oauth2/token",
+        ]
+    );
+}

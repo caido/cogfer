@@ -29,6 +29,8 @@ pub struct DeviceAuthorization {
     pub user_code: String,
     /// The poll cadence the backend asked for.
     pub poll_interval: Duration,
+    /// How long the device code stays valid.
+    pub expires_in: Duration,
     device_auth_id: String,
     expires_at: Instant,
 }
@@ -39,6 +41,7 @@ impl fmt::Debug for DeviceAuthorization {
             .field("verification_url", &self.verification_url)
             .field("user_code", &"<redacted>")
             .field("poll_interval", &self.poll_interval)
+            .field("expires_in", &self.expires_in)
             .field("device_auth_id", &"<redacted>")
             .finish()
     }
@@ -107,6 +110,13 @@ impl ChatGptOAuth {
         self
     }
 
+    /// Send device authorization and token requests to another auth server,
+    /// for example a local stand-in during tests.
+    pub fn with_auth_base_url(mut self, auth_base_url: Url) -> Self {
+        self.auth_base_url = auth_base_url;
+        self
+    }
+
     /// Begin a device-code sign-in: returns the code to show the user.
     ///
     /// # Errors
@@ -165,6 +175,7 @@ impl ChatGptOAuth {
                 })
                 .map(|seconds| Duration::from_secs(seconds.max(1)))
                 .unwrap_or(Duration::from_secs(5)),
+            expires_in: DEVICE_FLOW_TIMEOUT,
             device_auth_id: parsed.device_auth_id,
             expires_at,
         })
@@ -361,6 +372,7 @@ mod tests {
             verification_url: "https://example.com/device".into(),
             user_code: "secret-user-code".into(),
             poll_interval: Duration::from_secs(5),
+            expires_in: DEVICE_FLOW_TIMEOUT,
             device_auth_id: "secret-device-auth-id".into(),
             expires_at: Instant::now() + DEVICE_FLOW_TIMEOUT,
         };

@@ -11,6 +11,7 @@ use caido_ai::{
     Request, StreamEvent, TokenStore,
 };
 use serde_json::json;
+use url::Url;
 
 use crate::common::*;
 
