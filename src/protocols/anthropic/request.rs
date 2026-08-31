@@ -2,12 +2,16 @@ use serde_json::{Value, json};
 
 use super::AnthropicDialect;
 use crate::error::{Error, ErrorKind, Result};
-use crate::http::{encode_path_segment, join_url};
+#[cfg(feature = "aws")]
+use crate::http::encode_path_segment;
+use crate::http::join_url;
 use crate::message::{AssistantPart, Message, ReasoningContent, ReasoningPart, ToolCall, UserPart};
 use crate::protocols::{LoweredRequest, ProtocolContext, ResolvedReasoning, resolve_reasoning};
 use crate::request::{ReasoningOutput, Request, ToolChoice};
 use crate::response::Warning;
-use crate::transport::{HeaderName, HeaderValue, HttpRequest, header};
+#[cfg(feature = "aws")]
+use crate::transport::header;
+use crate::transport::{HeaderName, HeaderValue, HttpRequest};
 
 /// Anthropic's `max_tokens` is mandatory. This is the value used when the
 /// caller leaves the output cap to the SDK.
@@ -370,6 +374,7 @@ pub(crate) fn lower_anthropic_request(
             object.insert("model".into(), json!(ctx.model));
         }
         // Bedrock takes the model from the URL and the API version from the body.
+        #[cfg(feature = "aws")]
         AnthropicDialect::Bedrock => {
             object.insert(
                 "anthropic_version".into(),
@@ -388,6 +393,7 @@ pub(crate) fn lower_anthropic_request(
     let beta_features = lower_compaction(request, object);
     // Bedrock takes beta opt-ins in the body; the direct API takes them in the
     // `anthropic-beta` header below.
+    #[cfg(feature = "aws")]
     if dialect == AnthropicDialect::Bedrock && !beta_features.is_empty() {
         object.insert("anthropic_beta".into(), json!(beta_features));
     }
@@ -419,6 +425,7 @@ pub(crate) fn lower_anthropic_request(
             }
             http
         }
+        #[cfg(feature = "aws")]
         AnthropicDialect::Bedrock => {
             let operation = if streaming { "invoke-with-response-stream" } else { "invoke" };
             let path = format!("model/{}/{operation}", encode_path_segment(ctx.model));

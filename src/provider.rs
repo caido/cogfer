@@ -7,7 +7,10 @@ use url::Url;
 
 use crate::auth::{Credentials, RequestAuthenticator};
 use crate::capabilities::ModelCapabilities;
-use crate::error::{Error, Result};
+#[cfg(feature = "aws")]
+use crate::error::Error;
+#[cfg(feature = "aws")]
+use crate::error::Result;
 use crate::model::LanguageModel;
 use crate::protocols::ApiProfile;
 use crate::transport::{HeaderMap, HeaderName, HeaderValue, HttpTransport};
@@ -118,6 +121,7 @@ impl ProviderConfig {
     ///
     /// Returns [`ErrorKind::Configuration`](crate::ErrorKind::Configuration)
     /// when `region` is not an AWS region name.
+    #[cfg(feature = "aws")]
     pub fn bedrock_anthropic(region: &str, credentials: Credentials) -> Result<Self> {
         let valid = !region.is_empty()
             && region

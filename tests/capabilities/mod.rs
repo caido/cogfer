@@ -18,6 +18,7 @@ use serde_json::{Value, json};
 
 use crate::common::provider_with;
 
+#[cfg(feature = "aws")]
 const PROFILES: [ApiProfile; 9] = [
     ApiProfile::OpenAiResponses,
     ApiProfile::OpenAiChatCompletions,
@@ -26,7 +27,20 @@ const PROFILES: [ApiProfile; 9] = [
     ApiProfile::XaiResponses,
     ApiProfile::XaiChatCompletions,
     ApiProfile::AnthropicMessages,
+    #[cfg(feature = "aws")]
     ApiProfile::BedrockAnthropic,
+    ApiProfile::GeminiGenerateContent,
+];
+
+#[cfg(not(feature = "aws"))]
+const PROFILES: [ApiProfile; 8] = [
+    ApiProfile::OpenAiResponses,
+    ApiProfile::OpenAiChatCompletions,
+    ApiProfile::OpenRouter,
+    ApiProfile::ChatGptResponses,
+    ApiProfile::XaiResponses,
+    ApiProfile::XaiChatCompletions,
+    ApiProfile::AnthropicMessages,
     ApiProfile::GeminiGenerateContent,
 ];
 
@@ -63,7 +77,17 @@ fn queue_success(mock: &MockTransport, profile: ApiProfile) {
                 }),
             );
         }
-        ApiProfile::AnthropicMessages | ApiProfile::BedrockAnthropic => mock.push_json(
+        #[cfg(feature = "aws")]
+        ApiProfile::BedrockAnthropic => mock.push_json(
+            200,
+            &json!({
+                "id": "msg_1", "type": "message", "role": "assistant", "model": "m",
+                "content": [{"type": "text", "text": "ok"}],
+                "stop_reason": "end_turn", "stop_sequence": null,
+                "usage": {"input_tokens": 1, "output_tokens": 1}
+            }),
+        ),
+        ApiProfile::AnthropicMessages => mock.push_json(
             200,
             &json!({
                 "id": "msg_1", "type": "message", "role": "assistant", "model": "m",

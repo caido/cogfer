@@ -485,6 +485,7 @@ impl StreamState {
                 log::trace!(target: TARGET, "stream frame: data_bytes={}", data.len());
                 self.decoder.on_frame(data, &mut self.normalizer, out)
             }
+            #[cfg(feature = "aws")]
             StreamFrame::Exception { kind, payload } => {
                 log::trace!(target: TARGET, "stream exception: kind={kind}");
                 self.decoder

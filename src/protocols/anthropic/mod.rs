@@ -4,15 +4,18 @@
 use super::{ApiProfile, LoweredRequest, ProtocolContext, ProtocolHandler, StreamDecoder};
 use crate::error::{Error, Result};
 use crate::response::GenerateResult;
+#[cfg(feature = "aws")]
 use crate::transport::aws_event_stream::AwsEventStreamParser;
 use crate::transport::framing::FrameSource;
 use crate::transport::{HeaderMap, HeaderName, HttpRequest, HttpResponse};
 
+#[cfg(feature = "aws")]
 pub(crate) mod bedrock;
 mod request;
 mod stream;
 mod types;
 
+#[cfg(feature = "aws")]
 use self::bedrock::{BedrockStreamDecoder, decode_bedrock_error};
 use self::request::lower_anthropic_request;
 use self::stream::AnthropicStreamDecoder;
@@ -24,6 +27,7 @@ pub(crate) enum AnthropicDialect {
     /// Anthropic's own API.
     Direct,
     /// Amazon Bedrock.
+    #[cfg(feature = "aws")]
     Bedrock,
 }
 
@@ -35,6 +39,7 @@ impl Handler {
     pub(crate) const DIRECT: Self = Self {
         dialect: AnthropicDialect::Direct,
     };
+    #[cfg(feature = "aws")]
     pub(crate) const BEDROCK: Self = Self {
         dialect: AnthropicDialect::Bedrock,
     };
@@ -56,6 +61,7 @@ impl ProtocolHandler for Handler {
     fn decode_error(&self, status: u16, headers: &HeaderMap, body: &[u8]) -> Error {
         match self.dialect {
             AnthropicDialect::Direct => decode_anthropic_error(status, headers, body),
+            #[cfg(feature = "aws")]
             AnthropicDialect::Bedrock => decode_bedrock_error(status, headers, body),
         }
     }
@@ -65,6 +71,7 @@ impl ProtocolHandler for Handler {
             AnthropicDialect::Direct => {
                 Box::new(AnthropicStreamDecoder::new(ApiProfile::AnthropicMessages))
             }
+            #[cfg(feature = "aws")]
             AnthropicDialect::Bedrock => Box::new(BedrockStreamDecoder::new()),
         }
     }
@@ -72,6 +79,7 @@ impl ProtocolHandler for Handler {
     fn new_frame_source(&self) -> Box<dyn FrameSource> {
         match self.dialect {
             AnthropicDialect::Direct => Box::new(crate::transport::sse::SseParser::new()),
+            #[cfg(feature = "aws")]
             AnthropicDialect::Bedrock => Box::new(AwsEventStreamParser::new()),
         }
     }
@@ -88,6 +96,7 @@ impl ProtocolHandler for Handler {
             AnthropicDialect::Direct => {
                 credentials.apply_native_key(request, HeaderName::from_static("x-api-key"))
             }
+            #[cfg(feature = "aws")]
             AnthropicDialect::Bedrock => credentials.apply_bearer(request),
         }
     }

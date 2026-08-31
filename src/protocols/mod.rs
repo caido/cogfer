@@ -50,6 +50,7 @@ pub enum ApiProfile {
     AnthropicMessages,
     /// Anthropic models on Amazon Bedrock
     /// (`POST {base}/model/{model}/invoke[-with-response-stream]`).
+    #[cfg(feature = "aws")]
     BedrockAnthropic,
     /// Gemini GenerateContent API.
     GeminiGenerateContent,
@@ -66,6 +67,7 @@ impl ApiProfile {
             ApiProfile::XaiResponses => "xai-responses",
             ApiProfile::XaiChatCompletions => "xai-chat",
             ApiProfile::AnthropicMessages => "anthropic",
+            #[cfg(feature = "aws")]
             ApiProfile::BedrockAnthropic => "bedrock-anthropic",
             ApiProfile::GeminiGenerateContent => "gemini",
         }
@@ -80,7 +82,9 @@ impl ApiProfile {
             | ApiProfile::XaiResponses
             | ApiProfile::XaiChatCompletions => "openai",
             ApiProfile::OpenRouter => "openrouter",
-            ApiProfile::AnthropicMessages | ApiProfile::BedrockAnthropic => "anthropic",
+            ApiProfile::AnthropicMessages => "anthropic",
+            #[cfg(feature = "aws")]
+            ApiProfile::BedrockAnthropic => "anthropic",
             ApiProfile::GeminiGenerateContent => "gemini",
         }
     }
@@ -99,6 +103,7 @@ impl ApiProfile {
             ApiProfile::ChatGptResponses => "https://chatgpt.com/backend-api/codex",
             ApiProfile::XaiResponses | ApiProfile::XaiChatCompletions => "https://api.x.ai/v1",
             ApiProfile::AnthropicMessages => "https://api.anthropic.com/v1",
+            #[cfg(feature = "aws")]
             ApiProfile::BedrockAnthropic => "https://bedrock-runtime.us-east-1.amazonaws.com",
             ApiProfile::GeminiGenerateContent => "https://generativelanguage.googleapis.com/v1beta",
         }

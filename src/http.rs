@@ -21,6 +21,7 @@ pub(crate) fn join_url(base: &Url, path: &str) -> Url {
 /// Bedrock puts the model ID in the path and model IDs contain `:`, which must
 /// arrive as `%3A`. The signer percent-encodes the path a second time, so what
 /// this produces is what the signature covers.
+#[cfg(feature = "aws")]
 pub(crate) fn encode_path_segment(input: &str) -> String {
     let mut encoded = String::with_capacity(input.len());
     for byte in input.bytes() {
@@ -178,6 +179,7 @@ mod tests {
 
     /// The `%3A` is load-bearing: the signature covers the encoded path, so a
     /// model ID that reaches the wire differently is rejected by AWS.
+    #[cfg(feature = "aws")]
     #[test]
     fn path_segments_encode_everything_outside_the_unreserved_set() {
         assert_eq!(

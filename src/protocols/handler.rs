@@ -60,6 +60,7 @@ pub(crate) trait StreamDecoder: Send {
 
     /// An error carried by the framing layer. Ends the stream unless the
     /// protocol knows how to classify it.
+    #[cfg(feature = "aws")]
     fn on_exception(
         &mut self,
         kind: String,
@@ -87,6 +88,7 @@ pub(crate) fn handler(profile: ApiProfile) -> &'static dyn ProtocolHandler {
         ApiProfile::OpenRouter => &super::openai::chat::Handler::OPENROUTER,
         ApiProfile::ChatGptResponses => &super::openai::responses::chatgpt::Handler,
         ApiProfile::AnthropicMessages => &super::anthropic::Handler::DIRECT,
+        #[cfg(feature = "aws")]
         ApiProfile::BedrockAnthropic => &super::anthropic::Handler::BEDROCK,
         ApiProfile::GeminiGenerateContent => &super::gemini::Handler,
     }

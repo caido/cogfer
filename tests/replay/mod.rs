@@ -26,6 +26,7 @@ mod record;
 pub(crate) mod scenarios;
 
 mod anthropic;
+#[cfg(feature = "aws")]
 mod bedrock_anthropic;
 mod chatgpt;
 mod gemini;

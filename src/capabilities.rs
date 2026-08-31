@@ -245,6 +245,7 @@ impl ModelCapabilities {
                 frequency_penalty: false,
                 ..full
             },
+            #[cfg(feature = "aws")]
             ApiProfile::BedrockAnthropic => Self {
                 reasoning: ReasoningSupport {
                     efforts: vec![Low, Medium, High, XHigh, Max],

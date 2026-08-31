@@ -12,6 +12,7 @@ pub(crate) enum StreamFrame {
     Data(String),
     /// An error the framing layer itself carried (an AWS event stream
     /// exception, for example), named by `kind` with its error payload.
+    #[cfg(feature = "aws")]
     Exception { kind: String, payload: String },
 }
 

@@ -110,10 +110,12 @@ fn transcript_frames(body: &[u8]) -> Result<Vec<String>> {
     }
     frames.extend(parser.finish());
     // Server-Sent Events carry no framing-level exceptions.
+    #[cfg_attr(not(feature = "aws"), allow(clippy::unnecessary_filter_map))]
     let frames = frames
         .into_iter()
         .filter_map(|frame| match frame {
             StreamFrame::Data(data) => Some(data),
+            #[cfg(feature = "aws")]
             StreamFrame::Exception { .. } => None,
         })
         .collect();

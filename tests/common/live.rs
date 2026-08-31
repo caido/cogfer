@@ -54,6 +54,7 @@ pub(crate) fn provider_from_env(
 ///
 /// Bedrock API keys are bearer tokens, so this needs no SigV4 signing. The
 /// live tests cover the SigV4 path separately.
+#[cfg(feature = "aws")]
 pub(crate) fn bedrock_provider_on(client: &Client) -> Option<Provider> {
     provider_from_env_on(client, "AWS_BEARER_TOKEN_BEDROCK", super::bedrock_config)
 }

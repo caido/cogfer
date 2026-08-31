@@ -10,6 +10,7 @@
 mod common;
 
 mod anthropic;
+#[cfg(feature = "aws")]
 mod bedrock;
 mod capabilities;
 mod chatgpt;
