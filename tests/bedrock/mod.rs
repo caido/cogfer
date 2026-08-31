@@ -253,28 +253,41 @@ async fn aws_error_envelopes_are_classified() {
     assert_eq!(error.origin(), Some("bedrock-anthropic"));
 }
 
+/// Bedrock supports the compaction beta, but opts in through an
+/// `anthropic_beta` body field rather than the direct API's `anthropic-beta`
+/// header, which it does not accept.
 #[tokio::test]
-async fn native_compaction_is_not_available() {
+async fn native_compaction_opts_in_through_the_body() {
     let mock = MockTransport::shared();
+    mock.push_json(200, &message("ok"));
     let request = Request::builder()
         .message(Message::user("hi"))
         .compaction(llmwire::Compaction::enabled())
         .build();
 
-    let error = bedrock(&mock)
+    bedrock(&mock)
         .language_model(MODEL)
         .generate(request)
         .await
-        .expect_err("compaction is an anthropic.com beta");
+        .expect("compaction is supported on bedrock");
 
-    assert_eq!(error.kind(), ErrorKind::UnsupportedCapability);
-    assert!(!bedrock(&mock).capabilities().native_compaction);
-    assert!(mock.requests().is_empty());
+    assert!(bedrock(&mock).capabilities().native_compaction);
+    let http: &HttpRequest = &mock.requests()[0];
+    assert!(header(http, "anthropic-beta").is_none());
+    let body = mock.request_json(0);
+    assert_eq!(body["anthropic_beta"], json!(["compact-2026-01-12"]));
+    assert_eq!(
+        body["context_management"],
+        json!({"edits": [{"type": "compact_20260112"}]})
+    );
 }
 
+/// A history carrying a compaction summary replays as a `compaction` block,
+/// and still opts the request into the beta.
 #[tokio::test]
-async fn replayed_compaction_history_is_rejected() {
+async fn replayed_compaction_history_is_sent() {
     let mock = MockTransport::shared();
+    mock.push_json(200, &message("ok"));
     let request = Request::builder()
         .message(Message::user("hi"))
         .message(Message::Assistant {
@@ -290,11 +303,44 @@ async fn replayed_compaction_history_is_rejected() {
         .message(Message::user("continue"))
         .build();
 
+    bedrock(&mock)
+        .language_model(MODEL)
+        .generate(request)
+        .await
+        .expect("bedrock replays compaction blocks");
+
+    let body = mock.request_json(0);
+    assert_eq!(body["anthropic_beta"], json!(["compact-2026-01-12"]));
+    assert_eq!(
+        body["messages"][1]["content"][0],
+        json!({"type": "compaction", "content": "summary"})
+    );
+}
+
+/// Opaque compaction state from another provider still cannot be replayed:
+/// there is no summary text to send.
+#[tokio::test]
+async fn foreign_opaque_compaction_is_still_rejected() {
+    let mock = MockTransport::shared();
+    let request = Request::builder()
+        .message(Message::user("hi"))
+        .message(Message::Assistant {
+            content: vec![llmwire::AssistantPart::Compaction(
+                llmwire::CompactionPart {
+                    id: None,
+                    content: None,
+                    encrypted_content: Some("opaque".into()),
+                },
+            )],
+            provider_metadata: Default::default(),
+        })
+        .build();
+
     let error = bedrock(&mock)
         .language_model(MODEL)
         .generate(request)
         .await
-        .expect_err("bedrock has no compaction beta");
+        .expect_err("opaque foreign compaction cannot be replayed");
 
     assert_eq!(error.kind(), ErrorKind::UnsupportedContent);
     assert!(mock.requests().is_empty());

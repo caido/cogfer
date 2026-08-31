@@ -252,6 +252,7 @@ impl ModelCapabilities {
                     disable: true,
                     output: true,
                 },
+                native_compaction: true,
                 seed: false,
                 presence_penalty: false,
                 frequency_penalty: false,

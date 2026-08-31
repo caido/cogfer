@@ -19,17 +19,17 @@ use crate::common::{
 /// Bedrock serves Anthropic models only through cross-region inference
 /// profiles, so the model id carries the `us.` prefix rather than being the
 /// bare `anthropic.` id an on-demand invocation would use.
-const MODEL: &str = "us.anthropic.claude-sonnet-4-6";
+pub(crate) const MODEL: &str = "us.anthropic.claude-sonnet-4-6";
 
 /// A provider authenticating with a Bedrock API key, the credential the
 /// cassettes are recorded with.
-fn bearer_provider() -> Option<Provider> {
+pub(crate) fn bearer_provider() -> Option<Provider> {
     bedrock_provider_on(&live_client())
 }
 
 /// A provider signing each request with SigV4, the other credential Bedrock
 /// accepts.
-fn sigv4_provider() -> Option<Provider> {
+pub(crate) fn sigv4_provider() -> Option<Provider> {
     let _ = dotenvy::dotenv();
     let (Ok(access_key_id), Ok(secret)) = (
         std::env::var("AWS_ACCESS_KEY_ID"),

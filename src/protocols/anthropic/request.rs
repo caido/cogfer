@@ -386,13 +386,10 @@ pub(crate) fn lower_anthropic_request(
     lower_request_reasoning(request, reasoning, max_tokens, object)?;
     lower_tool_choice(request, budget_thinking, object)?;
     let beta_features = lower_compaction(request, object);
-    // The compaction beta is an anthropic.com feature. Bedrock rejects the
-    // beta and the `compaction` blocks a replayed history would carry.
+    // Bedrock takes beta opt-ins in the body; the direct API takes them in the
+    // `anthropic-beta` header below.
     if dialect == AnthropicDialect::Bedrock && !beta_features.is_empty() {
-        return Err(Error::new(
-            ErrorKind::UnsupportedContent,
-            "history contains compaction blocks; bedrock cannot replay them",
-        ));
+        object.insert("anthropic_beta".into(), json!(beta_features));
     }
     lower_sampling(request, budget_thinking, object, &mut warnings);
     if !request.stop_sequences.is_empty() {

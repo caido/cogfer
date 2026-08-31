@@ -7,4 +7,6 @@
 mod support;
 
 mod anthropic;
+#[cfg(feature = "aws")]
+mod bedrock;
 mod openai;
