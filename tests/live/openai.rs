@@ -26,8 +26,8 @@ async fn openai_chat_agentic_loop() {
         return;
     };
     let model = provider.language_model("gpt-5.6-luna");
-    // gpt-5.x rejects function tools on Chat Completions unless reasoning is
-    // switched off explicitly. See ProviderConfig::openai_chat.
+    // gpt-5.x rejects function tools on Chat Completions unless a reasoning
+    // effort is set explicitly. See ProviderConfig::openai_chat.
     let mut request = loop_request();
     request.reasoning = Some(ReasoningConfig::Disabled);
     agentic_loop(&model, request).await;

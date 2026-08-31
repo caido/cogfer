@@ -107,7 +107,7 @@ pub(crate) struct ChatMessage {
     pub(crate) refusal: Option<String>,
     #[serde(default)]
     pub(crate) tool_calls: Option<Vec<ChatToolCall>>,
-    /// Url citations (also OpenRouter web-plugin citations).
+    /// URL citations (also OpenRouter web-plugin citations).
     #[serde(default)]
     pub(crate) annotations: Option<Vec<Value>>,
     /// DeepSeek-style plaintext reasoning on compatible servers.

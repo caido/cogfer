@@ -31,3 +31,8 @@ pub(crate) trait FrameSource: Send {
     /// The reason framing stopped, once it has.
     fn corruption(&self) -> Option<&'static str>;
 }
+
+/// Both framings decode text and both stop on non-UTF-8 bytes, so they share
+/// one reason rather than drifting apart in what the caller is told.
+pub(crate) const INVALID_UTF8: &str =
+    "provider stream contained invalid UTF-8; output would be corrupted";

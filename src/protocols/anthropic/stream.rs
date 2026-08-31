@@ -57,7 +57,8 @@ pub(crate) enum BlockKind {
 }
 
 pub(crate) struct AnthropicStreamDecoder {
-    /// Stamped on stream errors: Anthropic directly or on Bedrock.
+    /// Stamped on stream errors, since this decoder serves both the direct
+    /// API and Bedrock.
     profile: ApiProfile,
     blocks: std::collections::HashMap<u64, BlockKind>,
     finish: Option<Finish>,

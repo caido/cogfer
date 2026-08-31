@@ -197,8 +197,8 @@ pub struct ToolCall {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub item_id: Option<String>,
     pub name: String,
-    /// Raw provider JSON arguments. A blank
-    /// value (zero-argument call) is normalized to `{}`.
+    /// Raw provider JSON arguments. A blank value (zero-argument call) is
+    /// normalized to `{}`.
     pub arguments: String,
     /// Namespaced provider extras (e.g. Gemini `thoughtSignature`).
     #[serde(default, skip_serializing_if = "ProviderMetadata::is_empty")]
@@ -206,7 +206,6 @@ pub struct ToolCall {
 }
 
 impl ToolCall {
-    /// Normalize blank zero-argument calls to `{}`.
     pub(crate) fn normalize_blank_arguments(&mut self) {
         if self.arguments.trim().is_empty() {
             self.arguments = "{}".to_string();

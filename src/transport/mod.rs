@@ -84,7 +84,6 @@ impl fmt::Debug for HttpRequest {
 /// A buffered HTTP response.
 #[derive(Clone)]
 pub struct HttpResponse {
-    /// HTTP response status.
     pub status: u16,
     pub headers: HeaderMap,
     /// Complete buffered response body.

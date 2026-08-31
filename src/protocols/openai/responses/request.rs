@@ -18,7 +18,7 @@ use crate::response::Warning;
 /// Opaque provider state in the history (reasoning items, encrypted content,
 /// item ids, server tool payloads) is replayed only to the
 /// [`origin_metadata`](crate::protocols::origin_metadata)-stamped profile that
-/// produced it; other backends cannot verify it and reject the request.
+/// produced it. Other backends cannot verify it and reject the request.
 fn lower_input(ctx: &ProtocolContext<'_>, warnings: &mut Vec<Warning>) -> Result<Value> {
     let mut lowering = InputLowering {
         profile: ctx.profile,
@@ -212,7 +212,7 @@ impl InputLowering<'_> {
                     self.items.push(item);
                 } else if let Some(summary) = &compaction.content {
                     // Anthropic-style summary compaction has no native item
-                    // here; keep the summarized history as plain text.
+                    // here. Keep the summarized history as plain text.
                     self.items.push(json!({
                         "type": "message",
                         "role": "assistant",

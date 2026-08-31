@@ -34,7 +34,7 @@ fn message(text: &str) -> serde_json::Value {
     })
 }
 
-/// Standard base64, as Bedrock wraps each model event.
+/// Standard base64, the encoding Bedrock wraps each model event in.
 fn base64(bytes: &[u8]) -> String {
     const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     let mut out = String::new();
@@ -188,6 +188,41 @@ async fn stream_exceptions_end_the_stream_with_a_classified_error() {
     );
 }
 
+/// An `error` message carries its cause as plain header text rather than a
+/// JSON envelope. Parsing it as JSON discards the cause and leaves the caller
+/// with nothing but the exception class.
+#[tokio::test]
+async fn stream_errors_report_the_message_from_the_header() {
+    let mock = MockTransport::shared();
+    let events = events();
+    mock.push_event_stream_then_error(
+        &as_chunks(&events[..3]),
+        "modelStreamErrorException",
+        "the model stopped responding",
+    );
+
+    let events = drain(
+        bedrock(&mock)
+            .language_model(MODEL)
+            .stream(text_request("hi"))
+            .await
+            .expect("stream establishes"),
+    )
+    .await;
+
+    assert_terminal_contract(&events);
+    let error = events
+        .iter()
+        .find_map(|event| match event {
+            StreamEvent::Error { error } => Some(error),
+            _ => None,
+        })
+        .expect("error event");
+    assert_eq!(error.message(), "the model stopped responding");
+    assert_eq!(error.code(), Some("modelStreamErrorException"));
+    assert_eq!(error.kind(), ErrorKind::Provider);
+}
+
 #[tokio::test]
 async fn aws_error_envelopes_are_classified() {
     let mock = MockTransport::shared();
@@ -335,7 +370,11 @@ mod sigv4 {
             "{authorization}"
         );
         assert!(
-            authorization.contains("/eu-west-1/bedrock/aws4_request, SignedHeaders=content-type;host;x-amz-date;x-amz-security-token, Signature="),
+            authorization.contains(
+                "/eu-west-1/bedrock/aws4_request, \
+                 SignedHeaders=accept;content-type;host;x-amz-date;x-amz-security-token, \
+                 Signature="
+            ),
             "{authorization}"
         );
         assert_eq!(

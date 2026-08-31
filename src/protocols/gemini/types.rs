@@ -140,7 +140,7 @@ impl UsageMetadata {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct GenerateContentResponse {
-    /// A Google RPC status: streams report failures as one such frame.
+    /// Streams report failures as a Google RPC status frame.
     #[serde(default)]
     pub(crate) error: Option<GoogleStatus>,
     #[serde(default)]
@@ -174,10 +174,9 @@ pub(crate) fn flush_thoughts(
     }));
 }
 
-/// Build the tool call for a `functionCall` part. Gemini may omit call ids,
-/// so a stable one is synthesized. The provider id, when present, is both
-/// `call_id` and `item_id`, so replay sends it back. A synthesized id stays
-/// local: `item_id` is `None` and nothing is echoed to Gemini.
+/// Build the tool call for a `functionCall` part. A provider id becomes both
+/// `call_id` and `item_id` so replay sends it back. Gemini may omit the id,
+/// and the synthesized replacement stays local with `item_id` left `None`.
 pub(crate) fn decode_function_call(
     part: &GeminiPart,
     function_call: &GeminiFunctionCall,

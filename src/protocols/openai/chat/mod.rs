@@ -21,8 +21,8 @@ use self::types::{decode_chat_response, decode_openrouter_error};
 pub(crate) enum OutputTokenAccounting {
     /// OpenAI and OpenRouter include reasoning in completion tokens.
     IncludesReasoning,
-    /// SpaceXAI reports completion tokens without reasoning, so
-    /// normalization adds it.
+    /// SpaceXAI reports completion tokens without reasoning, so normalization
+    /// adds it.
     ExcludesReasoning,
 }
 

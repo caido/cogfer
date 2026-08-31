@@ -25,7 +25,6 @@ pub enum FinishReason {
 }
 
 impl FinishReason {
-    /// Whether this finish discards tool calls.
     pub(crate) fn discards_tool_calls(self) -> bool {
         matches!(
             self,

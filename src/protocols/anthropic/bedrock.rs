@@ -20,18 +20,32 @@ pub(super) const ANTHROPIC_VERSION: &str = "bedrock-2023-05-31";
 
 /// The header carrying the exception class on error responses, as
 /// `ValidationException` or `ValidationException:http://...`.
-const ERROR_TYPE: HeaderName = HeaderName::from_static("x-amzn-errortype");
+pub(crate) const ERROR_TYPE: HeaderName = HeaderName::from_static("x-amzn-errortype");
+
+/// Whether AWS blamed the credentials or the signature rather than the
+/// caller's permissions, meaning a fresh signature could succeed.
+///
+/// [`bedrock_error_kind`] classifies these as [`ErrorKind::Authentication`]
+/// and [`crate::aws::SigV4Authenticator`] retries exactly them, so the two
+/// cannot disagree.
+pub(crate) fn is_signature_failure(exception: &str) -> bool {
+    let exception = exception.to_ascii_lowercase();
+    [
+        "signature",
+        "token",
+        "unrecognizedclient",
+        "skew",
+        "requestexpired",
+    ]
+    .iter()
+    .any(|cause| exception.contains(cause))
+}
 
 /// Classify an AWS exception by its class name and HTTP status.
 fn bedrock_error_kind(exception: Option<&str>, status: u16) -> ErrorKind {
     let exception = exception.unwrap_or_default().to_ascii_lowercase();
     let mentions = |needle: &str| exception.contains(needle);
-    if mentions("signature")
-        || mentions("token")
-        || mentions("unrecognizedclient")
-        || mentions("skew")
-        || mentions("requestexpired")
-    {
+    if is_signature_failure(&exception) {
         ErrorKind::Authentication
     } else if mentions("accessdenied") {
         ErrorKind::Permission
@@ -64,6 +78,19 @@ fn exception_message(body: &[u8]) -> Option<String> {
     serde_json::from_slice::<ExceptionBody>(body)
         .ok()
         .and_then(|body| body.message)
+}
+
+/// The message for a stream exception. The payload is a JSON envelope for
+/// `:message-type: exception` but bare `:error-message` text for
+/// `:message-type: error`, so both shapes have to be handled.
+fn stream_exception_message(kind: &str, payload: &str) -> String {
+    exception_message(payload.as_bytes())
+        .or_else(|| {
+            Some(payload.trim())
+                .filter(|text| !text.is_empty())
+                .map(str::to_owned)
+        })
+        .unwrap_or_else(|| format!("bedrock stream failed with {kind}"))
 }
 
 pub(super) fn decode_bedrock_error(status: u16, headers: &HeaderMap, body: &[u8]) -> Error {
@@ -129,8 +156,7 @@ impl StreamDecoder for BedrockStreamDecoder {
         out: &mut Vec<StreamEvent>,
     ) {
         let error_kind = bedrock_error_kind(Some(&kind), 200);
-        let message = exception_message(payload.as_bytes())
-            .unwrap_or_else(|| format!("bedrock stream failed with {kind}"));
+        let message = stream_exception_message(&kind, &payload);
         let error = Error::new(error_kind, message)
             .with_origin(ApiProfile::BedrockAnthropic.as_str())
             .with_code(kind);
@@ -145,6 +171,50 @@ impl StreamDecoder for BedrockStreamDecoder {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Every exception the retry predicate calls a signature failure must
+    /// also be classified as `Authentication`, and no other one may be.
+    #[test]
+    fn signature_failures_are_exactly_the_authentication_exceptions() {
+        for exception in [
+            "InvalidSignatureException",
+            "ExpiredTokenException",
+            "UnrecognizedClientException",
+            "RequestTimeTooSkewed",
+            "RequestExpired",
+        ] {
+            assert!(is_signature_failure(exception), "{exception}");
+            assert_eq!(
+                bedrock_error_kind(Some(exception), 403),
+                ErrorKind::Authentication,
+                "{exception}"
+            );
+        }
+        for exception in ["AccessDeniedException", "ThrottlingException"] {
+            assert!(!is_signature_failure(exception), "{exception}");
+            assert_ne!(
+                bedrock_error_kind(Some(exception), 403),
+                ErrorKind::Authentication,
+                "{exception}"
+            );
+        }
+    }
+
+    #[test]
+    fn stream_error_messages_survive_a_non_json_payload() {
+        assert_eq!(
+            stream_exception_message("modelStreamErrorException", "the model stopped"),
+            "the model stopped"
+        );
+        assert_eq!(
+            stream_exception_message("throttlingException", r#"{"message":"slow down"}"#),
+            "slow down"
+        );
+        assert_eq!(
+            stream_exception_message("InternalFailure", "  "),
+            "bedrock stream failed with InternalFailure"
+        );
+    }
 
     #[test]
     fn exceptions_map_to_error_kinds() {

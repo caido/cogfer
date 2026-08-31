@@ -14,7 +14,8 @@ use std::sync::Arc;
 pub use self::sigv4::sign_request;
 use crate::auth::{Rejection, RequestAuthenticator, SecretString};
 use crate::error::Result;
-use crate::transport::{HeaderMap, HeaderName, HttpRequest};
+use crate::protocols::anthropic::bedrock::{ERROR_TYPE, is_signature_failure};
+use crate::transport::{HeaderMap, HttpRequest};
 
 /// An AWS access key pair, with the session token of temporary credentials.
 #[derive(Clone, PartialEq, Eq)]
@@ -132,23 +133,14 @@ impl RequestAuthenticator for SigV4Authenticator {
 }
 
 /// Whether AWS blamed the signature rather than the caller's permissions.
+///
+/// The vocabulary is [`is_signature_failure`], shared with the classifier that
+/// turns the same exceptions into [`crate::ErrorKind::Authentication`], so a
+/// rejection cannot be called an auth failure here and retried differently
+/// there.
 fn signature_rejected(headers: &HeaderMap) -> bool {
-    let Some(error_type) = headers
+    headers
         .get(ERROR_TYPE)
         .and_then(|value| value.to_str().ok())
-    else {
-        return false;
-    };
-    let error_type = error_type.to_ascii_lowercase();
-    [
-        "signature",
-        "requesttimetooskewed",
-        "requestexpired",
-        "expiredtoken",
-    ]
-    .iter()
-    .any(|cause| error_type.contains(cause))
+        .is_some_and(is_signature_failure)
 }
-
-/// The header carrying the AWS exception class on error responses.
-const ERROR_TYPE: HeaderName = HeaderName::from_static("x-amzn-errortype");

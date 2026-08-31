@@ -3,7 +3,6 @@ use std::collections::HashSet;
 use futures_util::StreamExt;
 use llmwire::{EventStream, FinishReason, GenerateResult, StreamAccumulator, StreamEvent};
 
-/// Drain a stream into a vector of events.
 pub(crate) async fn drain(stream: EventStream) -> Vec<StreamEvent> {
     stream.collect::<Vec<_>>().await
 }

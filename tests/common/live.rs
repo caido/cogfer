@@ -49,6 +49,15 @@ pub(crate) fn provider_from_env(
     provider_from_env_on(&live_client(), env, config)
 }
 
+/// A Bedrock provider on `client` from the `AWS_BEARER_TOKEN_BEDROCK` Bedrock
+/// API key, or `None` (with a SKIP note) when it is not configured.
+///
+/// Bedrock API keys are bearer tokens, so this needs no SigV4 signing. The
+/// live tests cover the SigV4 path separately.
+pub(crate) fn bedrock_provider_on(client: &Client) -> Option<Provider> {
+    provider_from_env_on(client, "AWS_BEARER_TOKEN_BEDROCK", super::bedrock_config)
+}
+
 /// A ChatGPT subscription provider on `client`, from `CHATGPT_ACCESS_TOKEN`
 /// (plus optional `CHATGPT_REFRESH_TOKEN` / `CHATGPT_ACCOUNT_ID`) or the
 /// sign-in cached by `cargo run --example chatgpt_login`. Refreshed tokens are

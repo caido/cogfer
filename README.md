@@ -9,6 +9,7 @@ Supports:
 - SpaceXAI subscriptions
 - OpenRouter
 - Anthropic
+- Anthropic on Amazon Bedrock
 - Gemini
 
 ## Quick start

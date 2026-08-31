@@ -66,8 +66,6 @@ impl Usage {
         take_later!(tool_use_prompt_tokens);
     }
 
-    /// Add another usage report to this one, field by field.
-    ///
     /// Sum multi-pass usage field by field. `None + None` stays `None`.
     pub fn add_from(&mut self, other: &Usage) {
         macro_rules! add {

@@ -316,7 +316,7 @@ pub(crate) struct ChunkDelta {
     reasoning: Option<String>,
     #[serde(default)]
     reasoning_details: Option<Vec<Value>>,
-    /// Url citations (also OpenRouter web-plugin citations).
+    /// URL citations (also OpenRouter web-plugin citations).
     #[serde(default)]
     annotations: Option<Vec<Value>>,
     /// Deprecated single-call streaming form used by some gateways.

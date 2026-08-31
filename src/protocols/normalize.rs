@@ -1,6 +1,7 @@
 use crate::usage::Usage;
 
-/// Normalize provider token accounting to SDK-wide semantics.
+/// Normalize provider token accounting: `input_tokens` counts only the
+/// uncached prompt, with cache reads and writes reported separately.
 pub(crate) fn normalize_usage(
     input: Option<u64>,
     output: Option<u64>,

@@ -1,35 +1,41 @@
 //! AWS Signature Version 4 over an [`HttpRequest`].
 //!
-//! Implements the header-based variant: a canonical request over the method,
-//! double-encoded path, sorted query, and the signed headers `host`,
-//! `content-type` (when present), `x-amz-date`, and `x-amz-security-token`
-//! (for temporary credentials), hashed into a string to sign and signed with
-//! the date/region/service-derived key.
+//! Signing is [`aws_sigv4`]. This module adapts our request to its input and
+//! applies the headers it returns. Its defaults are what Bedrock expects:
+//! header-based signatures, double percent-encoded paths (so a model ID's `:`
+//! survives), and the session token folded into the signature.
 
-use std::fmt::Write as _;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::SystemTime;
 
-use ring::{digest, hmac};
+use aws_credential_types::Credentials;
+use aws_sigv4::http_request::{SignableBody, SignableRequest, SigningSettings, sign};
+use aws_sigv4::sign::v4;
 
 use super::AwsCredentials;
 use crate::error::{Error, Result};
-use crate::http::{header_value, uri_encode};
-use crate::transport::{HeaderName, HeaderValue, HttpRequest, header};
+use crate::http::header_value;
+use crate::transport::{HeaderName, HttpRequest, header};
 
-const ALGORITHM: &str = "AWS4-HMAC-SHA256";
 const AMZ_DATE: HeaderName = HeaderName::from_static("x-amz-date");
 const SECURITY_TOKEN: HeaderName = HeaderName::from_static("x-amz-security-token");
+
+/// Credential source name, used only in the signer's own diagnostics.
+const PROVIDER_NAME: &str = "llmwire";
+
+/// Headers a previous signature leaves behind. Removing them first makes
+/// re-signing produce the same result as signing once.
+const GENERATED: [HeaderName; 3] = [header::AUTHORIZATION, AMZ_DATE, SECURITY_TOKEN];
 
 /// Sign `request` in place, replacing any previous signature.
 ///
 /// The body must be final: its hash is part of the signature. Signing sets
-/// `host`, `x-amz-date`, `x-amz-security-token` for temporary credentials,
-/// and `authorization`.
+/// `host`, `x-amz-date`, `authorization`, and `x-amz-security-token` for
+/// temporary credentials.
 ///
 /// # Errors
 ///
-/// Returns an error when the URL has no host or a credential is not a valid
-/// header value.
+/// Returns an error when the URL cannot be signed or a header the signer
+/// produced is not a valid header value.
 pub fn sign_request(
     request: &mut HttpRequest,
     credentials: &AwsCredentials,
@@ -47,205 +53,116 @@ fn sign_request_at(
     service: &str,
     now: SystemTime,
 ) -> Result<()> {
-    let (date, timestamp) = amz_date(now);
+    for name in &GENERATED {
+        request.headers.remove(name);
+    }
+
+    // The signer derives `host` from the URL but leaves the wire header to the
+    // transport. Setting it here keeps what is sent identical to what is signed.
     let host = request
         .url
         .host_str()
-        .ok_or_else(|| Error::invalid_request("aws requests need a host to sign"))?;
+        .ok_or_else(|| Error::configuration("aws requests need a host to sign"))?;
     let host = match request.url.port() {
         Some(port) => format!("{host}:{port}"),
         None => host.to_owned(),
     };
-
-    request.headers.remove(header::AUTHORIZATION);
-    request.headers.remove(SECURITY_TOKEN);
     request.headers.insert(header::HOST, header_value(&host)?);
-    request.headers.insert(AMZ_DATE, header_value(&timestamp)?);
-    if let Some(token) = &credentials.session_token {
-        let mut value = header_value(token.expose())?;
-        value.set_sensitive(true);
-        request.headers.insert(SECURITY_TOKEN, value);
-    }
 
-    let mut signed: Vec<(String, String)> =
-        [header::HOST, header::CONTENT_TYPE, AMZ_DATE, SECURITY_TOKEN]
+    let identity = Credentials::new(
+        &credentials.access_key_id,
+        credentials.secret_access_key.expose(),
+        credentials
+            .session_token
+            .as_ref()
+            .map(|token| token.expose().to_owned()),
+        None,
+        PROVIDER_NAME,
+    )
+    .into();
+
+    let params = v4::SigningParams::builder()
+        .identity(&identity)
+        .region(region)
+        .name(service)
+        .time(now)
+        .settings(SigningSettings::default())
+        .build()
+        .map_err(|error| {
+            Error::configuration("aws: signing parameters are incomplete").with_source(error)
+        })?
+        .into();
+
+    // The signer borrows the request, so its headers are collected before any
+    // are written back.
+    let signed = {
+        let headers: Vec<(&str, &str)> = request
+            .headers
             .iter()
-            .filter_map(|name| {
-                let value = request.headers.get(name)?.to_str().ok()?;
-                Some((name.as_str().to_owned(), canonical_header_value(value)))
-            })
+            .filter_map(|(name, value)| Some((name.as_str(), value.to_str().ok()?)))
             .collect();
-    signed.sort();
-    let signed_headers = signed
-        .iter()
-        .map(|(name, _)| name.as_str())
-        .collect::<Vec<_>>()
-        .join(";");
+        let signable = SignableRequest::new(
+            request.method.as_str(),
+            request.url.as_str(),
+            headers.iter().copied(),
+            SignableBody::Bytes(request.body.as_deref().unwrap_or_default()),
+        )
+        // The URL carries the caller's model ID, so an unsignable one is a bad
+        // request rather than a misconfigured provider.
+        .map_err(|error| {
+            Error::invalid_request("aws: request cannot be signed").with_source(error)
+        })?;
 
-    let mut canonical_request = String::new();
-    canonical_request.push_str(request.method.as_str());
-    canonical_request.push('\n');
-    canonical_request.push_str(&canonical_uri(request.url.path()));
-    canonical_request.push('\n');
-    canonical_request.push_str(&canonical_query(&request.url));
-    canonical_request.push('\n');
-    for (name, value) in &signed {
-        let _ = writeln!(canonical_request, "{name}:{value}");
+        let (instructions, _signature) = sign(signable, &params)
+            .map_err(|error| Error::configuration("aws: signing failed").with_source(error))?
+            .into_parts();
+        let (headers, query) = instructions.into_parts();
+        // Settings put the signature in headers. Were that ever to change, the
+        // request would otherwise go out unsigned with nothing to show for it.
+        debug_assert!(
+            query.is_empty(),
+            "signer returned query parameters; the signature would be dropped"
+        );
+        headers
+    };
+
+    for signed in signed {
+        let name = HeaderName::try_from(signed.name()).map_err(|error| {
+            Error::configuration("aws: signer produced an invalid header name").with_source(error)
+        })?;
+        let mut value = header_value(signed.value())?;
+        // The signer marks the session token sensitive but not the signature,
+        // and both carry credentials.
+        value.set_sensitive(signed.sensitive() || GENERATED.contains(&name));
+        request.headers.insert(name, value);
     }
-    canonical_request.push('\n');
-    canonical_request.push_str(&signed_headers);
-    canonical_request.push('\n');
-    canonical_request.push_str(&sha256_hex(request.body.as_deref().unwrap_or_default()));
-
-    let scope = format!("{date}/{region}/{service}/aws4_request");
-    let string_to_sign = format!(
-        "{ALGORITHM}\n{timestamp}\n{scope}\n{}",
-        sha256_hex(canonical_request.as_bytes())
-    );
-
-    let mut key = hmac_sha256(
-        format!("AWS4{}", credentials.secret_access_key.expose()).as_bytes(),
-        date.as_bytes(),
-    );
-    for component in [region, service, "aws4_request"] {
-        key = hmac_sha256(&key, component.as_bytes());
-    }
-    let signature = hex(&hmac_sha256(&key, string_to_sign.as_bytes()));
-
-    let authorization = format!(
-        "{ALGORITHM} Credential={}/{scope}, SignedHeaders={signed_headers}, Signature={signature}",
-        credentials.access_key_id
-    );
-    let mut authorization: HeaderValue = header_value(&authorization)?;
-    authorization.set_sensitive(true);
-    request.headers.insert(header::AUTHORIZATION, authorization);
     Ok(())
-}
-
-/// The URI-encoded path, encoded once more per segment as AWS requires for
-/// services other than S3.
-fn canonical_uri(path: &str) -> String {
-    if path.is_empty() {
-        return "/".into();
-    }
-    path.split('/')
-        .map(|segment| uri_encode(segment, true))
-        .collect::<Vec<_>>()
-        .join("/")
-}
-
-fn canonical_query(url: &url::Url) -> String {
-    let mut pairs: Vec<(String, String)> = url
-        .query_pairs()
-        .map(|(key, value)| (uri_encode(&key, true), uri_encode(&value, true)))
-        .collect();
-    pairs.sort();
-    pairs
-        .iter()
-        .map(|(key, value)| format!("{key}={value}"))
-        .collect::<Vec<_>>()
-        .join("&")
-}
-
-fn canonical_header_value(value: &str) -> String {
-    value.split_whitespace().collect::<Vec<_>>().join(" ")
-}
-
-fn sha256_hex(data: &[u8]) -> String {
-    hex(digest::digest(&digest::SHA256, data).as_ref())
-}
-
-fn hmac_sha256(key: &[u8], data: &[u8]) -> Vec<u8> {
-    hmac::sign(&hmac::Key::new(hmac::HMAC_SHA256, key), data)
-        .as_ref()
-        .to_vec()
-}
-
-fn hex(bytes: &[u8]) -> String {
-    bytes
-        .iter()
-        .fold(String::with_capacity(bytes.len() * 2), |mut out, byte| {
-            let _ = write!(out, "{byte:02x}");
-            out
-        })
-}
-
-/// The credential-scope date (`YYYYMMDD`) and the `x-amz-date` timestamp
-/// (`YYYYMMDDTHHMMSSZ`) for `now`.
-fn amz_date(now: SystemTime) -> (String, String) {
-    let seconds = now
-        .duration_since(UNIX_EPOCH)
-        .map(|elapsed| elapsed.as_secs() as i64)
-        .unwrap_or_default();
-    let (year, month, day) = civil_from_days(seconds.div_euclid(86_400));
-    let seconds_of_day = seconds.rem_euclid(86_400);
-    let date = format!("{year:04}{month:02}{day:02}");
-    let timestamp = format!(
-        "{date}T{:02}{:02}{:02}Z",
-        seconds_of_day / 3600,
-        seconds_of_day % 3600 / 60,
-        seconds_of_day % 60
-    );
-    (date, timestamp)
-}
-
-/// Proleptic Gregorian date for a day count since 1970-01-01.
-fn civil_from_days(days: i64) -> (i64, u32, u32) {
-    let z = days + 719_468;
-    let era = z.div_euclid(146_097);
-    let day_of_era = z.rem_euclid(146_097);
-    let year_of_era =
-        (day_of_era - day_of_era / 1460 + day_of_era / 36_524 - day_of_era / 146_096) / 365;
-    let day_of_year = day_of_era - (365 * year_of_era + year_of_era / 4 - year_of_era / 100);
-    let month_index = (5 * day_of_year + 2) / 153;
-    let day = (day_of_year - (153 * month_index + 2) / 5 + 1) as u32;
-    let month = if month_index < 10 { month_index + 3 } else { month_index - 9 } as u32;
-    let year = year_of_era + era * 400 + i64::from(month <= 2);
-    (year, month, day)
 }
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
+    use std::time::{Duration, UNIX_EPOCH};
 
     use url::Url;
 
     use super::*;
-    use crate::transport::{HeaderMap, Method};
+    use crate::transport::{HeaderMap, HeaderValue, Method};
 
-    /// Inverse of [`civil_from_days`], for building test timestamps.
-    fn days_from_civil(year: i64, month: u32, day: u32) -> i64 {
+    fn at(year: i64, month: u32, day: u32, hour: u64, minute: u64, second: u64) -> SystemTime {
+        // Days from civil, so the vectors below read as calendar dates.
         let year = if month <= 2 { year - 1 } else { year };
         let era = year.div_euclid(400);
         let year_of_era = year.rem_euclid(400);
         let month_index = if month > 2 { month - 3 } else { month + 9 } as i64;
         let day_of_year = (153 * month_index + 2) / 5 + i64::from(day) - 1;
         let day_of_era = year_of_era * 365 + year_of_era / 4 - year_of_era / 100 + day_of_year;
-        era * 146_097 + day_of_era - 719_468
-    }
-
-    fn at(year: i64, month: u32, day: u32, hour: u64, minute: u64, second: u64) -> SystemTime {
-        let days = days_from_civil(year, month, day) as u64;
+        let days = (era * 146_097 + day_of_era - 719_468) as u64;
         UNIX_EPOCH + Duration::from_secs(days * 86_400 + hour * 3600 + minute * 60 + second)
     }
 
     /// The AWS SigV4 test-suite credentials.
     fn suite_credentials() -> AwsCredentials {
         AwsCredentials::new("AKIDEXAMPLE", "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY")
-    }
-
-    #[test]
-    fn dates_round_trip_and_format() {
-        for (year, month, day) in [(1970, 1, 1), (2000, 2, 29), (2015, 8, 30), (2100, 12, 31)] {
-            assert_eq!(
-                civil_from_days(days_from_civil(year, month, day)),
-                (year, month, day)
-            );
-        }
-        assert_eq!(
-            amz_date(at(2015, 8, 30, 12, 36, 0)),
-            ("20150830".to_string(), "20150830T123600Z".to_string())
-        );
     }
 
     /// `get-vanilla` from the AWS SigV4 test suite.
@@ -273,7 +190,6 @@ mod tests {
              SignedHeaders=host;x-amz-date, \
              Signature=5fa00fa31553b73ebf1942676e86291e8372ff2a2260956d9b8aae1d763fbf31"
         );
-        assert_eq!(request.headers[header::HOST], "example.amazonaws.com");
         assert_eq!(request.headers[AMZ_DATE], "20150830T123600Z");
     }
 
@@ -337,20 +253,39 @@ mod tests {
         assert!(request.headers[header::AUTHORIZATION].is_sensitive());
     }
 
+    /// Bedrock model IDs contain `:`, which the canonical path encodes twice
+    /// (`%3A` becomes `%253A`). Getting it wrong mismatches every real model.
+    /// AWS publishes no vector with an escaped path, so the expected value is
+    /// pinned from a third implementation written against the spec.
     #[test]
-    fn canonical_uri_encodes_each_segment_again() {
-        assert_eq!(
-            canonical_uri("/model/a%3Ab/invoke"),
-            "/model/a%253Ab/invoke"
-        );
-        assert_eq!(canonical_uri(""), "/");
-        assert_eq!(canonical_uri("/"), "/");
-    }
+    fn model_ids_double_encode_their_colon() {
+        let mut request = HttpRequest {
+            method: Method::POST,
+            url: Url::parse(
+                "https://bedrock-runtime.eu-west-1.amazonaws.com\
+                 /model/anthropic.claude-sonnet-4%3A0/invoke",
+            )
+            .unwrap(),
+            headers: HeaderMap::new(),
+            body: Some(bytes::Bytes::from_static(b"{}")),
+        };
 
-    #[test]
-    fn canonical_query_is_sorted_and_encoded() {
-        let url = Url::parse("https://h/?b=2&a=x%20y&a=1").unwrap();
-        assert_eq!(canonical_query(&url), "a=1&a=x%20y&b=2");
+        sign_request_at(
+            &mut request,
+            &suite_credentials(),
+            "eu-west-1",
+            "bedrock",
+            at(2026, 1, 2, 3, 4, 5),
+        )
+        .unwrap();
+
+        assert_eq!(
+            request.headers[header::AUTHORIZATION].to_str().unwrap(),
+            "AWS4-HMAC-SHA256 \
+             Credential=AKIDEXAMPLE/20260102/eu-west-1/bedrock/aws4_request, \
+             SignedHeaders=host;x-amz-date, \
+             Signature=8afd2b6963ee767baf970c6cf7c33e9280b4af6811cd0c7bed0719d90d516b88"
+        );
     }
 
     #[test]
@@ -361,7 +296,7 @@ mod tests {
             headers: HeaderMap::new(),
             body: None,
         };
-        let credentials = suite_credentials();
+        let credentials = suite_credentials().with_session_token("session-token");
         sign_request_at(
             &mut request,
             &credentials,
@@ -382,14 +317,13 @@ mod tests {
         .unwrap();
 
         assert_ne!(request.headers[header::AUTHORIZATION], first);
-        assert_eq!(
-            request
-                .headers
-                .get_all(header::AUTHORIZATION)
-                .iter()
-                .count(),
-            1
-        );
+        for name in &GENERATED {
+            assert_eq!(
+                request.headers.get_all(name).iter().count(),
+                1,
+                "{name} must not accumulate"
+            );
+        }
         assert_eq!(request.headers[AMZ_DATE], "20150830T123700Z");
     }
 }

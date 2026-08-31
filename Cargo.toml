@@ -2,13 +2,14 @@
 name = "llmwire"
 version = "0.1.0"
 authors = ["caido <info@caido.io>"]
-description = "A Rust library for calling language-model APIs"
+description = "🤖 Multi-provider LLM client"
 edition = "2024"
 rust-version = "1.95"
 license = "MIT"
 publish = false
 repository = "https://github.com/caido/llmwire"
 readme = "README.md"
+exclude = [".github/", "mise.toml", "rust-toolchain.toml", "tests/"]
 
 [lib]
 name = "llmwire"
@@ -16,13 +17,14 @@ path = "src/lib.rs"
 
 [features]
 default = ["reqwest-transport", "aws"]
-# AWS SigV4 request signing for Amazon Bedrock.
-aws = ["dep:ring"]
+aws = ["dep:aws-credential-types", "dep:aws-sigv4"]
 reqwest-transport = ["dep:async-stream", "dep:reqwest", "dep:rustls", "dep:tokio"]
 
 [dependencies]
 async-stream = { version = "0.3", optional = true }
 async-trait = "0.1"
+aws-smithy-eventstream = "0.61"
+aws-smithy-types = "1.6"
 bytes = "1"
 futures-util = { version = "0.3", default-features = false, features = ["std"] }
 http = "1"
@@ -33,14 +35,10 @@ url = "2"
 uuid = { version = "1", features = ["v4"] }
 
 reqwest = { version = "0.13.4", optional = true, default-features = false, features = ["rustls-no-provider", "stream"] }
-# SHA-256 and HMAC for SigV4; the same crate Rustls already brings in.
-ring = { version = "0.17", optional = true }
-# Reqwest leaves provider selection to the process. Keep this compatible with
-# reqwest's Rustls version so install_default_crypto_provider installs ring
-# into, and ReqwestTransport::new checks, the same process-wide slot without
-# pulling AWS-LC.
 rustls = { version = "0.23", optional = true, default-features = false, features = ["ring", "std"] }
 tokio = { version = "1.49", optional = true, default-features = false, features = ["time"] }
+aws-sigv4 = { version = "1.5", optional = true }
+aws-credential-types = { version = "1.3", optional = true }
 
 [dev-dependencies]
 dotenvy = "0.15"

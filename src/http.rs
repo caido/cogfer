@@ -15,17 +15,19 @@ pub(crate) fn join_url(base: &Url, path: &str) -> Url {
     url
 }
 
-/// Percent-encode `input` the way AWS canonicalizes URIs: every byte except
-/// the RFC 3986 unreserved characters, with uppercase hex digits. `/` is
-/// kept as a separator unless `encode_slash` is set.
-pub(crate) fn uri_encode(input: &str, encode_slash: bool) -> String {
+/// Percent-encode `input` as a single URL path segment: every byte except the
+/// RFC 3986 unreserved characters, with uppercase hex digits.
+///
+/// Bedrock puts the model ID in the path and model IDs contain `:`, which must
+/// arrive as `%3A`. The signer percent-encodes the path a second time, so what
+/// this produces is what the signature covers.
+pub(crate) fn encode_path_segment(input: &str) -> String {
     let mut encoded = String::with_capacity(input.len());
     for byte in input.bytes() {
         match byte {
             b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
                 encoded.push(byte as char);
             }
-            b'/' if !encode_slash => encoded.push('/'),
             _ => encoded.push_str(&format!("%{byte:02X}")),
         }
     }
@@ -174,15 +176,17 @@ mod tests {
         assert_eq!(joined.as_str(), "https://api.openai.com/v1/responses");
     }
 
+    /// The `%3A` is load-bearing: the signature covers the encoded path, so a
+    /// model ID that reaches the wire differently is rejected by AWS.
     #[test]
-    fn uri_encoding_follows_the_aws_rules() {
+    fn path_segments_encode_everything_outside_the_unreserved_set() {
         assert_eq!(
-            uri_encode("anthropic.claude-v1:0", true),
+            encode_path_segment("anthropic.claude-v1:0"),
             "anthropic.claude-v1%3A0"
         );
-        assert_eq!(uri_encode("a b/c~", false), "a%20b/c~");
-        assert_eq!(uri_encode("a/b", true), "a%2Fb");
-        assert_eq!(uri_encode("é", true), "%C3%A9");
+        assert_eq!(encode_path_segment("a/b"), "a%2Fb");
+        assert_eq!(encode_path_segment("a b~"), "a%20b~");
+        assert_eq!(encode_path_segment("é"), "%C3%A9");
     }
 
     #[test]

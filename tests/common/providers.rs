@@ -63,3 +63,14 @@ pub(crate) fn anthropic(mock: &Arc<MockTransport>) -> Provider {
 pub(crate) fn gemini(mock: &Arc<MockTransport>) -> Provider {
     provider_with(mock, ProviderConfig::gemini(Credentials::api_key("g-test")))
 }
+
+/// The region the Bedrock live tests and cassettes use. Bedrock puts the
+/// region in the host and the model in the path, so recording and replay must
+/// agree on it for the recorded request URLs to match.
+pub(crate) const BEDROCK_REGION: &str = "us-east-1";
+
+/// The Bedrock provider configuration for [`BEDROCK_REGION`]. Shared by the
+/// replay suite (which passes a placeholder credential) and the live tests.
+pub(crate) fn bedrock_config(credentials: Credentials) -> ProviderConfig {
+    ProviderConfig::bedrock_anthropic(BEDROCK_REGION, credentials).expect("region is valid")
+}

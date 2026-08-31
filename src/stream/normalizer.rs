@@ -47,7 +47,6 @@ enum OpenBlock {
         item_id: Option<String>,
         arguments: String,
         provider_metadata: ProviderMetadata,
-        /// Whether the provider completed the call.
         completed: bool,
         /// Complete arguments that override accumulated deltas.
         final_arguments: Option<String>,
@@ -478,7 +477,7 @@ impl StreamNormalizer {
         out.push(StreamEvent::Compaction(part));
     }
 
-    /// Emit response-level provider metadata.
+    /// Response-level extras, dropped when the decoder found none.
     pub(crate) fn provider_metadata(
         &mut self,
         out: &mut Vec<StreamEvent>,

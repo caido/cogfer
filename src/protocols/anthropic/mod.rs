@@ -8,7 +8,7 @@ use crate::transport::aws_event_stream::AwsEventStreamParser;
 use crate::transport::framing::FrameSource;
 use crate::transport::{HeaderMap, HeaderName, HttpRequest, HttpResponse};
 
-mod bedrock;
+pub(crate) mod bedrock;
 mod request;
 mod stream;
 mod types;

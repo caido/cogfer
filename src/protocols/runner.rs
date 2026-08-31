@@ -27,7 +27,8 @@ struct Prepared {
     http: HttpRequest,
     warnings: Vec<Warning>,
     base_url: url::Url,
-    /// The request as lowered: without the settings the model cannot accept.
+    /// The request after restriction, without the settings the model cannot
+    /// accept.
     request: Request,
 }
 
@@ -59,7 +60,6 @@ async fn prepare(
         .map_err(|e| annotate(e, provider, model))?;
     warnings.extend(lowering_warnings);
 
-    // Merge anthropic-beta so user flags preserve protocol requirements.
     for (name, value) in provider.inner.config.default_headers() {
         apply_header(&mut http, name, value);
     }
@@ -479,7 +479,6 @@ impl StreamState {
         }
     }
 
-    /// Hand one frame to the decoder.
     fn dispatch(&mut self, frame: StreamFrame, out: &mut Vec<StreamEvent>) -> Result<()> {
         match frame {
             StreamFrame::Data(data) => {

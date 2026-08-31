@@ -75,9 +75,8 @@ pub(crate) const SCRUBBED_JSON_KEYS: &[&str] = &[
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub(crate) enum Body {
-    /// A JSON body, pretty-printed for review with `serde_json` key order.
-    /// Replay re-serializes it compactly, since decoders do not depend on key
-    /// order or whitespace.
+    /// A JSON body, pretty-printed for review. Replay re-serializes it
+    /// compactly, since decoders do not depend on key order or whitespace.
     Json(serde_json::Value),
     /// A UTF-8 body that is not JSON.
     Text(String),

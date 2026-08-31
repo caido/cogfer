@@ -73,7 +73,7 @@ pub(crate) async fn stream_tool_loop(provider: &Provider, model: &str) {
 }
 
 /// [`stream_tool_loop`] with reasoning explicitly disabled, for APIs that
-/// reject function tools on reasoning models otherwise (OpenAI `gpt-5.x` on
+/// reject function tools unless a reasoning effort is set (OpenAI `gpt-5.x` on
 /// Chat Completions).
 pub(crate) async fn stream_tool_loop_reasoning_disabled(provider: &Provider, model: &str) {
     let mut request = loop_request();

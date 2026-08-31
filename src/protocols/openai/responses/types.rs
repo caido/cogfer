@@ -249,7 +249,7 @@ pub(crate) fn is_refusal_part(part: &AssistantPart) -> bool {
         == Some("refusal")
 }
 
-/// Decode one output item into assistant parts.
+/// Decode one output item, or `None` when it carries nothing to replay.
 pub(crate) fn decode_output_item(raw: &Value) -> Result<Option<Vec<AssistantPart>>> {
     let item = OutputItem::deserialize(raw).map_err(|source| {
         Error::malformed("openai-responses: invalid output item").with_source(source)

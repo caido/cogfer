@@ -6,12 +6,10 @@ use std::sync::{Arc, Mutex};
 use bytes::Bytes;
 
 use super::{
-    HeaderMap, HeaderValue, HttpByteStream, HttpRequest, HttpResponse, HttpTransport,
-    aws_event_stream, header,
+    HeaderMap, HeaderValue, HttpByteStream, HttpRequest, HttpResponse, HttpTransport, header,
 };
 use crate::error::{Error, ErrorKind, Result};
 
-/// A queued canned reply.
 #[derive(Debug, Clone)]
 enum CannedReply {
     Buffered(HttpResponse),
@@ -34,6 +32,49 @@ pub struct MockTransport {
     // Sync locks: every guard is dropped within one statement, before any await.
     replies: Mutex<VecDeque<CannedReply>>,
     requests: Mutex<Vec<HttpRequest>>,
+}
+
+/// CRC-32 (IEEE 802.3, as used by gzip and the AWS event stream encoding).
+pub(crate) fn crc32(bytes: &[u8]) -> u32 {
+    let mut crc = 0xFFFF_FFFFu32;
+    for byte in bytes {
+        crc ^= u32::from(*byte);
+        for _ in 0..8 {
+            let mask = (crc & 1).wrapping_neg();
+            crc = (crc >> 1) ^ (0xEDB8_8320 & mask);
+        }
+    }
+    !crc
+}
+
+/// Encode one message with string headers.
+///
+/// Hand-written on purpose: this and the event stream decoder are separate
+/// implementations, so a fixture that decodes proves the two agree rather
+/// than that one is self-consistent.
+pub(crate) fn encode_message(headers: &[(&str, &str)], payload: &[u8]) -> Vec<u8> {
+    /// Prelude plus both checksums.
+    const OVERHEAD: usize = 16;
+
+    let mut header_bytes = Vec::new();
+    for (name, value) in headers {
+        header_bytes.push(name.len() as u8);
+        header_bytes.extend_from_slice(name.as_bytes());
+        header_bytes.push(7);
+        header_bytes.extend_from_slice(&(value.len() as u16).to_be_bytes());
+        header_bytes.extend_from_slice(value.as_bytes());
+    }
+    let total = (OVERHEAD + header_bytes.len() + payload.len()) as u32;
+    let mut message = Vec::with_capacity(total as usize);
+    message.extend_from_slice(&total.to_be_bytes());
+    message.extend_from_slice(&(header_bytes.len() as u32).to_be_bytes());
+    let prelude_crc = crc32(&message);
+    message.extend_from_slice(&prelude_crc.to_be_bytes());
+    message.extend_from_slice(&header_bytes);
+    message.extend_from_slice(payload);
+    let message_crc = crc32(&message);
+    message.extend_from_slice(&message_crc.to_be_bytes());
+    message
 }
 
 impl MockTransport {
@@ -104,7 +145,7 @@ impl MockTransport {
         let chunks = events
             .iter()
             .map(|&(event_type, payload)| {
-                Bytes::from(aws_event_stream::encode_message(
+                Bytes::from(encode_message(
                     &[
                         (":event-type", event_type),
                         (":content-type", "application/json"),
@@ -131,7 +172,7 @@ impl MockTransport {
         let mut chunks: Vec<Bytes> = events
             .iter()
             .map(|&(event_type, payload)| {
-                Bytes::from(aws_event_stream::encode_message(
+                Bytes::from(encode_message(
                     &[
                         (":event-type", event_type),
                         (":content-type", "application/json"),
@@ -141,13 +182,51 @@ impl MockTransport {
                 ))
             })
             .collect();
-        chunks.push(Bytes::from(aws_event_stream::encode_message(
+        chunks.push(Bytes::from(encode_message(
             &[
                 (":exception-type", exception_type),
                 (":content-type", "application/json"),
                 (":message-type", "exception"),
             ],
             payload,
+        )));
+        self.push_stream_chunks(
+            200,
+            content_type("application/vnd.amazon.eventstream"),
+            chunks,
+        );
+    }
+
+    /// Queue an AWS event stream that ends with an `error` message.
+    ///
+    /// Unlike an exception, an error carries no payload: its cause is the
+    /// `:error-message` header, as plain text rather than JSON.
+    pub fn push_event_stream_then_error(
+        &self,
+        events: &[(&str, &[u8])],
+        error_code: &str,
+        error_message: &str,
+    ) {
+        let mut chunks: Vec<Bytes> = events
+            .iter()
+            .map(|&(event_type, payload)| {
+                Bytes::from(encode_message(
+                    &[
+                        (":event-type", event_type),
+                        (":content-type", "application/json"),
+                        (":message-type", "event"),
+                    ],
+                    payload,
+                ))
+            })
+            .collect();
+        chunks.push(Bytes::from(encode_message(
+            &[
+                (":error-code", error_code),
+                (":error-message", error_message),
+                (":message-type", "error"),
+            ],
+            b"",
         )));
         self.push_stream_chunks(
             200,

@@ -2,7 +2,7 @@ use serde_json::{Value, json};
 
 use super::AnthropicDialect;
 use crate::error::{Error, ErrorKind, Result};
-use crate::http::{join_url, uri_encode};
+use crate::http::{encode_path_segment, join_url};
 use crate::message::{AssistantPart, Message, ReasoningContent, ReasoningPart, ToolCall, UserPart};
 use crate::protocols::{LoweredRequest, ProtocolContext, ResolvedReasoning, resolve_reasoning};
 use crate::request::{ReasoningOutput, Request, ToolChoice};
@@ -13,7 +13,7 @@ use crate::transport::{HeaderName, HeaderValue, HttpRequest, header};
 /// caller leaves the output cap to the SDK.
 const FALLBACK_MAX_TOKENS: u32 = 8192;
 
-/// Historical tool-call arguments as the `tool_use` input object. Request
+/// Replayed tool-call arguments as the `tool_use` input object. Request
 /// validation already guarantees they parse as a JSON object.
 fn tool_input(call: &ToolCall) -> Result<Value> {
     call.arguments_value().map_err(|source| {
@@ -124,11 +124,11 @@ pub(crate) fn lower_messages(request: &crate::request::Request) -> Result<Value>
     Ok(Value::Array(messages))
 }
 
-/// Replay Anthropic thinking verbatim and skip foreign reasoning content.
+/// Replay Anthropic thinking verbatim. Unsigned or foreign reasoning content
+/// is skipped because Anthropic rejects it on replay.
 pub(crate) fn lower_reasoning(reasoning: &ReasoningPart, blocks: &mut Vec<Value>) {
     for content in &reasoning.content {
         match content {
-            // Anthropic rejects unsigned or foreign thinking blocks on replay.
             ReasoningContent::Text {
                 text,
                 signature: Some(signature),
@@ -424,7 +424,7 @@ pub(crate) fn lower_anthropic_request(
         }
         AnthropicDialect::Bedrock => {
             let operation = if streaming { "invoke-with-response-stream" } else { "invoke" };
-            let path = format!("model/{}/{operation}", uri_encode(ctx.model, true));
+            let path = format!("model/{}/{operation}", encode_path_segment(ctx.model));
             let mut http = HttpRequest::post_json(join_url(ctx.base_url, &path), &body)?;
             http.headers
                 .insert(header::ACCEPT, HeaderValue::from_static("application/json"));

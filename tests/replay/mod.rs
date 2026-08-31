@@ -26,6 +26,7 @@ mod record;
 pub(crate) mod scenarios;
 
 mod anthropic;
+mod bedrock_anthropic;
 mod chatgpt;
 mod gemini;
 mod openai_chat;

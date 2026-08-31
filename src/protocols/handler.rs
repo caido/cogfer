@@ -51,7 +51,6 @@ pub(crate) trait ProtocolHandler: Send + Sync {
 }
 
 pub(crate) trait StreamDecoder: Send {
-    /// Decode one frame payload.
     fn on_frame(
         &mut self,
         data: String,

@@ -1,6 +1,6 @@
-//! `gpt-5.x` on Chat Completions rejects function tools unless reasoning is
-//! disabled (see [`ProviderConfig::openai_chat`]), so the tool loop runs with
-//! `ReasoningConfig::Disabled` here.
+//! `gpt-5.x` on Chat Completions rejects function tools unless a reasoning
+//! effort is set explicitly (see [`ProviderConfig::openai_chat`]), so the tool
+//! loop runs with `ReasoningConfig::Disabled` here.
 
 use llmwire::ProviderConfig;
 

@@ -6,13 +6,13 @@
 //! Every provider dispatches on the JSON payload, so `event:` is dropped along
 //! with `id:` and `retry:`, and frames without data are omitted.
 //!
-//! This is hand-rolled rather than an off-the-shelf parser because provider
-//! streams need behavior the general-purpose crates do not offer: bounded line
-//! and frame buffers, failing as soon as a line with invalid UTF-8 completes
-//! rather than at end of stream, dispatching a final frame that lacks its
-//! terminating blank line, and errors that never echo response bytes.
+//! This is hand-rolled because the general-purpose crates do not offer what
+//! provider streams need: bounded line and frame buffers, failing on invalid
+//! UTF-8 as soon as the line completes rather than at end of stream,
+//! dispatching a final frame without its terminating blank line, and errors
+//! that never echo response bytes.
 
-use super::framing::{FrameSource, StreamFrame};
+use super::framing::{FrameSource, INVALID_UTF8, StreamFrame};
 
 /// Maximum bytes buffered for one unterminated SSE line. Provider frames are
 /// much smaller. The limit prevents unbounded growth when line breaks vanish.
@@ -37,11 +37,12 @@ pub(crate) struct SseParser {
     /// Joined byte length of the accumulated `data:` lines, including the
     /// newlines inserted between them at dispatch.
     data_bytes: usize,
-    /// Whether the runner should report malformed UTF-8.
+    /// Set when a completed line failed to decode as UTF-8.
     invalid_utf8: bool,
     /// Set when a line or accumulated frame exceeded its configured limit.
     overflowed: bool,
-    /// Whether the (single, stream-leading) BOM check has been performed.
+    /// Whether the leading BOM has already been looked for. It is only ever
+    /// stripped once, at the start of the stream.
     bom_checked: bool,
 }
 
@@ -108,7 +109,6 @@ impl SseParser {
 }
 
 impl FrameSource for SseParser {
-    /// Push bytes and return every frame completed by the chunk.
     fn push(&mut self, bytes: &[u8]) -> Vec<StreamFrame> {
         if self.invalid_utf8 || self.overflowed {
             return Vec::new();
@@ -205,7 +205,7 @@ impl FrameSource for SseParser {
         if self.overflowed {
             Some("provider stream exceeded the maximum SSE frame size")
         } else if self.invalid_utf8 {
-            Some("provider stream contained invalid UTF-8; output would be corrupted")
+            Some(INVALID_UTF8)
         } else {
             None
         }

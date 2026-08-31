@@ -7,9 +7,8 @@
 //! values of [`SCRUBBED_JSON_KEYS`] are replaced in every body (JSON or SSE
 //! text), and response headers are limited to the ones the SDK reads.
 //! Everything else in a body is stored as sent, so review a fresh cassette
-//! before committing it. Authenticators keep their own transport, so token
-//! exchanges do not normally pass through here. The form-body and token-key
-//! redaction is defense in depth.
+//! before committing it. Authenticators keep their own transport, so the
+//! form-body and token-key redaction is only defense in depth.
 
 use std::ops::Range;
 use std::sync::{Arc, Mutex};

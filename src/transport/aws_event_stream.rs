@@ -1,25 +1,31 @@
 //! The AWS event stream encoding (`application/vnd.amazon.eventstream`).
 //!
-//! Each message is a prelude (total length, headers length), its CRC, typed
-//! headers, a payload, and a CRC over everything before it. Bedrock
-//! marks messages with `:message-type` (`event`, `exception`, or `error`) and
-//! names them with `:event-type` or `:exception-type`. Events become
-//! [`StreamFrame::Data`]. Exceptions and errors become
+//! Framing and checksums are [`aws_smithy_eventstream`]. This module feeds it
+//! body chunks and maps the messages it returns onto [`StreamFrame`]. Bedrock
+//! marks messages with `:message-type`: `event` becomes
+//! [`StreamFrame::Data`], while `exception` and `error` become
 //! [`StreamFrame::Exception`] so the decoder can fail the stream.
 
-use super::framing::{FrameSource, StreamFrame};
-use crate::util::crc32;
+use aws_smithy_eventstream::frame::{DecodedFrame, MessageFrameDecoder};
+use aws_smithy_types::event_stream::Message;
+use bytes::BytesMut;
 
-/// Maximum accepted message size. Bedrock payloads are far smaller. The limit
-/// bounds buffering when the length prelude is corrupt.
-const MAX_MESSAGE_BYTES: u32 = 16 * 1024 * 1024;
+use super::framing::{FrameSource, INVALID_UTF8, StreamFrame};
 
-/// Prelude plus both checksums.
-const OVERHEAD: usize = 16;
+/// Maximum accepted message size. Bedrock payloads are far smaller.
+///
+/// The decoder validates a prelude only once the length it announces has
+/// arrived, so this bounds buffering rather than detecting a corrupt length
+/// early.
+const MAX_MESSAGE_BYTES: usize = 16 * 1024 * 1024;
+
+const MALFORMED: &str = "provider stream contained a malformed event stream message";
+const TOO_LARGE: &str = "provider stream contained an event stream message with an invalid length";
 
 #[derive(Debug, Default)]
 pub(crate) struct AwsEventStreamParser {
-    buffer: Vec<u8>,
+    decoder: MessageFrameDecoder,
+    buffer: BytesMut,
     corruption: Option<&'static str>,
 }
 
@@ -41,40 +47,31 @@ impl FrameSource for AwsEventStreamParser {
             return frames;
         }
         self.buffer.extend_from_slice(bytes);
-        let mut offset = 0;
-        while self.buffer.len() - offset >= OVERHEAD {
-            let message = &self.buffer[offset..];
-            let total = u32::from_be_bytes(message[..4].try_into().expect("four bytes"));
-            if total > MAX_MESSAGE_BYTES || (total as usize) < OVERHEAD {
-                self.fail(
-                    "provider stream contained an event stream message with an invalid length",
-                );
-                return frames;
-            }
-            if crc32(&message[..8])
-                != u32::from_be_bytes(message[8..12].try_into().expect("four bytes"))
-            {
-                self.fail(
-                    "provider stream contained an event stream message with a bad prelude checksum",
-                );
-                return frames;
-            }
-            let total = total as usize;
-            if message.len() < total {
-                break;
-            }
-            let message = &message[..total];
-            match decode_message(message) {
-                Ok(frame) => frames.extend(frame),
-                Err(reason) => {
-                    self.fail(reason);
+        loop {
+            // The decoder keeps the prelude it consumed, so a partial message
+            // resumes on the next call rather than restarting.
+            match self.decoder.decode_frame(&mut self.buffer) {
+                Ok(DecodedFrame::Complete(message)) => match frame_from(&message) {
+                    Ok(Some(frame)) => frames.push(frame),
+                    Ok(None) => continue,
+                    Err(reason) => {
+                        self.fail(reason);
+                        return frames;
+                    }
+                },
+                Ok(DecodedFrame::Incomplete) => {
+                    // The decoder has no size limit of its own.
+                    if self.buffer.len() > MAX_MESSAGE_BYTES {
+                        self.fail(TOO_LARGE);
+                    }
+                    return frames;
+                }
+                Err(_) => {
+                    self.fail(MALFORMED);
                     return frames;
                 }
             }
-            offset += total;
         }
-        self.buffer.drain(..offset);
-        frames
     }
 
     fn finish(&mut self) -> Option<StreamFrame> {
@@ -88,36 +85,24 @@ impl FrameSource for AwsEventStreamParser {
     }
 }
 
-/// Decode one complete message whose prelude has been verified. Messages
-/// without a `:message-type` header are not Bedrock's and are skipped.
-fn decode_message(message: &[u8]) -> Result<Option<StreamFrame>, &'static str> {
-    let total = message.len();
-    let checksum = u32::from_be_bytes(message[total - 4..].try_into().expect("four bytes"));
-    if crc32(&message[..total - 4]) != checksum {
-        return Err("provider stream contained an event stream message with a bad checksum");
-    }
-    let headers_len = u32::from_be_bytes(message[4..8].try_into().expect("four bytes")) as usize;
-    if headers_len > total - OVERHEAD {
-        return Err(
-            "provider stream contained an event stream message with an invalid header length",
-        );
-    }
-    let headers = decode_headers(&message[12..12 + headers_len])?;
-    let payload = &message[12 + headers_len..total - 4];
-    let data = String::from_utf8(payload.to_vec())
-        .map_err(|_| "provider stream contained invalid UTF-8; output would be corrupted")?;
-
+/// Map one decoded message onto a frame. Messages without a `:message-type`
+/// header are not Bedrock's and are skipped.
+fn frame_from(message: &Message) -> Result<Option<StreamFrame>, &'static str> {
     let header = |name: &str| {
-        headers
+        message
+            .headers()
             .iter()
-            .find(|(key, _)| key == name)
-            .map(|(_, value)| value.as_str())
+            .find(|header| header.name().as_str() == name)
+            .and_then(|header| header.value().as_string().ok())
+            .map(aws_smithy_types::str_bytes::StrBytes::as_str)
     };
+    let payload = || std::str::from_utf8(message.payload()).map_err(|_| INVALID_UTF8);
+
     let frame = match header(":message-type") {
-        Some("event") => StreamFrame::Data(data),
+        Some("event") => StreamFrame::Data(payload()?.to_owned()),
         Some("exception") => StreamFrame::Exception {
             kind: header(":exception-type").unwrap_or("exception").to_owned(),
-            payload: data,
+            payload: payload()?.to_owned(),
         },
         Some("error") => StreamFrame::Exception {
             kind: header(":error-code").unwrap_or("error").to_owned(),
@@ -128,70 +113,10 @@ fn decode_message(message: &[u8]) -> Result<Option<StreamFrame>, &'static str> {
     Ok(Some(frame))
 }
 
-/// Parse the header block. Only string values are meaningful here. The other
-/// types are skipped by their fixed or prefixed sizes.
-fn decode_headers(mut bytes: &[u8]) -> Result<Vec<(String, String)>, &'static str> {
-    const MALFORMED: &str =
-        "provider stream contained an event stream message with malformed headers";
-    let mut headers = Vec::new();
-    while !bytes.is_empty() {
-        let name_len = bytes[0] as usize;
-        bytes = &bytes[1..];
-        let name = bytes.get(..name_len).ok_or(MALFORMED)?;
-        let name = std::str::from_utf8(name).map_err(|_| MALFORMED)?.to_owned();
-        bytes = &bytes[name_len..];
-        let value_type = *bytes.first().ok_or(MALFORMED)?;
-        bytes = &bytes[1..];
-        let value_len = match value_type {
-            0 | 1 => 0,
-            2 => 1,
-            3 => 2,
-            4 => 4,
-            5 | 8 => 8,
-            9 => 16,
-            6 | 7 => {
-                let len = bytes.get(..2).ok_or(MALFORMED)?;
-                bytes = &bytes[2..];
-                u16::from_be_bytes(len.try_into().expect("two bytes")) as usize
-            }
-            _ => return Err(MALFORMED),
-        };
-        let value = bytes.get(..value_len).ok_or(MALFORMED)?;
-        if value_type == 7 {
-            let value = std::str::from_utf8(value).map_err(|_| MALFORMED)?;
-            headers.push((name, value.to_owned()));
-        }
-        bytes = &bytes[value_len..];
-    }
-    Ok(headers)
-}
-
-/// Encode one message with string headers, the inverse of [`decode_message`].
-pub(crate) fn encode_message(headers: &[(&str, &str)], payload: &[u8]) -> Vec<u8> {
-    let mut header_bytes = Vec::new();
-    for (name, value) in headers {
-        header_bytes.push(name.len() as u8);
-        header_bytes.extend_from_slice(name.as_bytes());
-        header_bytes.push(7);
-        header_bytes.extend_from_slice(&(value.len() as u16).to_be_bytes());
-        header_bytes.extend_from_slice(value.as_bytes());
-    }
-    let total = (OVERHEAD + header_bytes.len() + payload.len()) as u32;
-    let mut message = Vec::with_capacity(total as usize);
-    message.extend_from_slice(&total.to_be_bytes());
-    message.extend_from_slice(&(header_bytes.len() as u32).to_be_bytes());
-    let prelude_crc = crc32(&message);
-    message.extend_from_slice(&prelude_crc.to_be_bytes());
-    message.extend_from_slice(&header_bytes);
-    message.extend_from_slice(payload);
-    let message_crc = crc32(&message);
-    message.extend_from_slice(&message_crc.to_be_bytes());
-    message
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::transport::mock::{crc32, encode_message};
 
     pub(crate) fn event(payload: &str) -> Vec<u8> {
         encode_message(
@@ -202,6 +127,12 @@ mod tests {
             ],
             payload.as_bytes(),
         )
+    }
+
+    #[test]
+    fn crc32_matches_the_gzip_check_value() {
+        assert_eq!(crc32(b"123456789"), 0xCBF4_3926);
+        assert_eq!(crc32(b""), 0);
     }
 
     #[test]
@@ -218,6 +149,22 @@ mod tests {
             vec![StreamFrame::Data(r#"{"bytes":"e30="}"#.into())]
         );
         assert!(parser.finish().is_none());
+        assert_eq!(parser.corruption(), None);
+    }
+
+    /// The decoder keeps the prelude once it has read it, so a message
+    /// arriving one byte at a time must still decode exactly once.
+    #[test]
+    fn decodes_an_event_delivered_one_byte_at_a_time() {
+        let message = event("{}");
+        let mut parser = AwsEventStreamParser::new();
+        let mut frames = Vec::new();
+
+        for byte in &message {
+            frames.extend(parser.push(&[*byte]));
+        }
+
+        assert_eq!(frames, vec![StreamFrame::Data("{}".into())]);
         assert_eq!(parser.corruption(), None);
     }
 
@@ -275,7 +222,7 @@ mod tests {
         headers.push(7);
         headers.extend_from_slice(&5u16.to_be_bytes());
         headers.extend_from_slice(b"event");
-        let total = (OVERHEAD + headers.len() + 2) as u32;
+        let total = (16 + headers.len() + 2) as u32;
         let mut message = Vec::new();
         message.extend_from_slice(&total.to_be_bytes());
         message.extend_from_slice(&(headers.len() as u32).to_be_bytes());
@@ -297,18 +244,50 @@ mod tests {
         let mut parser = AwsEventStreamParser::new();
 
         assert!(parser.push(&message).is_empty());
-        assert!(parser.corruption().unwrap().contains("checksum"));
+        assert_eq!(parser.corruption(), Some(MALFORMED));
         assert!(parser.push(&event("{}")).is_empty(), "stays failed");
     }
 
     #[test]
-    fn a_bad_prelude_is_corruption_before_the_body_arrives() {
+    fn a_bad_prelude_checksum_is_corruption() {
         let mut message = event("{}");
-        message[0..4].copy_from_slice(&(MAX_MESSAGE_BYTES + 1).to_be_bytes());
+        message[8..12].copy_from_slice(&0u32.to_be_bytes());
         let mut parser = AwsEventStreamParser::new();
 
-        assert!(parser.push(&message[..OVERHEAD]).is_empty());
-        assert!(parser.corruption().unwrap().contains("length"));
+        assert!(parser.push(&message).is_empty());
+        assert_eq!(parser.corruption(), Some(MALFORMED));
+    }
+
+    /// A corrupt length is caught by the size cap rather than on sight:
+    /// bounded buffering is the guarantee, not early detection.
+    #[test]
+    fn a_corrupt_length_is_not_reported_until_the_cap_is_reached() {
+        let mut message = event("{}");
+        message[0..4].copy_from_slice(&0xFFFF_FFFFu32.to_be_bytes());
+        let mut parser = AwsEventStreamParser::new();
+
+        assert!(parser.push(&message).is_empty());
+        assert_eq!(parser.corruption(), None);
+
+        assert!(parser.push(&vec![0; MAX_MESSAGE_BYTES + 1]).is_empty());
+        assert_eq!(parser.corruption(), Some(TOO_LARGE));
+    }
+
+    /// A prelude whose checksum is valid but whose length never arrives must
+    /// not buffer without bound.
+    #[test]
+    fn an_oversized_message_stops_the_stream_rather_than_buffering() {
+        let mut message = Vec::new();
+        message.extend_from_slice(&(MAX_MESSAGE_BYTES as u32 + 64).to_be_bytes());
+        message.extend_from_slice(&0u32.to_be_bytes());
+        message.extend_from_slice(&crc32(&message).to_be_bytes());
+        let mut parser = AwsEventStreamParser::new();
+
+        assert!(parser.push(&message).is_empty());
+        assert_eq!(parser.corruption(), None, "waits for the body");
+
+        assert!(parser.push(&vec![0; MAX_MESSAGE_BYTES + 1]).is_empty());
+        assert_eq!(parser.corruption(), Some(TOO_LARGE));
     }
 
     #[test]
@@ -331,5 +310,14 @@ mod tests {
         let message = encode_message(&[(":content-type", "application/json")], b"{}");
 
         assert!(AwsEventStreamParser::new().push(&message).is_empty());
+    }
+
+    #[test]
+    fn an_invalid_utf8_payload_is_corruption() {
+        let message = encode_message(&[(":message-type", "event")], &[0xFF, 0xFE]);
+
+        let mut parser = AwsEventStreamParser::new();
+        assert!(parser.push(&message).is_empty());
+        assert_eq!(parser.corruption(), Some(INVALID_UTF8));
     }
 }

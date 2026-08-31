@@ -100,9 +100,8 @@ impl ProtocolHandler for Handler {
 
 /// Parse a buffered SSE transcript without exceeding the line limit.
 ///
-/// Chunking matters because the parser bounds one line, not the total body.
-/// A single push of a large transcript could otherwise look like an oversized
-/// line.
+/// Chunking matters because the parser bounds one line, not the total body,
+/// so a single push of a large transcript would look like an oversized line.
 fn transcript_frames(body: &[u8]) -> Result<Vec<String>> {
     let mut parser = SseParser::new();
     let mut frames = Vec::new();

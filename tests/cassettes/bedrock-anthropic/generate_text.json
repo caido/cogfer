@@ -1,0 +1,68 @@
+{
+  "profile": "bedrock-anthropic",
+  "model": "us.anthropic.claude-sonnet-4-6",
+  "exchanges": [
+    {
+      "request": {
+        "url": "https://bedrock-runtime.us-east-1.amazonaws.com/model/us.anthropic.claude-sonnet-4-6/invoke",
+        "headers": {
+          "accept": "application/json",
+          "authorization": "<redacted>",
+          "content-type": "application/json"
+        },
+        "body": {
+          "json": {
+            "anthropic_version": "bedrock-2023-05-31",
+            "max_tokens": 8192,
+            "messages": [
+              {
+                "content": [
+                  {
+                    "text": "Say OK.",
+                    "type": "text"
+                  }
+                ],
+                "role": "user"
+              }
+            ],
+            "system": "Answer with exactly one word."
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "date": "Mon, 31 Aug 2026 20:15:05 GMT"
+        },
+        "body": {
+          "json": {
+            "content": [
+              {
+                "text": "OK.",
+                "type": "text"
+              }
+            ],
+            "id": "msg_bdrk_011CebSTuGfAwGWZwADf8sp7",
+            "model": "claude-sonnet-4-6",
+            "role": "assistant",
+            "stop_details": null,
+            "stop_reason": "end_turn",
+            "stop_sequence": null,
+            "type": "message",
+            "usage": {
+              "cache_creation": {
+                "ephemeral_1h_input_tokens": 0,
+                "ephemeral_5m_input_tokens": 0
+              },
+              "cache_creation_input_tokens": 0,
+              "cache_read_input_tokens": 0,
+              "input_tokens": 17,
+              "output_tokens": 5
+            }
+          }
+        }
+      }
+    }
+  ]
+}
