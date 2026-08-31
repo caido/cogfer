@@ -42,8 +42,8 @@ uuid = { version = "1", features = ["v4"] }
 reqwest = { version = "0.13.4", optional = true, default-features = false, features = ["rustls-no-provider", "stream"] }
 rustls = { version = "0.23", optional = true, default-features = false, features = ["ring", "std"] }
 tokio = { version = "1.49", optional = true, default-features = false, features = ["time"] }
-aws-sigv4 = { version = "1.5", optional = true }
-aws-credential-types = { version = "1.3", optional = true }
+aws-sigv4 = { version = ">=1.4, <1.5", optional = true }
+aws-credential-types = { version = ">=1.2, <1.3", optional = true }
 
 [dev-dependencies]
 dotenvy = "0.15"
