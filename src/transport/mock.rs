@@ -35,6 +35,7 @@ pub struct MockTransport {
 }
 
 /// CRC-32 (IEEE 802.3, as used by gzip and the AWS event stream encoding).
+#[cfg(feature = "aws")]
 pub(crate) fn crc32(bytes: &[u8]) -> u32 {
     let mut crc = 0xFFFF_FFFFu32;
     for byte in bytes {
@@ -52,6 +53,7 @@ pub(crate) fn crc32(bytes: &[u8]) -> u32 {
 /// Hand-written on purpose: this and the event stream decoder are separate
 /// implementations, so a fixture that decodes proves the two agree rather
 /// than that one is self-consistent.
+#[cfg(feature = "aws")]
 pub(crate) fn encode_message(headers: &[(&str, &str)], payload: &[u8]) -> Vec<u8> {
     /// Prelude plus both checksums.
     const OVERHEAD: usize = 16;
@@ -141,6 +143,7 @@ impl MockTransport {
     /// Queue an AWS event stream, one `(event type, payload)` message per
     /// entry and one message per chunk. Bedrock wraps each model event as
     /// `{"bytes": base64}` under the `chunk` event type.
+    #[cfg(feature = "aws")]
     pub fn push_event_stream(&self, events: &[(&str, &[u8])]) {
         let chunks = events
             .iter()
@@ -163,6 +166,7 @@ impl MockTransport {
     }
 
     /// Queue an AWS event stream that ends with an exception message.
+    #[cfg(feature = "aws")]
     pub fn push_event_stream_then_exception(
         &self,
         events: &[(&str, &[u8])],
@@ -201,6 +205,7 @@ impl MockTransport {
     ///
     /// Unlike an exception, an error carries no payload: its cause is the
     /// `:error-message` header, as plain text rather than JSON.
+    #[cfg(feature = "aws")]
     pub fn push_event_stream_then_error(
         &self,
         events: &[(&str, &[u8])],

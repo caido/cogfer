@@ -90,10 +90,13 @@ impl ApiProfile {
     }
 
     /// The official endpoint used when no custom base URL is configured.
-    ///
-    /// Bedrock endpoints are regional. This is `us-east-1`, and
-    /// [`ProviderConfig::bedrock_anthropic`](crate::ProviderConfig::bedrock_anthropic)
-    /// derives the right one from a region.
+    #[cfg_attr(
+        feature = "aws",
+        doc = "",
+        doc = "Bedrock endpoints are regional. This is `us-east-1`, and",
+        doc = "[`ProviderConfig::bedrock_anthropic`](crate::ProviderConfig::bedrock_anthropic)",
+        doc = "derives the right one from a region."
+    )]
     pub fn default_base_url(self) -> &'static str {
         match self {
             ApiProfile::OpenAiResponses | ApiProfile::OpenAiChatCompletions => {

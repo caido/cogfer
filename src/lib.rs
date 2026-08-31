@@ -2,8 +2,8 @@
 //!
 //! A focused language-model SDK. Its API profiles normalize OpenAI Responses
 //! and Chat Completions, ChatGPT subscriptions, SpaceXAI, OpenRouter, Anthropic
-//! (directly and on Amazon Bedrock), and Gemini into one request model,
-//! stream contract, and error taxonomy.
+//! (directly and, with the `aws` feature, on Amazon Bedrock), and Gemini into
+//! one request model, stream contract, and error taxonomy.
 //!
 //! ```no_run
 //! # #[cfg(feature = "reqwest-transport")]

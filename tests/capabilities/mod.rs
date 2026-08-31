@@ -18,8 +18,9 @@ use serde_json::{Value, json};
 
 use crate::common::provider_with;
 
-#[cfg(feature = "aws")]
-const PROFILES: [ApiProfile; 9] = [
+/// A slice rather than an array so the Bedrock entry can be conditional
+/// without restating the whole list per feature combination.
+const PROFILES: &[ApiProfile] = &[
     ApiProfile::OpenAiResponses,
     ApiProfile::OpenAiChatCompletions,
     ApiProfile::OpenRouter,
@@ -29,18 +30,6 @@ const PROFILES: [ApiProfile; 9] = [
     ApiProfile::AnthropicMessages,
     #[cfg(feature = "aws")]
     ApiProfile::BedrockAnthropic,
-    ApiProfile::GeminiGenerateContent,
-];
-
-#[cfg(not(feature = "aws"))]
-const PROFILES: [ApiProfile; 8] = [
-    ApiProfile::OpenAiResponses,
-    ApiProfile::OpenAiChatCompletions,
-    ApiProfile::OpenRouter,
-    ApiProfile::ChatGptResponses,
-    ApiProfile::XaiResponses,
-    ApiProfile::XaiChatCompletions,
-    ApiProfile::AnthropicMessages,
     ApiProfile::GeminiGenerateContent,
 ];
 
@@ -170,7 +159,7 @@ fn expected_dropped(capabilities: &ModelCapabilities) -> BTreeSet<&'static str> 
 
 #[tokio::test]
 async fn unsupported_settings_match_the_capability_table() {
-    for profile in PROFILES {
+    for &profile in PROFILES {
         let capabilities = ModelCapabilities::for_profile(profile);
         let (result, _) = lower(profile, everything()).await;
 
@@ -199,7 +188,7 @@ async fn unsupported_settings_match_the_capability_table() {
 
 #[tokio::test]
 async fn native_compaction_matches_the_capability_table() {
-    for profile in PROFILES {
+    for &profile in PROFILES {
         let request = Request::builder()
             .message(Message::user("hi"))
             .compaction(Compaction::enabled())
@@ -229,7 +218,7 @@ async fn native_compaction_matches_the_capability_table() {
 
 #[tokio::test]
 async fn every_listed_effort_is_sent_verbatim() {
-    for profile in PROFILES {
+    for &profile in PROFILES {
         for effort in ModelCapabilities::for_profile(profile).reasoning.efforts {
             let request = Request::builder()
                 .message(Message::user("hi"))
