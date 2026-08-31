@@ -6,7 +6,7 @@ A library for calling LLMs through one typed request model, stream contract, and
 
 ```toml
 [dependencies]
-llmwire = { git = "https://github.com/caido/ai" }
+llmwire = { git = "https://github.com/caido/llmwire" }
 ```
 
 ```rust
