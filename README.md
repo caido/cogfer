@@ -1,6 +1,15 @@
 # llmwire
 
-A library for calling LLMs through one typed request model, stream contract, and error taxonomy. Supports OpenAI (Responses and Chat Completions), ChatGPT subscriptions, xAI, OpenRouter, Anthropic, and Gemini.
+A library for calling LLMs through one typed request model, stream contract, and error taxonomy.
+
+Supports:
+- OpenAI (Responses and Chat Completions)
+- ChatGPT subscriptions
+- SpaceXAI
+- SpaceXAI subscriptions
+- OpenRouter
+- Anthropic
+- Gemini
 
 ## Quick start
 
@@ -12,18 +21,23 @@ llmwire = { git = "https://github.com/caido/llmwire" }
 ```rust
 use llmwire::{Client, Credentials, Message, ProviderConfig, Request};
 
-// Once per process, unless the host already installed a Rustls provider.
-llmwire::transport::install_default_crypto_provider();
-let client = Client::builder().build()?;
-let provider = client.provider(ProviderConfig::openai_responses(
-    Credentials::api_key(std::env::var("OPENAI_API_KEY")?),
-))?;
-let model = provider.language_model("gpt-5.6-luna");
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Once per process, unless the host already installed a Rustls provider.
+    llmwire::transport::install_default_crypto_provider();
 
-let request = Request::builder()
-    .message(Message::user("Why is the sky blue?"))
-    .build();
-println!("{}", model.generate(request).await?.text());
+    let client = Client::builder().build()?;
+    let provider = client.provider(ProviderConfig::openai_responses(
+        Credentials::api_key(std::env::var("OPENAI_API_KEY")?),
+    ))?;
+    let model = provider.language_model("gpt-5.6-luna");
+
+    let request = Request::builder()
+        .message(Message::user("Why is the sky blue?"))
+        .build();
+    println!("{}", model.generate(request).await?.text());
+    Ok(())
+}
 ```
 
 Streaming:
@@ -62,7 +76,7 @@ Finish { reason: Stop, usage: Usage { input_tokens: 13, output_tokens: 12, .. },
 - Tool calls and reasoning, replayable across turns
 - Structured output, context compaction
 - Normalized errors, usage, and warnings
-- ChatGPT and xAI subscription OAuth
+- ChatGPT and SpaceXAI subscription OAuth
 - Pluggable HTTP transport
 
 ## Examples and tests
