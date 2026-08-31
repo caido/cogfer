@@ -419,7 +419,7 @@ async fn streaming_preserves_phase_and_refusal_metadata() {
 
     let result = collect(&events).expect("result");
     assert_eq!(result.finish.reason, FinishReason::ContentFilter);
-    let caido_ai::AssistantPart::Text {
+    let llmwire::AssistantPart::Text {
         provider_metadata, ..
     } = &result.content[0]
     else {
@@ -487,7 +487,7 @@ async fn server_tool_items_stream_with_lifecycle_and_replay() {
         .content
         .iter()
         .find_map(|part| match part {
-            caido_ai::AssistantPart::ProviderTool {
+            llmwire::AssistantPart::ProviderTool {
                 provider_tool: tool,
             } => Some(tool),
             _ => None,
@@ -632,7 +632,7 @@ async fn streamed_turns_record_their_origin_profile() {
 
     let result = collect(&events).expect("stream accumulates");
     assert_eq!(
-        result.provider_metadata.get("caido-ai").unwrap()["profile"],
+        result.provider_metadata.get("llmwire").unwrap()["profile"],
         "openai-responses"
     );
 }

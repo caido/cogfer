@@ -1,19 +1,19 @@
 //! Streaming: forward text deltas as they arrive while a
-//! [`StreamAccumulator`] rebuilds the same [`caido_ai::GenerateResult`] a
+//! [`StreamAccumulator`] rebuilds the same [`llmwire::GenerateResult`] a
 //! blocking call would return.
 //!
 //! ```sh
 //! OPENAI_API_KEY=... cargo run --example stream
 //! ```
 
-use caido_ai::{
+use futures_util::StreamExt;
+use llmwire::{
     Client, Credentials, Message, ProviderConfig, Request, StreamAccumulator, StreamEvent,
 };
-use futures_util::StreamExt;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    caido_ai::transport::install_default_crypto_provider();
+    llmwire::transport::install_default_crypto_provider();
     let client = Client::builder().build()?;
     let provider = client.provider(ProviderConfig::openai_responses(Credentials::api_key(
         std::env::var("OPENAI_API_KEY")?,

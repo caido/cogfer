@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
-use caido_ai::{EventStream, FinishReason, GenerateResult, StreamAccumulator, StreamEvent};
 use futures_util::StreamExt;
+use llmwire::{EventStream, FinishReason, GenerateResult, StreamAccumulator, StreamEvent};
 
 /// Drain a stream into a vector of events.
 pub(crate) async fn drain(stream: EventStream) -> Vec<StreamEvent> {
@@ -9,7 +9,7 @@ pub(crate) async fn drain(stream: EventStream) -> Vec<StreamEvent> {
 }
 
 /// Assemble the [`GenerateResult`] a consumer would build from `events`.
-pub(crate) fn collect(events: &[StreamEvent]) -> caido_ai::Result<GenerateResult> {
+pub(crate) fn collect(events: &[StreamEvent]) -> llmwire::Result<GenerateResult> {
     let mut accumulator = StreamAccumulator::new();
     for event in events {
         accumulator.push(event.clone());

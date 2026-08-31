@@ -1,5 +1,5 @@
-use caido_ai::transport::mock::MockTransport;
-use caido_ai::{
+use llmwire::transport::mock::MockTransport;
+use llmwire::{
     AssistantPart, ErrorKind, FinishReason, Message, ProviderMetadata, ReasoningConfig,
     ReasoningEffort, ReasoningOutput, Request, StreamEvent, StructuredOutput, ToolCall,
     ToolResultPart,

@@ -1,4 +1,4 @@
-use caido_ai::{Message, Request, ToolDefinition};
+use llmwire::{Message, Request, ToolDefinition};
 use serde_json::json;
 
 pub(crate) fn text_request(text: &str) -> Request {

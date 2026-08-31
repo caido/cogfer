@@ -289,7 +289,7 @@ async fn decoded_turns_record_their_origin_profile() {
         .expect("generate succeeds");
 
     assert_eq!(
-        result.provider_metadata.get("caido-ai").unwrap()["profile"],
+        result.provider_metadata.get("llmwire").unwrap()["profile"],
         "openai-responses"
     );
     let Message::Assistant {
@@ -299,7 +299,7 @@ async fn decoded_turns_record_their_origin_profile() {
         panic!("assistant message expected");
     };
     assert_eq!(
-        provider_metadata.get("caido-ai").unwrap()["profile"],
+        provider_metadata.get("llmwire").unwrap()["profile"],
         "openai-responses"
     );
 }

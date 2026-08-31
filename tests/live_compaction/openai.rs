@@ -1,4 +1,4 @@
-use caido_ai::{Compaction, Message, ProviderConfig, Request, StreamEvent};
+use llmwire::{Compaction, Message, ProviderConfig, Request, StreamEvent};
 
 use super::support::{SYSTEM, compaction_parts, oversized_history, print_cost, provider_from_env};
 use crate::common::{assert_terminal_contract, collect, drain};

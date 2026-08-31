@@ -1,4 +1,4 @@
-use caido_ai::{
+use llmwire::{
     Message, ProviderConfig, ReasoningConfig, ReasoningEffort, Request, StructuredOutput,
     ToolResultPart,
 };
@@ -74,14 +74,14 @@ async fn compaction_rejected_on_chat_protocol() {
     };
     let request = Request::builder()
         .message(Message::user("hi"))
-        .compaction(caido_ai::Compaction::enabled())
+        .compaction(llmwire::Compaction::enabled())
         .build();
     let error = provider
         .language_model("gpt-5.6-luna")
         .generate(request)
         .await
         .unwrap_err();
-    assert_eq!(error.kind(), caido_ai::ErrorKind::UnsupportedCapability);
+    assert_eq!(error.kind(), llmwire::ErrorKind::UnsupportedCapability);
 }
 
 #[tokio::test]
@@ -162,9 +162,9 @@ async fn openai_sub_minimum_compaction_threshold_is_clamped() {
     };
     let request = Request::builder()
         .message(Message::user("Reply with the single word: ok"))
-        .compaction(caido_ai::Compaction {
+        .compaction(llmwire::Compaction {
             trigger_input_tokens: Some(500),
-            ..caido_ai::Compaction::default()
+            ..llmwire::Compaction::default()
         })
         .max_output_tokens(64)
         .build();

@@ -16,9 +16,9 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use bytes::Bytes;
-use caido_ai::ApiProfile;
-use caido_ai::transport::mock::MockTransport;
-use caido_ai::transport::{HeaderMap, HeaderName, HeaderValue};
+use llmwire::ApiProfile;
+use llmwire::transport::mock::MockTransport;
+use llmwire::transport::{HeaderMap, HeaderName, HeaderValue};
 use serde::{Deserialize, Serialize};
 
 /// A recorded scenario: every exchange the scenario performed, in order.
@@ -192,9 +192,9 @@ fn hex_decode(hex: &str) -> Vec<u8> {
 }
 
 mod tests {
-    use caido_ai::transport::HttpTransport;
-    use caido_ai::transport::mock::MockTransport;
     use futures_util::StreamExt;
+    use llmwire::transport::HttpTransport;
+    use llmwire::transport::mock::MockTransport;
     use url::Url;
 
     use super::*;
@@ -239,8 +239,8 @@ mod tests {
 
         let mock = MockTransport::new();
         loaded.queue(&mock);
-        let request = caido_ai::transport::HttpRequest {
-            method: caido_ai::transport::Method::POST,
+        let request = llmwire::transport::HttpRequest {
+            method: llmwire::transport::Method::POST,
             url: Url::parse("https://example.test/v1/responses").unwrap(),
             headers: HeaderMap::new(),
             body: None,

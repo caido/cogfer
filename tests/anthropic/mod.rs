@@ -1,6 +1,6 @@
-use caido_ai::transport::mock::MockTransport;
-use caido_ai::transport::{HeaderName, HeaderValue};
-use caido_ai::{
+use llmwire::transport::mock::MockTransport;
+use llmwire::transport::{HeaderName, HeaderValue};
+use llmwire::{
     AssistantPart, Compaction, ErrorKind, FinishReason, Message, ProviderMetadata, ReasoningConfig,
     ReasoningContent, ReasoningPart, Request, StreamEvent, StructuredOutput, ToolChoice,
     ToolResultPart,

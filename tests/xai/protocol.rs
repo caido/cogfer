@@ -180,22 +180,20 @@ async fn foreign_profile_turn_drops_encrypted_reasoning() {
     let mock = MockTransport::shared();
     mock.push_json(200, &responses_completed("grok-4.5"));
     let provider = xai(&mock);
-    let request = caido_ai::Request::builder()
-        .message(caido_ai::Message::user("hi"))
-        .message(caido_ai::Message::Assistant {
-            content: vec![caido_ai::AssistantPart::Reasoning(
-                caido_ai::ReasoningPart {
-                    id: Some("rs_1".into()),
-                    content: vec![caido_ai::ReasoningContent::Encrypted { data: "ENC".into() }],
-                    provider_metadata: caido_ai::ProviderMetadata::default(),
-                },
-            )],
-            provider_metadata: caido_ai::ProviderMetadata::with(
-                "caido-ai",
+    let request = llmwire::Request::builder()
+        .message(llmwire::Message::user("hi"))
+        .message(llmwire::Message::Assistant {
+            content: vec![llmwire::AssistantPart::Reasoning(llmwire::ReasoningPart {
+                id: Some("rs_1".into()),
+                content: vec![llmwire::ReasoningContent::Encrypted { data: "ENC".into() }],
+                provider_metadata: llmwire::ProviderMetadata::default(),
+            })],
+            provider_metadata: llmwire::ProviderMetadata::with(
+                "llmwire",
                 json!({"profile": "openai-responses"}),
             ),
         })
-        .message(caido_ai::Message::user("next"))
+        .message(llmwire::Message::user("next"))
         .build();
 
     let result = provider
@@ -222,7 +220,7 @@ async fn foreign_profile_turn_drops_encrypted_reasoning() {
         result.warnings
     );
     assert_eq!(
-        result.provider_metadata.get("caido-ai").unwrap()["profile"],
+        result.provider_metadata.get("llmwire").unwrap()["profile"],
         "xai-responses"
     );
 }

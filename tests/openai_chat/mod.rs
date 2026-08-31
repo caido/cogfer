@@ -1,5 +1,5 @@
-use caido_ai::transport::mock::MockTransport;
-use caido_ai::{
+use llmwire::transport::mock::MockTransport;
+use llmwire::{
     ErrorKind, FinishReason, Message, ProviderMetadata, ReasoningConfig, ReasoningEffort, Request,
     StreamEvent, StructuredOutput, ToolCall, ToolResultPart,
 };
@@ -17,7 +17,7 @@ fn minimal_completion() -> serde_json::Value {
     })
 }
 
-fn assistant_with(parts: Vec<caido_ai::AssistantPart>) -> Message {
+fn assistant_with(parts: Vec<llmwire::AssistantPart>) -> Message {
     Message::Assistant {
         content: parts,
         provider_metadata: ProviderMetadata::default(),
@@ -68,7 +68,7 @@ async fn blocking_stop_finish_keeps_tool_calls_and_reports_tool_calls() {
         }),
     );
     let mut request = tool_request("Weather in Paris");
-    request.tool_choice = Some(caido_ai::ToolChoice::Tool {
+    request.tool_choice = Some(llmwire::ToolChoice::Tool {
         name: "get_weather".into(),
     });
     let result = openai_chat(&mock)

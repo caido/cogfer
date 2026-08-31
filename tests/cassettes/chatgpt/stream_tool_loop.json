@@ -10,9 +10,9 @@
           "authorization": "<redacted>",
           "chatgpt-account-id": "<redacted>",
           "content-type": "application/json",
-          "originator": "caido-ai",
+          "originator": "llmwire",
           "session_id": "<redacted>",
-          "user-agent": "caido-ai/0.1.0"
+          "user-agent": "llmwire/0.1.0"
         },
         "body": {
           "json": {
@@ -95,9 +95,9 @@
           "authorization": "<redacted>",
           "chatgpt-account-id": "<redacted>",
           "content-type": "application/json",
-          "originator": "caido-ai",
+          "originator": "llmwire",
           "session_id": "<redacted>",
-          "user-agent": "caido-ai/0.1.0"
+          "user-agent": "llmwire/0.1.0"
         },
         "body": {
           "json": {

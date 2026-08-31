@@ -6,7 +6,7 @@
 //! provider (non-empty text, finish reason, usage present) and never depend on
 //! exact wording.
 
-use caido_ai::{
+use llmwire::{
     ErrorKind, FinishReason, Message, Provider, ReasoningConfig, ReasoningEffort, ReasoningOutput,
     Request, StreamEvent, StructuredOutput,
 };

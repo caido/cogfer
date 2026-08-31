@@ -15,11 +15,11 @@ use std::ops::Range;
 use std::sync::{Arc, Mutex};
 
 use bytes::Bytes;
-use caido_ai::transport::{
+use futures_util::StreamExt;
+use llmwire::transport::{
     HeaderMap, HttpByteStream, HttpRequest, HttpResponse, HttpTransport, header,
 };
-use caido_ai::{ApiProfile, Result};
-use futures_util::StreamExt;
+use llmwire::{ApiProfile, Result};
 
 use super::cassette::{
     Body, Cassette, Chunk, Exchange, Headers, RecordedRequest, RecordedResponse,

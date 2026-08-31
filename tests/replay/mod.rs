@@ -36,8 +36,8 @@ mod xai_responses;
 
 use std::sync::Arc;
 
-use caido_ai::transport::mock::MockTransport;
-use caido_ai::{Credentials, Provider, ProviderConfig};
+use llmwire::transport::mock::MockTransport;
+use llmwire::{Credentials, Provider, ProviderConfig};
 
 #[cfg(feature = "reqwest-transport")]
 pub(crate) use self::record::RecordSession;

@@ -2,7 +2,7 @@
 //! disabled (see [`ProviderConfig::openai_chat`]), so the tool loop runs with
 //! `ReasoningConfig::Disabled` here.
 
-use caido_ai::ProviderConfig;
+use llmwire::ProviderConfig;
 
 use super::cassette_suite;
 

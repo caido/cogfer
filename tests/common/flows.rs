@@ -1,6 +1,6 @@
 //! Multi-turn flows shared by the live tests and the replay scenarios.
 
-use caido_ai::{FinishReason, LanguageModel, Message, Request, ToolDefinition, ToolResultPart};
+use llmwire::{FinishReason, LanguageModel, Message, Request, ToolDefinition, ToolResultPart};
 use serde_json::json;
 
 use super::{assert_terminal_contract, collect, drain};

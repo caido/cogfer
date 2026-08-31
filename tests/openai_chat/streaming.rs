@@ -184,7 +184,7 @@ async fn reasoning_content_deltas_precede_text() {
     assert_eq!(result.text(), "Answer");
     assert!(matches!(
         result.content[0],
-        caido_ai::AssistantPart::Reasoning(_)
+        llmwire::AssistantPart::Reasoning(_)
     ));
 }
 
@@ -423,7 +423,7 @@ async fn streamed_refusal_carries_marker() {
         .content
         .iter()
         .find_map(|part| match part {
-            caido_ai::AssistantPart::Text {
+            llmwire::AssistantPart::Text {
                 provider_metadata, ..
             } => provider_metadata
                 .get("openai")

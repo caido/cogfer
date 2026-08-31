@@ -9,9 +9,9 @@
 //!     cargo run --example openai_compatible
 //! ```
 
-use caido_ai::transport::{HeaderName, HeaderValue};
-use caido_ai::{Client, Credentials, Message, ProviderConfig, Request, StreamEvent};
 use futures_util::StreamExt;
+use llmwire::transport::{HeaderName, HeaderValue};
+use llmwire::{Client, Credentials, Message, ProviderConfig, Request, StreamEvent};
 use url::Url;
 
 #[tokio::main]
@@ -24,7 +24,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Err(_) => Credentials::none(),
     };
 
-    caido_ai::transport::install_default_crypto_provider();
+    llmwire::transport::install_default_crypto_provider();
 
     let client = Client::builder().build()?;
     let provider = client.provider(
@@ -33,7 +33,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             // Headers some gateways read for attribution.
             .with_header(
                 HeaderName::from_static("x-title"),
-                HeaderValue::from_static("caido-ai example"),
+                HeaderValue::from_static("llmwire example"),
             ),
     )?;
     let model = provider.language_model(model_id);

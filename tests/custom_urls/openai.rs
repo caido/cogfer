@@ -1,6 +1,6 @@
-use caido_ai::transport::HeaderName;
-use caido_ai::transport::mock::MockTransport;
-use caido_ai::{Credentials, ProviderConfig};
+use llmwire::transport::HeaderName;
+use llmwire::transport::mock::MockTransport;
+use llmwire::{Credentials, ProviderConfig};
 use serde_json::json;
 use url::Url;
 

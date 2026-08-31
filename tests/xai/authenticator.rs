@@ -291,8 +291,8 @@ async fn stale_unauthorized_request_reuses_the_new_token_generation() {
     authenticator.authenticate(&mut first).await.unwrap();
     authenticator.authenticate(&mut second).await.unwrap();
 
-    let headers = caido_ai::transport::HeaderMap::new();
-    let rejection = caido_ai::Rejection {
+    let headers = llmwire::transport::HeaderMap::new();
+    let rejection = llmwire::Rejection {
         status: 401,
         headers: &headers,
     };

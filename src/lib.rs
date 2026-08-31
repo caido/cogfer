@@ -1,4 +1,4 @@
-//! # caido-ai
+//! # llmwire
 //!
 //! A focused language-model SDK. Its API profiles normalize OpenAI Responses
 //! and Chat Completions, ChatGPT subscriptions, xAI, OpenRouter, Anthropic
@@ -7,11 +7,11 @@
 //!
 //! ```no_run
 //! # #[cfg(feature = "reqwest-transport")]
-//! # async fn demo() -> Result<(), caido_ai::Error> {
-//! use caido_ai::{Client, Credentials, ProviderConfig, Request, Message};
+//! # async fn demo() -> Result<(), llmwire::Error> {
+//! use llmwire::{Client, Credentials, ProviderConfig, Request, Message};
 //!
 //! // Once per process, unless the host already installed a Rustls provider.
-//! caido_ai::transport::install_default_crypto_provider();
+//! llmwire::transport::install_default_crypto_provider();
 //! let client = Client::builder().build()?;
 //! let provider = client.provider(
 //!     ProviderConfig::openai_responses(Credentials::api_key("sk-...")),

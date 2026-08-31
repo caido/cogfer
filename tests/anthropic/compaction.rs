@@ -73,7 +73,7 @@ async fn replaying_a_compaction_block_enables_the_beta() {
     let request = Request::builder()
         .message(Message::user("hi"))
         .message(Message::Assistant {
-            content: vec![AssistantPart::Compaction(caido_ai::CompactionPart {
+            content: vec![AssistantPart::Compaction(llmwire::CompactionPart {
                 id: None,
                 content: Some("Earlier we discussed X.".into()),
                 encrypted_content: None,
@@ -144,14 +144,14 @@ async fn foreign_opaque_compaction_is_rejected() {
     let request = Request::builder()
         .message(Message::user("hi"))
         .message(Message::Assistant {
-            content: vec![caido_ai::AssistantPart::Compaction(
-                caido_ai::CompactionPart {
+            content: vec![llmwire::AssistantPart::Compaction(
+                llmwire::CompactionPart {
                     id: Some("cmp_1".into()),
                     content: None,
                     encrypted_content: Some("OPAQUE".into()),
                 },
             )],
-            provider_metadata: caido_ai::ProviderMetadata::default(),
+            provider_metadata: llmwire::ProviderMetadata::default(),
         })
         .message(Message::user("next"))
         .build();
@@ -160,6 +160,6 @@ async fn foreign_opaque_compaction_is_rejected() {
         .generate(request)
         .await
         .unwrap_err();
-    assert_eq!(error.kind(), caido_ai::ErrorKind::UnsupportedContent);
+    assert_eq!(error.kind(), llmwire::ErrorKind::UnsupportedContent);
     assert!(mock.requests().is_empty());
 }

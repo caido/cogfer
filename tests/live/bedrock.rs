@@ -3,8 +3,8 @@
 
 use std::sync::Arc;
 
-use caido_ai::aws::{AwsCredentials, SigV4Authenticator};
-use caido_ai::{
+use llmwire::aws::{AwsCredentials, SigV4Authenticator};
+use llmwire::{
     Credentials, Provider, ProviderConfig, ReasoningConfig, ReasoningEffort, StreamEvent,
 };
 

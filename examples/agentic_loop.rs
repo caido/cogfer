@@ -4,16 +4,16 @@
 //! OPENAI_API_KEY=sk-... cargo run --example agentic_loop
 //! ```
 
-use caido_ai::{
+use futures_util::StreamExt;
+use llmwire::{
     Client, Credentials, Message, ProviderConfig, ReasoningConfig, ReasoningEffort, Request,
     StreamAccumulator, StreamEvent, ToolDefinition, ToolResultPart,
 };
-use futures_util::StreamExt;
 use serde_json::json;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    caido_ai::transport::install_default_crypto_provider();
+    llmwire::transport::install_default_crypto_provider();
     let client = Client::builder().build()?;
     let provider = client.provider(ProviderConfig::openai_responses(Credentials::api_key(
         std::env::var("OPENAI_API_KEY")?,

@@ -415,7 +415,7 @@ async fn server_tool_blocks_stream_and_replay() {
             ("srvtoolu_1", "web_search_tool_result"),
         ]
     );
-    let parts: Vec<caido_ai::ProviderToolPart> = events
+    let parts: Vec<llmwire::ProviderToolPart> = events
         .iter()
         .filter_map(|event| match event {
             StreamEvent::ProviderToolEnd(part) => Some(part.clone()),

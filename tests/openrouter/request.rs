@@ -54,8 +54,8 @@ async fn effort_and_output_visibility_are_sent_without_coercion() {
     let request = Request::builder()
         .message(Message::user("hi"))
         .reasoning(ReasoningConfig::Effort {
-            effort: caido_ai::ReasoningEffort::XHigh,
-            output: Some(caido_ai::ReasoningOutput::Omit),
+            effort: llmwire::ReasoningEffort::XHigh,
+            output: Some(llmwire::ReasoningOutput::Omit),
         })
         .build();
 
@@ -173,18 +173,18 @@ async fn foreign_encrypted_reasoning_is_not_rebuilt_into_details() {
         .message(Message::user("hi"))
         .message(Message::Assistant {
             content: vec![
-                caido_ai::AssistantPart::Reasoning(caido_ai::ReasoningPart {
+                llmwire::AssistantPart::Reasoning(llmwire::ReasoningPart {
                     id: Some("rs_1".into()),
-                    content: vec![caido_ai::ReasoningContent::Encrypted { data: "ENC".into() }],
-                    provider_metadata: caido_ai::ProviderMetadata::default(),
+                    content: vec![llmwire::ReasoningContent::Encrypted { data: "ENC".into() }],
+                    provider_metadata: llmwire::ProviderMetadata::default(),
                 }),
-                caido_ai::AssistantPart::Text {
+                llmwire::AssistantPart::Text {
                     text: "hello".into(),
-                    provider_metadata: caido_ai::ProviderMetadata::default(),
+                    provider_metadata: llmwire::ProviderMetadata::default(),
                 },
             ],
-            provider_metadata: caido_ai::ProviderMetadata::with(
-                "caido-ai",
+            provider_metadata: llmwire::ProviderMetadata::with(
+                "llmwire",
                 json!({"profile": "openai-responses"}),
             ),
         })

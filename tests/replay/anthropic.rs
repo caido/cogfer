@@ -1,4 +1,4 @@
-use caido_ai::ProviderConfig;
+use llmwire::ProviderConfig;
 
 use super::cassette_suite;
 

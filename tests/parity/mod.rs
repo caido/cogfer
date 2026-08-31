@@ -6,8 +6,8 @@
 //! the one a consumer assembles from the stream, so the two paths cannot drift
 //! in content, identities, finish reason, usage, or metadata.
 
-use caido_ai::transport::mock::MockTransport;
-use caido_ai::{
+use llmwire::transport::mock::MockTransport;
+use llmwire::{
     AssistantPart, Credentials, FinishReason, GenerateResult, ProviderConfig, Request,
     ToolDefinition,
 };

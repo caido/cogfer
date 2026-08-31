@@ -2,7 +2,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use caido_ai::{Error, ErrorKind, Result, TokenStore};
+use llmwire::{Error, ErrorKind, Result, TokenStore};
 
 static NEXT_TEMP_FILE: AtomicU64 = AtomicU64::new(0);
 

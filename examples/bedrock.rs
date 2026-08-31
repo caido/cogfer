@@ -10,12 +10,12 @@
 
 use std::sync::Arc;
 
-use caido_ai::aws::{AwsCredentials, SigV4Authenticator};
-use caido_ai::{Client, Credentials, Message, ProviderConfig, Request};
+use llmwire::aws::{AwsCredentials, SigV4Authenticator};
+use llmwire::{Client, Credentials, Message, ProviderConfig, Request};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    caido_ai::transport::install_default_crypto_provider();
+    llmwire::transport::install_default_crypto_provider();
     let region = std::env::var("AWS_REGION").unwrap_or_else(|_| "us-east-1".into());
     let mut credentials = AwsCredentials::new(
         std::env::var("AWS_ACCESS_KEY_ID")?,

@@ -1,4 +1,4 @@
-use caido_ai::{Credentials, Message, ProviderConfig, Request, StreamEvent};
+use llmwire::{Credentials, Message, ProviderConfig, Request, StreamEvent};
 use url::Url;
 
 use crate::common::{assert_terminal_contract, drain, live_client};

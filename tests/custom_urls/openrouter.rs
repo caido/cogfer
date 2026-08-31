@@ -1,6 +1,6 @@
-use caido_ai::transport::mock::MockTransport;
-use caido_ai::transport::{HeaderName, HeaderValue};
-use caido_ai::{Credentials, Message, ProviderConfig, Request};
+use llmwire::transport::mock::MockTransport;
+use llmwire::transport::{HeaderName, HeaderValue};
+use llmwire::{Credentials, Message, ProviderConfig, Request};
 use serde_json::json;
 
 use crate::common::{header, provider_with};

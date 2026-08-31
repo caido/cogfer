@@ -1,7 +1,7 @@
 //! xAI Responses dialect. Recording needs `XAI_API_KEY` or the sign-in cached
 //! by `cargo run --example xai_login`.
 
-use caido_ai::ProviderConfig;
+use llmwire::ProviderConfig;
 
 use super::cassette_suite;
 

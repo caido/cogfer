@@ -1,4 +1,4 @@
-# caido-ai
+# llmwire
 
 A library for calling LLMs through one typed request model, stream contract, and error taxonomy. Supports OpenAI (Responses and Chat Completions), ChatGPT subscriptions, xAI, OpenRouter, Anthropic, and Gemini.
 
@@ -6,14 +6,14 @@ A library for calling LLMs through one typed request model, stream contract, and
 
 ```toml
 [dependencies]
-caido-ai = { git = "https://github.com/caido/caido-ai" }
+llmwire = { git = "https://github.com/caido/ai" }
 ```
 
 ```rust
-use caido_ai::{Client, Credentials, Message, ProviderConfig, Request};
+use llmwire::{Client, Credentials, Message, ProviderConfig, Request};
 
 // Once per process, unless the host already installed a Rustls provider.
-caido_ai::transport::install_default_crypto_provider();
+llmwire::transport::install_default_crypto_provider();
 let client = Client::builder().build()?;
 let provider = client.provider(ProviderConfig::openai_responses(
     Credentials::api_key(std::env::var("OPENAI_API_KEY")?),
@@ -33,7 +33,7 @@ use futures_util::StreamExt;
 
 let mut stream = model.stream(request).await?;
 while let Some(event) = stream.next().await {
-    if let caido_ai::StreamEvent::TextDelta { delta, .. } = event {
+    if let llmwire::StreamEvent::TextDelta { delta, .. } = event {
         print!("{delta}");
     }
 }

@@ -1,4 +1,4 @@
-use caido_ai::{
+use llmwire::{
     Message, ProviderConfig, ReasoningConfig, ReasoningEffort, Request, StreamEvent,
     StructuredOutput,
 };

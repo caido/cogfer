@@ -4,13 +4,13 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use caido_ai::oauth::chatgpt::{ChatGptAuthenticator, ChatGptTokens};
-use caido_ai::oauth::xai::{XaiAuthenticator, XaiTokens};
-use caido_ai::{Client, Credentials, Provider, ProviderConfig, TokenStore};
+use llmwire::oauth::chatgpt::{ChatGptAuthenticator, ChatGptTokens};
+use llmwire::oauth::xai::{XaiAuthenticator, XaiTokens};
+use llmwire::{Client, Credentials, Provider, ProviderConfig, TokenStore};
 
 pub(crate) fn live_client() -> Client {
     let _ = dotenvy::dotenv();
-    caido_ai::transport::install_default_crypto_provider();
+    llmwire::transport::install_default_crypto_provider();
     Client::builder().build().expect("client builds")
 }
 
@@ -143,7 +143,7 @@ fn cached_tokens<T: serde::de::DeserializeOwned>(file: &str) -> Option<(T, PathB
     let base = std::env::var_os("XDG_CONFIG_HOME")
         .map(PathBuf::from)
         .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".config")));
-    let path = base?.join("caido-ai").join(file);
+    let path = base?.join("llmwire").join(file);
     let tokens = serde_json::from_slice(&std::fs::read(&path).ok()?).ok()?;
     Some((tokens, path))
 }
@@ -155,28 +155,28 @@ struct JsonTokenStore {
 
 #[async_trait::async_trait]
 impl TokenStore<ChatGptTokens> for JsonTokenStore {
-    async fn save(&self, tokens: &ChatGptTokens) -> caido_ai::Result<()> {
+    async fn save(&self, tokens: &ChatGptTokens) -> llmwire::Result<()> {
         save_tokens(&self.path, tokens)
     }
 }
 
 #[async_trait::async_trait]
 impl TokenStore<XaiTokens> for JsonTokenStore {
-    async fn save(&self, tokens: &XaiTokens) -> caido_ai::Result<()> {
+    async fn save(&self, tokens: &XaiTokens) -> llmwire::Result<()> {
         save_tokens(&self.path, tokens)
     }
 }
 
-fn save_tokens(path: &std::path::Path, tokens: &impl serde::Serialize) -> caido_ai::Result<()> {
+fn save_tokens(path: &std::path::Path, tokens: &impl serde::Serialize) -> llmwire::Result<()> {
     let bytes = serde_json::to_vec_pretty(tokens).map_err(|error| {
-        caido_ai::Error::new(
-            caido_ai::ErrorKind::Provider,
+        llmwire::Error::new(
+            llmwire::ErrorKind::Provider,
             format!("failed to serialize refreshed tokens: {error}"),
         )
     })?;
     std::fs::write(path, bytes).map_err(|error| {
-        caido_ai::Error::new(
-            caido_ai::ErrorKind::Provider,
+        llmwire::Error::new(
+            llmwire::ErrorKind::Provider,
             format!("failed to persist refreshed tokens: {error}"),
         )
     })

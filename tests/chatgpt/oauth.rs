@@ -19,7 +19,7 @@ async fn device_flow_start_poll_and_exchange() {
     );
 
     let oauth = ChatGptOAuth::new(transport.clone()).with_client_config(
-        caido_ai::OAuthClientConfig::new("caido-client").expect("valid OAuth client"),
+        llmwire::OAuthClientConfig::new("caido-client").expect("valid OAuth client"),
     );
     let device = oauth
         .start_device_authorization()
@@ -81,7 +81,7 @@ async fn refresh_uses_the_configured_client_without_narrowing_scope() {
         &json!({"access_token": "access-2", "expires_in": 3600}),
     );
     let oauth = ChatGptOAuth::new(transport.clone()).with_client_config(
-        caido_ai::OAuthClientConfig::new("caido-client").expect("valid OAuth client"),
+        llmwire::OAuthClientConfig::new("caido-client").expect("valid OAuth client"),
     );
 
     let tokens = oauth.refresh("refresh-1").await.expect("refresh succeeds");

@@ -8,8 +8,8 @@
 use std::collections::BTreeSet;
 use std::num::NonZeroU32;
 
-use caido_ai::transport::mock::MockTransport;
-use caido_ai::{
+use llmwire::transport::mock::MockTransport;
+use llmwire::{
     ApiProfile, Compaction, Credentials, ErrorKind, GenerateResult, Message, ModelCapabilities,
     ProviderConfig, ReasoningConfig, ReasoningEffort, ReasoningOutput, Request, ToolDefinition,
     WarningKind,
@@ -315,7 +315,7 @@ async fn model_capabilities_narrow_the_profile_defaults() {
     let profile = ApiProfile::OpenAiChatCompletions;
     let model_data = ModelCapabilities {
         temperature: false,
-        reasoning: caido_ai::ReasoningSupport {
+        reasoning: llmwire::ReasoningSupport {
             efforts: vec![ReasoningEffort::Low],
             ..ModelCapabilities::for_profile(profile).reasoning
         },

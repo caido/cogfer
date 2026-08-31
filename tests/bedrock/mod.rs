@@ -3,9 +3,9 @@
 
 use std::sync::Arc;
 
-use caido_ai::transport::HttpRequest;
-use caido_ai::transport::mock::MockTransport;
-use caido_ai::{
+use llmwire::transport::HttpRequest;
+use llmwire::transport::mock::MockTransport;
+use llmwire::{
     Credentials, ErrorKind, FinishReason, Message, Provider, ProviderConfig, ReasoningConfig,
     ReasoningEffort, Request, StreamEvent, WarningKind,
 };
@@ -223,7 +223,7 @@ async fn native_compaction_is_not_available() {
     let mock = MockTransport::shared();
     let request = Request::builder()
         .message(Message::user("hi"))
-        .compaction(caido_ai::Compaction::enabled())
+        .compaction(llmwire::Compaction::enabled())
         .build();
 
     let error = bedrock(&mock)
@@ -243,8 +243,8 @@ async fn replayed_compaction_history_is_rejected() {
     let request = Request::builder()
         .message(Message::user("hi"))
         .message(Message::Assistant {
-            content: vec![caido_ai::AssistantPart::Compaction(
-                caido_ai::CompactionPart {
+            content: vec![llmwire::AssistantPart::Compaction(
+                llmwire::CompactionPart {
                     id: None,
                     content: Some("summary".into()),
                     encrypted_content: None,
@@ -299,14 +299,14 @@ async fn buffered_responses_decode_like_anthropic() {
 mod sigv4 {
     use std::sync::Arc;
 
-    use caido_ai::aws::{AwsCredentials, SigV4Authenticator};
-    use caido_ai::transport::mock::MockTransport;
-    use caido_ai::{Credentials, ErrorKind, ProviderConfig};
+    use llmwire::aws::{AwsCredentials, SigV4Authenticator};
+    use llmwire::transport::mock::MockTransport;
+    use llmwire::{Credentials, ErrorKind, ProviderConfig};
 
     use super::{MODEL, message};
     use crate::common::{header, headers, provider_with, text_request};
 
-    fn signed_provider(mock: &Arc<MockTransport>) -> caido_ai::Provider {
+    fn signed_provider(mock: &Arc<MockTransport>) -> llmwire::Provider {
         let credentials =
             AwsCredentials::new("AKIDEXAMPLE", "secret").with_session_token("session");
         provider_with(
@@ -372,8 +372,8 @@ mod sigv4 {
     struct Rotating(std::sync::atomic::AtomicU32);
 
     #[async_trait::async_trait]
-    impl caido_ai::aws::AwsCredentialsProvider for Rotating {
-        async fn credentials(&self) -> caido_ai::Result<AwsCredentials> {
+    impl llmwire::aws::AwsCredentialsProvider for Rotating {
+        async fn credentials(&self) -> llmwire::Result<AwsCredentials> {
             let generation = self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
             Ok(AwsCredentials::new(format!("AKID{generation}"), "secret"))
         }

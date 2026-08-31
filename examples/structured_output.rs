@@ -5,7 +5,7 @@
 //! OPENAI_API_KEY=... cargo run --example structured_output
 //! ```
 
-use caido_ai::{Client, Credentials, Message, ProviderConfig, Request, StructuredOutput};
+use llmwire::{Client, Credentials, Message, ProviderConfig, Request, StructuredOutput};
 use serde::Deserialize;
 use serde_json::json;
 
@@ -19,7 +19,7 @@ struct Landmark {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    caido_ai::transport::install_default_crypto_provider();
+    llmwire::transport::install_default_crypto_provider();
     let client = Client::builder().build()?;
     let provider = client.provider(ProviderConfig::openai_chat(Credentials::api_key(
         std::env::var("OPENAI_API_KEY")?,

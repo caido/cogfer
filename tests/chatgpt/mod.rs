@@ -3,10 +3,10 @@
 
 use std::sync::{Arc, Mutex};
 
-use caido_ai::oauth::chatgpt::{ChatGptAuthenticator, ChatGptOAuth, ChatGptTokens};
-use caido_ai::transport::mock::MockTransport;
-use caido_ai::transport::{HeaderName, HeaderValue};
-use caido_ai::{
+use llmwire::oauth::chatgpt::{ChatGptAuthenticator, ChatGptOAuth, ChatGptTokens};
+use llmwire::transport::mock::MockTransport;
+use llmwire::transport::{HeaderName, HeaderValue};
+use llmwire::{
     Credentials, DevicePoll, Error, ErrorKind, FinishReason, Message, OAuthStatus, ProviderConfig,
     Request, StreamEvent, TokenStore,
 };
@@ -90,7 +90,7 @@ impl<T: Clone> RecordingTokenStore<T> {
 
 #[async_trait::async_trait]
 impl<T: Clone + Send + Sync> TokenStore<T> for RecordingTokenStore<T> {
-    async fn save(&self, tokens: &T) -> caido_ai::Result<()> {
+    async fn save(&self, tokens: &T) -> llmwire::Result<()> {
         if self.fail {
             return Err(Error::new(ErrorKind::Provider, "token store failed"));
         }

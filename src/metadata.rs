@@ -7,7 +7,7 @@ use serde_json::Value;
 
 /// Provider-specific JSON grouped by API-profile namespace.
 ///
-/// The library reserves `"caido-ai"` for its own fields. Custom metadata
+/// The library reserves `"llmwire"` for its own fields. Custom metadata
 /// should use another namespace.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(transparent)]

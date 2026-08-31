@@ -1,4 +1,4 @@
-//! What a failed call looks like: one normalized [`caido_ai::Error`] with a
+//! What a failed call looks like: one normalized [`llmwire::Error`] with a
 //! stable [`ErrorKind`], the provider's status/code/request id, and a retry
 //! hint, so hosts can map it to their own responses and retry policy.
 //!
@@ -6,11 +6,11 @@
 //! OPENAI_API_KEY=... cargo run --example error_handling
 //! ```
 
-use caido_ai::{Client, Credentials, ErrorKind, Message, ProviderConfig, Request};
+use llmwire::{Client, Credentials, ErrorKind, Message, ProviderConfig, Request};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    caido_ai::transport::install_default_crypto_provider();
+    llmwire::transport::install_default_crypto_provider();
     let client = Client::builder().build()?;
     let provider = client.provider(ProviderConfig::openai_responses(Credentials::api_key(
         std::env::var("OPENAI_API_KEY")?,

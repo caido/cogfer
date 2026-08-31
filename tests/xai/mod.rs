@@ -4,10 +4,10 @@
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use caido_ai::oauth::xai::{XaiAuthenticator, XaiOAuth, XaiTokens};
-use caido_ai::transport::mock::MockTransport;
-use caido_ai::transport::{HeaderName, HttpRequest};
-use caido_ai::{
+use llmwire::oauth::xai::{XaiAuthenticator, XaiOAuth, XaiTokens};
+use llmwire::transport::mock::MockTransport;
+use llmwire::transport::{HeaderName, HttpRequest};
+use llmwire::{
     ApiProfile, Credentials, DevicePoll, Error, ErrorKind, FinishReason, OAuthStatus,
     ProviderConfig, RequestAuthenticator, TokenStore,
 };
@@ -51,7 +51,7 @@ fn now() -> i64 {
         .as_secs() as i64
 }
 
-fn form_body(request: &caido_ai::transport::HttpRequest) -> String {
+fn form_body(request: &llmwire::transport::HttpRequest) -> String {
     String::from_utf8(request.body.clone().expect("form body").to_vec()).unwrap()
 }
 
@@ -84,7 +84,7 @@ impl<T: Clone> RecordingTokenStore<T> {
 
 #[async_trait::async_trait]
 impl<T: Clone + Send + Sync> TokenStore<T> for RecordingTokenStore<T> {
-    async fn save(&self, tokens: &T) -> caido_ai::Result<()> {
+    async fn save(&self, tokens: &T) -> llmwire::Result<()> {
         if self.fail {
             return Err(Error::new(ErrorKind::Provider, "token store failed"));
         }

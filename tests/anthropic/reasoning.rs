@@ -7,9 +7,9 @@ async fn effort_uses_adaptive_thinking_without_model_inference() {
     let provider = anthropic(&mock);
     let request = Request::builder()
         .message(Message::user("hi"))
-        .reasoning(caido_ai::ReasoningConfig::Effort {
-            effort: caido_ai::ReasoningEffort::High,
-            output: Some(caido_ai::ReasoningOutput::Include),
+        .reasoning(llmwire::ReasoningConfig::Effort {
+            effort: llmwire::ReasoningEffort::High,
+            output: Some(llmwire::ReasoningOutput::Include),
         })
         .build();
 
@@ -34,9 +34,9 @@ async fn budget_uses_exact_manual_thinking_configuration() {
     let provider = anthropic(&mock);
     let request = Request::builder()
         .message(Message::user("hi"))
-        .reasoning(caido_ai::ReasoningConfig::Budget {
+        .reasoning(llmwire::ReasoningConfig::Budget {
             tokens: std::num::NonZeroU32::new(2048).unwrap(),
-            output: Some(caido_ai::ReasoningOutput::Omit),
+            output: Some(llmwire::ReasoningOutput::Omit),
         })
         .max_output_tokens(4096)
         .build();
@@ -60,7 +60,7 @@ async fn disabled_reasoning_is_sent_explicitly() {
     let provider = anthropic(&mock);
     let request = Request::builder()
         .message(Message::user("hi"))
-        .reasoning(caido_ai::ReasoningConfig::Disabled)
+        .reasoning(llmwire::ReasoningConfig::Disabled)
         .build();
 
     provider
@@ -81,7 +81,7 @@ async fn manual_budget_below_protocol_minimum_is_rejected() {
     let provider = anthropic(&mock);
     let request = Request::builder()
         .message(Message::user("hi"))
-        .reasoning(caido_ai::ReasoningConfig::budget(
+        .reasoning(llmwire::ReasoningConfig::budget(
             std::num::NonZeroU32::new(1023).unwrap(),
         ))
         .max_output_tokens(4096)
@@ -103,7 +103,7 @@ async fn manual_budget_is_not_clamped_to_fit_output_limit() {
     let provider = anthropic(&mock);
     let request = Request::builder()
         .message(Message::user("hi"))
-        .reasoning(caido_ai::ReasoningConfig::budget(
+        .reasoning(llmwire::ReasoningConfig::budget(
             std::num::NonZeroU32::new(4096).unwrap(),
         ))
         .max_output_tokens(4096)
@@ -127,7 +127,7 @@ async fn manual_budget_does_not_rewrite_forced_tool_choice() {
         .message(Message::user("hi"))
         .tools(tool_request("x").tools)
         .tool_choice(ToolChoice::Required)
-        .reasoning(caido_ai::ReasoningConfig::budget(
+        .reasoning(llmwire::ReasoningConfig::budget(
             std::num::NonZeroU32::new(2048).unwrap(),
         ))
         .max_output_tokens(4096)

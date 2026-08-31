@@ -262,7 +262,7 @@ async fn strict_tool_schema_emits_an_unsupported_setting_warning() {
         .iter()
         .find(|warning| warning.subject.as_deref() == Some("tools.strict"))
         .expect("strict omission is reported");
-    assert_eq!(warning.kind, caido_ai::WarningKind::UnsupportedSetting);
+    assert_eq!(warning.kind, llmwire::WarningKind::UnsupportedSetting);
     assert!(
         mock.request_json(0)["tools"][0]["functionDeclarations"][0]
             .get("strict")

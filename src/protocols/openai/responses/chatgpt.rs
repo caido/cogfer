@@ -52,11 +52,11 @@ impl ProtocolHandler for Handler {
         // header overrides it.
         http.headers.insert(
             HeaderName::from_static("originator"),
-            HeaderValue::from_static("caido-ai"),
+            HeaderValue::from_static("llmwire"),
         );
         http.headers.insert(
             header::USER_AGENT,
-            HeaderValue::from_static(concat!("caido-ai/", env!("CARGO_PKG_VERSION"))),
+            HeaderValue::from_static(concat!("llmwire/", env!("CARGO_PKG_VERSION"))),
         );
         http.headers.insert(
             HeaderName::from_static("session_id"),

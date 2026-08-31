@@ -1,5 +1,5 @@
 [package]
-name = "caido-ai"
+name = "llmwire"
 version = "0.1.0"
 authors = ["caido <info@caido.io>"]
 description = "A Rust library for calling language-model APIs"
@@ -7,6 +7,12 @@ edition = "2024"
 rust-version = "1.95"
 license = "MIT"
 publish = false
+repository = "https://github.com/caido/ai"
+readme = "README.md"
+
+[lib]
+name = "llmwire"
+path = "src/lib.rs"
 
 [features]
 default = ["reqwest-transport", "aws"]

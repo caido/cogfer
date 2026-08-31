@@ -1,4 +1,4 @@
-use caido_ai::{Message, ProviderConfig, ReasoningConfig, Request, ToolChoice};
+use llmwire::{Message, ProviderConfig, ReasoningConfig, Request, ToolChoice};
 
 use crate::common::{agentic_loop, loop_request, provider_from_env, time_tool};
 

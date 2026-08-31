@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
-use caido_ai::transport::mock::MockTransport;
-use caido_ai::{Client, Credentials, Provider, ProviderConfig};
+use llmwire::transport::mock::MockTransport;
+use llmwire::{Client, Credentials, Provider, ProviderConfig};
 
 pub(crate) fn client_with(mock: &Arc<MockTransport>) -> Client {
     Client::builder()
-        .http_transport(mock.clone() as Arc<dyn caido_ai::transport::HttpTransport>)
+        .http_transport(mock.clone() as Arc<dyn llmwire::transport::HttpTransport>)
         .build()
         .expect("client builds")
 }

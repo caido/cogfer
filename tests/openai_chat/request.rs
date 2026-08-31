@@ -17,7 +17,7 @@ async fn request_golden() {
         .system("Be helpful.")
         .message(Message::user("Weather?"))
         .message(Message::Assistant {
-            content: vec![caido_ai::AssistantPart::ToolCall(call.clone())],
+            content: vec![llmwire::AssistantPart::ToolCall(call.clone())],
             provider_metadata: ProviderMetadata::default(),
         })
         .message(Message::tool_result(ToolResultPart::for_call(&call, "21C")))
@@ -88,8 +88,8 @@ async fn opaque_compaction_part_is_rejected() {
     let provider = openai_chat(&mock);
     let request = Request::builder()
         .message(Message::user("hi"))
-        .message(assistant_with(vec![caido_ai::AssistantPart::Compaction(
-            caido_ai::CompactionPart {
+        .message(assistant_with(vec![llmwire::AssistantPart::Compaction(
+            llmwire::CompactionPart {
                 id: Some("cmp_1".into()),
                 content: None,
                 encrypted_content: Some("OPAQUE".into()),
@@ -113,8 +113,8 @@ async fn summary_compaction_part_is_flattened_with_warning() {
     let provider = openai_chat(&mock);
     let request = Request::builder()
         .message(Message::user("hi"))
-        .message(assistant_with(vec![caido_ai::AssistantPart::Compaction(
-            caido_ai::CompactionPart {
+        .message(assistant_with(vec![llmwire::AssistantPart::Compaction(
+            llmwire::CompactionPart {
                 id: None,
                 content: Some("Earlier we discussed pricing.".into()),
                 encrypted_content: None,
@@ -149,10 +149,10 @@ async fn reasoning_only_assistant_turn_is_skipped() {
     let provider = openai_chat(&mock);
     let request = Request::builder()
         .message(Message::user("hi"))
-        .message(assistant_with(vec![caido_ai::AssistantPart::Reasoning(
-            caido_ai::ReasoningPart {
+        .message(assistant_with(vec![llmwire::AssistantPart::Reasoning(
+            llmwire::ReasoningPart {
                 id: Some("rs_1".into()),
-                content: vec![caido_ai::ReasoningContent::Encrypted {
+                content: vec![llmwire::ReasoningContent::Encrypted {
                     data: "BLOB".into(),
                 }],
                 provider_metadata: ProviderMetadata::default(),
@@ -178,10 +178,10 @@ async fn multiple_user_text_parts_stay_separate_content_parts() {
     let request = Request::builder()
         .message(Message::User {
             content: vec![
-                caido_ai::UserPart::Text {
+                llmwire::UserPart::Text {
                     text: "Summarize:".into(),
                 },
-                caido_ai::UserPart::Text {
+                llmwire::UserPart::Text {
                     text: "<body>".into(),
                 },
             ],
@@ -218,7 +218,7 @@ async fn compatible_servers_get_the_portable_wire_spellings() {
     mock.push_sse(&["[DONE]"]);
     let provider = provider_with(
         &mock,
-        caido_ai::ProviderConfig::openai_chat(caido_ai::Credentials::none())
+        llmwire::ProviderConfig::openai_chat(llmwire::Credentials::none())
             .with_base_url("http://localhost:11434/v1".parse().unwrap()),
     );
     let request = Request::builder()
