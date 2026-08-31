@@ -42,9 +42,9 @@ pub enum ApiProfile {
     OpenRouter,
     /// The ChatGPT subscription backend using the Responses dialect.
     ChatGptResponses,
-    /// xAI's Responses dialect (`POST {base}/responses`).
+    /// SpaceXAI's Responses dialect (`POST {base}/responses`).
     XaiResponses,
-    /// xAI's Chat Completions dialect.
+    /// SpaceXAI's Chat Completions dialect.
     XaiChatCompletions,
     /// Anthropic Messages API (`POST {base}/messages`).
     AnthropicMessages,

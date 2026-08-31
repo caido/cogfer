@@ -51,7 +51,7 @@ impl fmt::Debug for DeviceAuthorization {
     }
 }
 
-/// xAI device-code sign-in and token refresh client.
+/// SpaceXAI device-code sign-in and token refresh client.
 ///
 /// Each operation is one request over the injected [`HttpTransport`].
 /// [`XaiOAuth::poll_device_authorization`] leaves sleeping to the caller.
@@ -73,7 +73,7 @@ impl fmt::Debug for XaiOAuth {
 }
 
 impl XaiOAuth {
-    /// Create an OAuth client using the standard xAI auth endpoint.
+    /// Create an OAuth client using the standard SpaceXAI auth endpoint.
     ///
     /// The defaults are grok-cli's public identity and scopes. Hosts with
     /// their own registration should use [`XaiOAuth::with_client_config`] and
@@ -87,8 +87,8 @@ impl XaiOAuth {
         Self {
             transport,
             auth_base_url: Url::parse("https://auth.x.ai").expect("default auth URL is valid"),
-            // grok-cli's public client id (xAI binds subscription tokens to it)
-            // and the scopes it needs to reach `api.x.ai`.
+            // grok-cli's public client id (SpaceXAI binds subscription
+            // tokens to it) and the scopes it needs to reach `api.x.ai`.
             client_config: OAuthClientConfig::scoped(
                 "b1a00492-073a-47ea-816f-4c329264a828",
                 "openid profile email offline_access grok-cli:access api:access",
@@ -266,7 +266,7 @@ impl XaiOAuth {
     pub async fn refresh(&self, refresh_token: &str) -> Result<XaiTokens> {
         if refresh_token.trim().is_empty() {
             return Err(Error::invalid_request(
-                "xAI refresh token must not be empty",
+                "SpaceXAI refresh token must not be empty",
             ));
         }
         let response = self
@@ -292,7 +292,7 @@ impl XaiOAuth {
 }
 
 /// Decode a token response. `previous_refresh_token` is kept when the
-/// server does not rotate it (xAI omits `refresh_token` then).
+/// server does not rotate it (SpaceXAI omits `refresh_token` then).
 fn decode_token_response(
     context: &str,
     response: &HttpResponse,
@@ -312,7 +312,7 @@ fn decode_token_response(
     if let Some(refresh_token) = &parsed.refresh_token {
         require_response_field(PROVIDER, context, "refresh_token", refresh_token)?;
     }
-    // xAI omits `expires_in` and its tokens live about an hour.
+    // SpaceXAI omits `expires_in` and its tokens live about an hour.
     let expires_at =
         expires_at_from_lifetime(PROVIDER, context, parsed.expires_in.unwrap_or(3600))?;
     Ok(XaiTokens {

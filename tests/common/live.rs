@@ -91,10 +91,10 @@ pub(crate) fn chatgpt_provider_on(client: &Client) -> Option<Provider> {
     )
 }
 
-/// An xAI provider on `client` for `config` (Responses or Chat dialect), from
-/// `XAI_API_KEY`, `XAI_ACCESS_TOKEN` (plus optional `XAI_REFRESH_TOKEN`), or
-/// the sign-in cached by `cargo run --example xai_login`. `None` (with a SKIP
-/// note) when none exists.
+/// A SpaceXAI provider on `client` for `config` (Responses or Chat dialect),
+/// from `XAI_API_KEY`, `XAI_ACCESS_TOKEN` (plus optional `XAI_REFRESH_TOKEN`),
+/// or the sign-in cached by `cargo run --example xai_login`. `None` (with a
+/// SKIP note) when none exists.
 pub(crate) fn xai_provider_on(
     client: &Client,
     config: impl FnOnce(Credentials) -> ProviderConfig,

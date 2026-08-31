@@ -13,7 +13,7 @@
 //! ```
 //!
 //! Recording uses the credentials the live tests use (`OPENAI_API_KEY`,
-//! `GOOGLE_API_KEY`, ..., or the cached ChatGPT/xAI sign-ins), runs each
+//! `GOOGLE_API_KEY`, ..., or the cached ChatGPT/SpaceXAI sign-ins), runs each
 //! scenario against the live provider, and writes the exchanges it saw. A
 //! scenario that fails live is not recorded and is reported at the end. Set
 //! `RECORD_SCENARIOS=stream_text,unknown_model` to re-record only those and

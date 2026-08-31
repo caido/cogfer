@@ -10,7 +10,7 @@ use crate::oauth::{OAuthAuthenticator, OAuthTokens, TokenRefresher};
 use crate::transport::{HttpRequest, header};
 
 /// [`RequestAuthenticator`](crate::RequestAuthenticator) backed by refreshable
-/// xAI tokens. See [`OAuthAuthenticator`] for the refresh policy.
+/// SpaceXAI tokens. See [`OAuthAuthenticator`] for the refresh policy.
 pub type XaiAuthenticator = OAuthAuthenticator<XaiTokens, XaiOAuth>;
 
 impl XaiAuthenticator {
@@ -29,7 +29,7 @@ impl XaiAuthenticator {
 
 impl OAuthTokens for XaiTokens {
     const PROVIDER: &'static str = "xai";
-    /// xAI tokens live about an hour, so refresh five minutes early.
+    /// SpaceXAI tokens live about an hour, so refresh five minutes early.
     const EXPIRY_SKEW: Duration = Duration::from_secs(5 * 60);
 
     fn access_token(&self) -> &str {

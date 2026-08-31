@@ -2,7 +2,7 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
-/// An xAI OAuth token set.
+/// A SpaceXAI OAuth token set.
 ///
 /// Serialization exposes secrets for persistence. `Debug` output is redacted.
 #[derive(Clone, Serialize, Deserialize)]

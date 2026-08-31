@@ -1,7 +1,7 @@
 //! # llmwire
 //!
 //! A focused language-model SDK. Its API profiles normalize OpenAI Responses
-//! and Chat Completions, ChatGPT subscriptions, xAI, OpenRouter, Anthropic
+//! and Chat Completions, ChatGPT subscriptions, SpaceXAI, OpenRouter, Anthropic
 //! (directly and on Amazon Bedrock), and Gemini into one request model,
 //! stream contract, and error taxonomy.
 //!

@@ -87,12 +87,12 @@ impl ProviderConfig {
         Self::new(ApiProfile::ChatGptResponses, credentials)
     }
 
-    /// xAI's Responses dialect.
+    /// SpaceXAI's Responses dialect.
     pub fn xai(credentials: Credentials) -> Self {
         Self::new(ApiProfile::XaiResponses, credentials)
     }
 
-    /// xAI's Chat Completions dialect.
+    /// SpaceXAI's Chat Completions dialect.
     pub fn xai_chat(credentials: Credentials) -> Self {
         Self::new(ApiProfile::XaiChatCompletions, credentials)
     }

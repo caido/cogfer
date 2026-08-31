@@ -1,5 +1,5 @@
-//! xAI Responses dialect. Recording needs `XAI_API_KEY` or the sign-in cached
-//! by `cargo run --example xai_login`.
+//! SpaceXAI Responses dialect. Recording needs `XAI_API_KEY` or the sign-in
+//! cached by `cargo run --example xai_login`.
 
 use llmwire::ProviderConfig;
 

@@ -23,7 +23,7 @@ use self::types::decode_openai_response;
 pub(crate) enum ResponsesDialect {
     /// The official OpenAI API.
     OpenAi,
-    /// xAI's Responses-compatible API.
+    /// SpaceXAI's Responses-compatible API.
     Xai,
     /// The ChatGPT subscription backend.
     ChatGpt,

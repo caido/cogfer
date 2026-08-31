@@ -1,4 +1,4 @@
-//! Sign in to xAI, persist the tokens, and test generation.
+//! Sign in to SpaceXAI, persist the tokens, and test generation.
 //!
 //! ```sh
 //! cargo run --example xai_login
@@ -31,7 +31,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let oauth = XaiOAuth::with_default_transport()?;
     let device = oauth.start_device_authorization().await?;
-    println!("Sign in with xAI:");
+    println!("Sign in with SpaceXAI:");
     match &device.verification_url_complete {
         Some(url) => println!("  1. Visit {url}"),
         None => println!("  1. Visit {}", device.verification_url),

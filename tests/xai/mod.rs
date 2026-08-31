@@ -1,4 +1,4 @@
-//! Wire-level tests for the xAI provider presets and OAuth machinery,
+//! Wire-level tests for the SpaceXAI provider presets and OAuth machinery,
 //! against the mock transport.
 
 use std::sync::{Arc, Mutex};

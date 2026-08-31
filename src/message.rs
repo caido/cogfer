@@ -179,8 +179,8 @@ pub enum ReasoningContent {
 /// | Profile | `call_id` | `item_id` |
 /// |---|---|---|
 /// | Anthropic | `toolu_...` | none |
-/// | OpenAI Chat, xAI Chat, OpenRouter | `call_...` | none |
-/// | OpenAI Responses, ChatGPT, xAI Responses | `call_...` | `fc_...` |
+/// | OpenAI Chat, SpaceXAI Chat, OpenRouter | `call_...` | none |
+/// | OpenAI Responses, ChatGPT, SpaceXAI Responses | `call_...` | `fc_...` |
 /// | Gemini | provider id, or synthesized when Gemini omits one | provider id, if any |
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ToolCall {

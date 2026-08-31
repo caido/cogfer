@@ -1,4 +1,4 @@
-//! OAuth device-flow authentication for xAI subscriptions.
+//! OAuth device-flow authentication for SpaceXAI subscriptions.
 
 mod authenticator;
 mod device_flow;
