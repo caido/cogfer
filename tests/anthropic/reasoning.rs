@@ -357,3 +357,123 @@ async fn derived_budget_fit_handles_the_minimum_boundaries() {
     let body = mock.request_json(1);
     assert!(body.get("thinking").is_none(), "{body}");
 }
+
+#[tokio::test]
+async fn adaptive_thinking_drops_the_samplers_with_warnings() {
+    // Anthropic rejects temperature/top_p/top_k in adaptive mode just like
+    // with a manual budget ("`temperature` may only be set to 1 when thinking
+    // is enabled or in adaptive mode").
+    let mock = MockTransport::shared();
+    mock.push_json(200, &minimal_message());
+    let result = anthropic(&mock)
+        .language_model("claude-sonnet-4-6")
+        .generate(
+            Request::builder()
+                .message(Message::user("hi"))
+                .reasoning(llmwire::ReasoningConfig::effort(
+                    llmwire::ReasoningEffort::Low,
+                ))
+                .temperature(0.5)
+                .top_p(0.9)
+                .top_k(40)
+                .build(),
+        )
+        .await
+        .expect("generate succeeds");
+
+    let body = mock.request_json(0);
+    assert_eq!(body["thinking"]["type"], "adaptive", "{body}");
+    assert!(body.get("temperature").is_none(), "{body}");
+    assert!(body.get("top_p").is_none(), "{body}");
+    assert!(body.get("top_k").is_none(), "{body}");
+    let subjects: Vec<_> = result
+        .warnings
+        .iter()
+        .filter_map(|warning| warning.subject.as_deref())
+        .collect();
+    assert_eq!(
+        subjects,
+        ["temperature", "top_p", "top_k"],
+        "{:?}",
+        result.warnings
+    );
+}
+
+#[tokio::test]
+async fn adaptive_thinking_keeps_forced_tool_choice() {
+    // Unlike manual budgets, adaptive thinking accepts forced tool choice
+    // (verified live against the API); it must not be rejected locally.
+    let mock = MockTransport::shared();
+    mock.push_json(200, &minimal_message());
+    anthropic(&mock)
+        .language_model("claude-sonnet-4-6")
+        .generate(
+            Request::builder()
+                .message(Message::user("hi"))
+                .tools(tool_request("x").tools)
+                .tool_choice(ToolChoice::Required)
+                .reasoning(llmwire::ReasoningConfig::effort(
+                    llmwire::ReasoningEffort::Low,
+                ))
+                .build(),
+        )
+        .await
+        .expect("generate succeeds");
+
+    let body = mock.request_json(0);
+    assert_eq!(body["tool_choice"]["type"], "any", "{body}");
+    assert_eq!(body["thinking"]["type"], "adaptive", "{body}");
+}
+
+#[tokio::test]
+async fn disabled_thinking_keeps_the_samplers() {
+    let mock = MockTransport::shared();
+    mock.push_json(200, &minimal_message());
+    anthropic(&mock)
+        .language_model("claude-sonnet-4-6")
+        .generate(
+            Request::builder()
+                .message(Message::user("hi"))
+                .reasoning(llmwire::ReasoningConfig::Disabled)
+                .temperature(0.5)
+                .build(),
+        )
+        .await
+        .expect("generate succeeds");
+    assert_eq!(mock.request_json(0)["temperature"], 0.5);
+}
+
+#[tokio::test]
+async fn dropped_derived_budget_re_enables_the_samplers() {
+    // effort + tiny cap: the derived budget is dropped, so no thinking goes
+    // on the wire and the samplers must come back.
+    let mock = MockTransport::shared();
+    mock.push_json(200, &minimal_message());
+    let profile = llmwire::ApiProfile::AnthropicMessages;
+    let capabilities = llmwire::ModelCapabilities {
+        reasoning: llmwire::ReasoningSupport {
+            efforts: Vec::new(),
+            ..llmwire::ModelCapabilities::for_profile(profile).reasoning
+        },
+        ..llmwire::ModelCapabilities::for_profile(profile)
+    };
+    anthropic(&mock)
+        .language_model("claude-haiku-4-5")
+        .with_capabilities(&capabilities)
+        .generate(
+            Request::builder()
+                .message(Message::user("hi"))
+                .reasoning(llmwire::ReasoningConfig::effort(
+                    llmwire::ReasoningEffort::Low,
+                ))
+                .max_output_tokens(512)
+                .temperature(0.5)
+                .build(),
+        )
+        .await
+        .expect("generate succeeds");
+
+    let body = mock.request_json(0);
+    assert!(body.get("thinking").is_none(), "{body}");
+    assert_eq!(body["temperature"], 0.5, "{body}");
+}

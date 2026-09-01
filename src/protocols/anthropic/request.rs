@@ -375,11 +375,15 @@ fn lower_tool_choice(
 
 fn lower_sampling(
     request: &Request,
-    budget_thinking: bool,
+    thinking_enabled: bool,
     object: &mut serde_json::Map<String, Value>,
     warnings: &mut Vec<Warning>,
 ) {
-    let rejects_sampling = budget_thinking;
+    // Anthropic rejects the samplers whenever thinking is on, in both the
+    // budget ("enabled") and the adaptive mode. The API does accept
+    // `temperature: 1` and `top_p >= 0.95` alongside thinking; that carve-out
+    // is deliberately not modeled, any set value is dropped with a warning.
+    let rejects_sampling = thinking_enabled;
     for (setting, present) in [
         ("temperature", request.temperature.is_some()),
         ("top_p", request.top_p.is_some()),
@@ -447,6 +451,10 @@ pub(crate) fn lower_anthropic_request(
     }
     lower_tools(request, object);
     let budget_thinking = matches!(reasoning, Some((ResolvedReasoning::Budget(_), _)));
+    // Forced tool choice is only rejected with a manual budget (adaptive
+    // thinking accepts it), but the samplers are rejected with any thinking.
+    let thinking_enabled =
+        budget_thinking || matches!(reasoning, Some((ResolvedReasoning::Effort(_), _)));
     lower_request_reasoning(request, reasoning, max_tokens, object)?;
     lower_tool_choice(request, budget_thinking, object)?;
     let beta_features = lower_compaction(request, object, &mut warnings);
@@ -456,7 +464,7 @@ pub(crate) fn lower_anthropic_request(
     if dialect == AnthropicDialect::Bedrock && !beta_features.is_empty() {
         object.insert("anthropic_beta".into(), json!(beta_features));
     }
-    lower_sampling(request, budget_thinking, object, &mut warnings);
+    lower_sampling(request, thinking_enabled, object, &mut warnings);
     if !request.stop_sequences.is_empty() {
         object.insert("stop_sequences".into(), json!(request.stop_sequences));
     }

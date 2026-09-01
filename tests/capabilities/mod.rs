@@ -181,12 +181,20 @@ async fn unsupported_settings_match_the_capability_table() {
             .filter(|warning| warning.kind == WarningKind::UnsupportedSetting)
             .map(|warning| warning.subject.as_deref().expect("subject"))
             .collect();
-        assert_eq!(
-            dropped,
-            expected_dropped(&capabilities),
-            "{profile}: {:?}",
-            result.warnings
+        let mut expected = expected_dropped(&capabilities);
+        // The request turns reasoning on, and Anthropic rejects the samplers
+        // whenever thinking is enabled, adaptive mode included.
+        #[cfg(feature = "aws")]
+        let anthropic_thinking = matches!(
+            profile,
+            ApiProfile::AnthropicMessages | ApiProfile::BedrockAnthropic
         );
+        #[cfg(not(feature = "aws"))]
+        let anthropic_thinking = matches!(profile, ApiProfile::AnthropicMessages);
+        if anthropic_thinking {
+            expected.extend(["temperature", "top_p", "top_k"]);
+        }
+        assert_eq!(dropped, expected, "{profile}: {:?}", result.warnings);
         assert!(
             !result
                 .warnings
