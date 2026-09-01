@@ -78,8 +78,9 @@ pub(crate) fn bedrock_config(credentials: Credentials) -> ProviderConfig {
 }
 
 /// The Bedrock OpenAI-compatible provider configuration for
-/// [`BEDROCK_REGION`], shared by the live tests and future cassettes.
-#[cfg(feature = "aws")]
+/// [`BEDROCK_REGION`]. Only the live tests use it until the profile has
+/// cassettes, so it is gated like them.
+#[cfg(all(feature = "aws", feature = "reqwest-transport"))]
 pub(crate) fn bedrock_openai_config(credentials: Credentials) -> ProviderConfig {
     ProviderConfig::bedrock_openai(BEDROCK_REGION, credentials).expect("region is valid")
 }
