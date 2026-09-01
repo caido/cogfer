@@ -153,15 +153,22 @@ pub(crate) fn decode_content_block(block: &ContentBlock) -> Option<AssistantPart
                 .unwrap_or_default(),
             provider_metadata: ProviderMetadata::default(),
         })),
-        "compaction" => Some(AssistantPart::Compaction(CompactionPart {
-            id: None,
-            content: block
-                .content
-                .as_ref()
-                .and_then(Value::as_str)
-                .map(str::to_string),
-            encrypted_content: None,
-        })),
+        // A refusal during the compaction pass yields a block with null
+        // content; there is nothing to carry or replay, so drop it. Today the
+        // content is always a string; a structured shape would be dropped
+        // here too and would need explicit support.
+        "compaction" => block
+            .content
+            .as_ref()
+            .and_then(Value::as_str)
+            .filter(|content| !content.is_empty())
+            .map(|content| {
+                AssistantPart::Compaction(CompactionPart {
+                    id: None,
+                    content: Some(content.to_string()),
+                    encrypted_content: None,
+                })
+            }),
         other => {
             // Anthropic correlates server tool results with these blocks on replay.
             is_server_tool_block(other).then(|| AssistantPart::ProviderTool {

@@ -193,3 +193,167 @@ async fn foreign_unsigned_reasoning_is_not_replayed_as_thinking() {
     assert_eq!(thinking.len(), 1);
     assert_eq!(thinking[0]["signature"], "SIG");
 }
+
+#[tokio::test]
+async fn effort_falls_back_to_budget_when_the_model_has_no_efforts() {
+    // A model narrowed to budget-only reasoning (e.g. claude-haiku-4-5, which
+    // has no adaptive thinking) maps a requested effort onto a token budget
+    // instead of sending `thinking: {"type": "adaptive"}`.
+    let mock = MockTransport::shared();
+    mock.push_json(200, &minimal_message());
+    let profile = llmwire::ApiProfile::AnthropicMessages;
+    let capabilities = llmwire::ModelCapabilities {
+        reasoning: llmwire::ReasoningSupport {
+            efforts: Vec::new(),
+            ..llmwire::ModelCapabilities::for_profile(profile).reasoning
+        },
+        ..llmwire::ModelCapabilities::for_profile(profile)
+    };
+    let result = anthropic(&mock)
+        .language_model("claude-haiku-4-5")
+        .with_capabilities(&capabilities)
+        .generate(
+            Request::builder()
+                .message(Message::user("hi"))
+                .reasoning(llmwire::ReasoningConfig::effort(
+                    llmwire::ReasoningEffort::Medium,
+                ))
+                .build(),
+        )
+        .await
+        .expect("generate succeeds");
+
+    let body = mock.request_json(0);
+    assert_eq!(body["thinking"]["type"], "enabled", "{body}");
+    assert_eq!(body["thinking"]["budget_tokens"], 16_384, "{body}");
+    assert!(
+        result
+            .warnings
+            .iter()
+            .any(|warning| warning.subject.as_deref() == Some("reasoning.effort")),
+        "{:?}",
+        result.warnings
+    );
+}
+
+#[tokio::test]
+async fn derived_budget_is_fitted_under_the_output_cap() {
+    let mock = MockTransport::shared();
+    mock.push_json(200, &minimal_message());
+    let profile = llmwire::ApiProfile::AnthropicMessages;
+    let capabilities = llmwire::ModelCapabilities {
+        reasoning: llmwire::ReasoningSupport {
+            efforts: Vec::new(),
+            ..llmwire::ModelCapabilities::for_profile(profile).reasoning
+        },
+        ..llmwire::ModelCapabilities::for_profile(profile)
+    };
+    let result = anthropic(&mock)
+        .language_model("claude-haiku-4-5")
+        .with_capabilities(&capabilities)
+        .generate(
+            Request::builder()
+                .message(Message::user("hi"))
+                .reasoning(llmwire::ReasoningConfig::effort(
+                    llmwire::ReasoningEffort::Medium,
+                ))
+                .max_output_tokens(2000)
+                .build(),
+        )
+        .await
+        .expect("generate succeeds");
+
+    let body = mock.request_json(0);
+    assert_eq!(body["max_tokens"], 2000, "{body}");
+    assert_eq!(body["thinking"]["budget_tokens"], 1999, "{body}");
+    assert!(
+        result
+            .warnings
+            .iter()
+            .any(|warning| warning.message.contains("reduced to 1999")),
+        "{:?}",
+        result.warnings
+    );
+}
+
+#[tokio::test]
+async fn derived_budget_is_dropped_when_the_output_cap_cannot_fit_thinking() {
+    let mock = MockTransport::shared();
+    mock.push_json(200, &minimal_message());
+    let profile = llmwire::ApiProfile::AnthropicMessages;
+    let capabilities = llmwire::ModelCapabilities {
+        reasoning: llmwire::ReasoningSupport {
+            efforts: Vec::new(),
+            ..llmwire::ModelCapabilities::for_profile(profile).reasoning
+        },
+        ..llmwire::ModelCapabilities::for_profile(profile)
+    };
+    let result = anthropic(&mock)
+        .language_model("claude-haiku-4-5")
+        .with_capabilities(&capabilities)
+        .generate(
+            Request::builder()
+                .message(Message::user("hi"))
+                .reasoning(llmwire::ReasoningConfig::effort(
+                    llmwire::ReasoningEffort::Low,
+                ))
+                .max_output_tokens(512)
+                .build(),
+        )
+        .await
+        .expect("generate succeeds");
+
+    let body = mock.request_json(0);
+    assert!(body.get("thinking").is_none(), "{body}");
+    assert!(
+        result.warnings.iter().any(|warning| warning
+            .message
+            .contains("cannot fit the 1024-token minimum")),
+        "{:?}",
+        result.warnings
+    );
+}
+
+#[tokio::test]
+async fn derived_budget_fit_handles_the_minimum_boundaries() {
+    let profile = llmwire::ApiProfile::AnthropicMessages;
+    let capabilities = llmwire::ModelCapabilities {
+        reasoning: llmwire::ReasoningSupport {
+            efforts: Vec::new(),
+            ..llmwire::ModelCapabilities::for_profile(profile).reasoning
+        },
+        ..llmwire::ModelCapabilities::for_profile(profile)
+    };
+    let request_with_max = |max| {
+        Request::builder()
+            .message(Message::user("hi"))
+            .reasoning(llmwire::ReasoningConfig::effort(
+                llmwire::ReasoningEffort::Medium,
+            ))
+            .max_output_tokens(max)
+            .build()
+    };
+
+    // 1025 is the smallest cap that still fits the 1024-token minimum.
+    let mock = MockTransport::shared();
+    mock.push_json(200, &minimal_message());
+    anthropic(&mock)
+        .language_model("claude-haiku-4-5")
+        .with_capabilities(&capabilities)
+        .generate(request_with_max(1025))
+        .await
+        .expect("generate succeeds");
+    let body = mock.request_json(0);
+    assert_eq!(body["thinking"]["budget_tokens"], 1024, "{body}");
+
+    // 1024 cannot fit a budget strictly below itself; thinking is dropped.
+    mock.push_json(200, &minimal_message());
+    anthropic(&mock)
+        .language_model("claude-haiku-4-5")
+        .with_capabilities(&capabilities)
+        .generate(request_with_max(1024))
+        .await
+        .expect("generate succeeds");
+    let body = mock.request_json(1);
+    assert!(body.get("thinking").is_none(), "{body}");
+}

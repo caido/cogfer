@@ -283,10 +283,12 @@ fn validate_profile(
     profile: ApiProfile,
     capabilities: &ModelCapabilities,
 ) -> Result<()> {
+    // The capabilities are the intersection of the profile and the model, so
+    // the request may be refused on behalf of either.
     let unsupported = |what: &str| {
         Error::new(
             ErrorKind::UnsupportedCapability,
-            format!("protocol `{profile}` cannot represent {what}"),
+            format!("this model on `{profile}` does not support {what}"),
         )
     };
     if !capabilities.tools && !request.tools.is_empty() {

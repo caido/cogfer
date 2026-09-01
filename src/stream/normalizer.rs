@@ -435,6 +435,19 @@ impl StreamNormalizer {
         out.push(StreamEvent::Citation { text_id, citation });
     }
 
+    /// Close an open compaction block that produced nothing (e.g. a refusal
+    /// during the compaction pass) without emitting an empty part.
+    pub(crate) fn compaction_abort(&mut self, out: &mut Vec<StreamEvent>) {
+        let position = self
+            .open
+            .iter()
+            .position(|block| matches!(block, OpenBlock::Compaction));
+        if let Some(position) = position {
+            self.open.remove(position);
+            out.push(StreamEvent::CompactionAbort);
+        }
+    }
+
     pub(crate) fn compaction(
         &mut self,
         out: &mut Vec<StreamEvent>,

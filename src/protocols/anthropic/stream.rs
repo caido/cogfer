@@ -168,14 +168,20 @@ impl AnthropicStreamDecoder {
             }
             Some(BlockKind::Compaction { content }) => {
                 if completed {
-                    normalizer.compaction(
-                        out,
-                        CompactionPart {
-                            id: None,
-                            content: Some(content),
-                            encrypted_content: None,
-                        },
-                    );
+                    if content.is_empty() {
+                        // A refusal during the compaction pass closes the block
+                        // without content; there is nothing to carry or replay.
+                        normalizer.compaction_abort(out);
+                    } else {
+                        normalizer.compaction(
+                            out,
+                            CompactionPart {
+                                id: None,
+                                content: Some(content),
+                                encrypted_content: None,
+                            },
+                        );
+                    }
                 }
             }
             Some(BlockKind::ProviderTool {

@@ -83,7 +83,7 @@ fn resolve_effort(
         warnings.push(Warning::approximated_setting(
             "reasoning.effort",
             format!(
-                "{profile} uses reasoning token budgets; effort `{}` was sent as {tokens} tokens",
+                "{profile} uses reasoning token budgets; effort `{}` maps to a {tokens}-token budget",
                 effort.as_str()
             ),
         ));

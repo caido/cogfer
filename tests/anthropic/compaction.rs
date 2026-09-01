@@ -163,3 +163,184 @@ async fn foreign_opaque_compaction_is_rejected() {
     assert_eq!(error.kind(), llmwire::ErrorKind::UnsupportedContent);
     assert!(mock.requests().is_empty());
 }
+
+#[tokio::test]
+async fn small_trigger_is_clamped_to_the_api_minimum() {
+    let mock = MockTransport::shared();
+    mock.push_json(200, &minimal_message());
+    let provider = anthropic(&mock);
+    let request = Request::builder()
+        .message(Message::user("hi"))
+        .compaction(Compaction {
+            trigger_input_tokens: Some(2000),
+            ..Compaction::enabled()
+        })
+        .build();
+    let result = provider
+        .language_model("claude-opus-5")
+        .generate(request)
+        .await
+        .expect("generate succeeds");
+
+    let body = mock.request_json(0);
+    assert_eq!(
+        body["context_management"]["edits"][0]["trigger"],
+        json!({"type": "input_tokens", "value": 50_000})
+    );
+    assert!(
+        result
+            .warnings
+            .iter()
+            .any(|warning| warning.message.contains("raised to the API minimum 50000")),
+        "{:?}",
+        result.warnings
+    );
+}
+
+#[tokio::test]
+async fn valid_trigger_is_sent_unchanged_without_warnings() {
+    let mock = MockTransport::shared();
+    mock.push_json(200, &minimal_message());
+    let provider = anthropic(&mock);
+    let request = Request::builder()
+        .message(Message::user("hi"))
+        .compaction(Compaction {
+            trigger_input_tokens: Some(120_000),
+            ..Compaction::enabled()
+        })
+        .build();
+    let result = provider
+        .language_model("claude-opus-5")
+        .generate(request)
+        .await
+        .expect("generate succeeds");
+
+    let body = mock.request_json(0);
+    assert_eq!(
+        body["context_management"]["edits"][0]["trigger"]["value"],
+        120_000
+    );
+    assert!(result.warnings.is_empty(), "{:?}", result.warnings);
+}
+
+#[tokio::test]
+async fn refusal_during_compaction_yields_no_compaction_part() {
+    let mock = MockTransport::shared();
+    mock.push_json(
+        200,
+        &json!({
+            "id": "msg_r", "type": "message", "role": "assistant", "model": "claude-opus-5",
+            "content": [{"type": "compaction", "content": null}],
+            "stop_reason": "refusal", "stop_sequence": null,
+            "usage": {"input_tokens": 100, "output_tokens": 2}
+        }),
+    );
+    let provider = anthropic(&mock);
+    let result = provider
+        .language_model("claude-opus-5")
+        .generate(text_request("hi"))
+        .await
+        .expect("generate succeeds");
+
+    assert_eq!(result.finish.reason, FinishReason::ContentFilter);
+    assert_eq!(result.compactions().count(), 0, "{:?}", result.content);
+}
+
+#[tokio::test]
+async fn refusal_during_streamed_compaction_aborts_the_block() {
+    let mock = MockTransport::shared();
+    mock.push_sse(&[
+        r#"{"type":"message_start","message":{"id":"msg_ra","type":"message","role":"assistant","model":"claude-opus-5","content":[],"stop_reason":null,"stop_sequence":null,"usage":{"input_tokens":100,"output_tokens":1}}}"#,
+        r#"{"type":"content_block_start","index":0,"content_block":{"type":"compaction"}}"#,
+        r#"{"type":"content_block_stop","index":0}"#,
+        r#"{"type":"message_delta","delta":{"stop_reason":"refusal","stop_sequence":null},"usage":{"output_tokens":2}}"#,
+        r#"{"type":"message_stop"}"#,
+    ]);
+    let provider = anthropic(&mock);
+    let events = drain(
+        provider
+            .language_model("claude-opus-5")
+            .stream(text_request("hi"))
+            .await
+            .unwrap(),
+    )
+    .await;
+
+    let start = events
+        .iter()
+        .position(|event| matches!(event, StreamEvent::CompactionStart));
+    let abort = events
+        .iter()
+        .position(|event| matches!(event, StreamEvent::CompactionAbort));
+    assert!(
+        start.zip(abort).is_some_and(|(start, abort)| start < abort),
+        "{events:?}"
+    );
+    assert!(
+        !events
+            .iter()
+            .any(|event| matches!(event, StreamEvent::Compaction(_))),
+        "{events:?}"
+    );
+    assert!(
+        events.iter().any(|event| matches!(
+            event,
+            StreamEvent::Finish { finish, .. } if finish.reason == FinishReason::ContentFilter
+        )),
+        "{events:?}"
+    );
+}
+
+#[tokio::test]
+async fn empty_compaction_part_in_history_names_the_missing_summary() {
+    let mock = MockTransport::shared();
+    let provider = anthropic(&mock);
+    let request = Request::builder()
+        .message(Message::user("hi"))
+        .message(Message::Assistant {
+            content: vec![AssistantPart::Compaction(llmwire::CompactionPart {
+                id: None,
+                content: None,
+                encrypted_content: None,
+            })],
+            provider_metadata: ProviderMetadata::default(),
+        })
+        .message(Message::user("next"))
+        .build();
+    let error = provider
+        .language_model("claude-opus-5")
+        .generate(request)
+        .await
+        .unwrap_err();
+    assert_eq!(error.kind(), llmwire::ErrorKind::UnsupportedContent);
+    assert!(
+        error.to_string().contains("without summary content"),
+        "{error}"
+    );
+    assert!(mock.requests().is_empty());
+}
+
+#[tokio::test]
+async fn trigger_at_the_minimum_passes_untouched() {
+    let mock = MockTransport::shared();
+    mock.push_json(200, &minimal_message());
+    let provider = anthropic(&mock);
+    let result = provider
+        .language_model("claude-opus-5")
+        .generate(
+            Request::builder()
+                .message(Message::user("hi"))
+                .compaction(Compaction {
+                    trigger_input_tokens: Some(50_000),
+                    ..Compaction::enabled()
+                })
+                .build(),
+        )
+        .await
+        .expect("generate succeeds");
+    assert_eq!(
+        mock.request_json(0)["context_management"]["edits"][0]["trigger"]["value"],
+        50_000
+    );
+    assert!(result.warnings.is_empty(), "{:?}", result.warnings);
+}
