@@ -259,3 +259,41 @@ async fn compatible_servers_get_the_portable_wire_spellings() {
         .unwrap();
     assert_eq!(mock.request_json(2)["max_completion_tokens"], 64);
 }
+
+#[tokio::test]
+async fn dialect_downgrade_is_surfaced_when_the_output_cap_changes_spelling() {
+    let mock = MockTransport::shared();
+    mock.push_json(200, &minimal_completion());
+    let provider = provider_with(
+        &mock,
+        llmwire::ProviderConfig::openai_chat(llmwire::Credentials::none())
+            .with_base_url("http://localhost:11434/v1".parse().unwrap()),
+    );
+    let result = provider
+        .language_model("qwen3.5")
+        .generate(
+            Request::builder()
+                .message(Message::user("hi"))
+                .max_output_tokens(64)
+                .build(),
+        )
+        .await
+        .expect("generate succeeds");
+    assert!(
+        result
+            .warnings
+            .iter()
+            .any(|warning| warning.message.contains("max_completion_tokens")),
+        "{:?}",
+        result.warnings
+    );
+
+    // Without an output cap the downgrade changes nothing worth surfacing.
+    mock.push_json(200, &minimal_completion());
+    let result = provider
+        .language_model("qwen3.5")
+        .generate(text_request("hi"))
+        .await
+        .expect("generate succeeds");
+    assert!(result.warnings.is_empty(), "{:?}", result.warnings);
+}
