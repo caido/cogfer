@@ -7,6 +7,7 @@
 mod anthropic;
 #[cfg(feature = "aws")]
 pub(crate) mod bedrock;
+mod bedrock_openai;
 mod openai;
 mod openai_compatible;
 mod openrouter;

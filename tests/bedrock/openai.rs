@@ -179,3 +179,34 @@ fn model_ids_map_to_their_bedrock_profile() {
         assert_eq!(ApiProfile::for_bedrock_model(model), None, "{model}");
     }
 }
+
+/// Bedrock's endpoint spells the function-call item's `id` as `item_id` on
+/// the `output_item.done` event, which must still complete the open call.
+#[tokio::test]
+async fn function_calls_complete_despite_the_item_id_spelling() {
+    let mock = MockTransport::shared();
+    mock.push_sse(&[
+        r#"{"type":"response.created","response":{"id":"resp_1","model":"m","status":"in_progress"},"sequence_number":0}"#,
+        r#"{"type":"response.output_item.added","output_index":0,"item":{"arguments":"","call_id":"call_1","id":"fc_1","name":"get_weather","status":"in_progress","type":"function_call"},"sequence_number":1}"#,
+        r#"{"type":"response.function_call_arguments.delta","item_id":"fc_1","output_index":0,"delta":"{\"location\":\"Paris\"}","sequence_number":2}"#,
+        r#"{"type":"response.output_item.done","output_index":0,"item":{"arguments":"{\"location\":\"Paris\"}","call_id":"call_1","item_id":"fc_1","name":"get_weather","output_index":0,"status":"completed","type":"function_call"},"sequence_number":3}"#,
+        r#"{"type":"response.completed","response":{"id":"resp_1","status":"completed","output":[],"usage":{"input_tokens":10,"output_tokens":5,"total_tokens":15}},"sequence_number":4}"#,
+    ]);
+
+    let events = drain(
+        bedrock_openai(&mock)
+            .language_model(MODEL)
+            .stream(crate::common::tool_request("weather?"))
+            .await
+            .expect("stream establishes"),
+    )
+    .await;
+
+    assert_terminal_contract(&events);
+    let result = collect(&events).expect("stream succeeds");
+    assert_eq!(result.finish.reason, llmwire::FinishReason::ToolCalls);
+    let call = result.tool_calls().next().expect("one tool call");
+    assert_eq!(call.call_id, "call_1");
+    assert_eq!(call.item_id.as_deref(), Some("fc_1"));
+    assert_eq!(call.arguments, r#"{"location":"Paris"}"#);
+}

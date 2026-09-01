@@ -59,6 +59,17 @@ pub(crate) fn bedrock_provider_on(client: &Client) -> Option<Provider> {
     provider_from_env_on(client, "AWS_BEARER_TOKEN_BEDROCK", super::bedrock_config)
 }
 
+/// [`bedrock_provider_on`] for the OpenAI-compatible endpoint, from the same
+/// Bedrock API key.
+#[cfg(feature = "aws")]
+pub(crate) fn bedrock_openai_provider_on(client: &Client) -> Option<Provider> {
+    provider_from_env_on(
+        client,
+        "AWS_BEARER_TOKEN_BEDROCK",
+        super::bedrock_openai_config,
+    )
+}
+
 /// A ChatGPT subscription provider on `client`, from `CHATGPT_ACCESS_TOKEN`
 /// (plus optional `CHATGPT_REFRESH_TOKEN` / `CHATGPT_ACCOUNT_ID`) or the
 /// sign-in cached by `cargo run --example chatgpt_login`. Refreshed tokens are

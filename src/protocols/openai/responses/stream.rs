@@ -60,6 +60,15 @@ impl ResponsesStreamDecoder {
         format!("{item_id}:{}", content_index.unwrap_or(0))
     }
 
+    /// The output item's handle. Bedrock's OpenAI-compatible endpoint spells
+    /// it `item_id` on `output_item.done` events where OpenAI uses `id`.
+    fn item_handle(item: &Value) -> &str {
+        item.get("id")
+            .or_else(|| item.get("item_id"))
+            .and_then(Value::as_str)
+            .unwrap_or("")
+    }
+
     fn server_tool_status(event_type: &str) -> Option<&str> {
         let rest = event_type.strip_prefix("response.")?;
         let (head, status) = rest.rsplit_once('.')?;
@@ -100,7 +109,7 @@ impl ResponsesStreamDecoder {
             return;
         };
         let item_type = item.get("type").and_then(Value::as_str).unwrap_or("");
-        let item_id = item.get("id").and_then(Value::as_str).unwrap_or("");
+        let item_id = Self::item_handle(item);
         match item_type {
             "function_call" => {
                 let call_id = item
@@ -194,7 +203,7 @@ impl ResponsesStreamDecoder {
             return Ok(());
         };
         let item_type = item.get("type").and_then(Value::as_str).unwrap_or("");
-        let item_id = item.get("id").and_then(Value::as_str).unwrap_or("");
+        let item_id = Self::item_handle(item);
         match item_type {
             "function_call" => {
                 let final_arguments = item

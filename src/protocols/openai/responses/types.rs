@@ -141,6 +141,9 @@ pub(crate) struct OutputItem {
     pub(crate) item_type: String,
     pub(crate) status: Option<String>,
     pub(crate) id: Option<String>,
+    /// Bedrock's OpenAI-compatible endpoint spells the item's `id` as
+    /// `item_id` on function-call items.
+    pub(crate) item_id: Option<String>,
     pub(crate) call_id: Option<String>,
     pub(crate) name: Option<String>,
     pub(crate) arguments: Option<String>,
@@ -238,7 +241,7 @@ pub(crate) fn decode_output_item(raw: &Value) -> Result<Option<Vec<AssistantPart
             })?;
             Ok(Some(vec![AssistantPart::ToolCall(ToolCall {
                 call_id,
-                item_id: item.id.filter(|id| !id.is_empty()),
+                item_id: item.id.or(item.item_id).filter(|id| !id.is_empty()),
                 name: item.name.unwrap_or_default(),
                 arguments: item.arguments.unwrap_or_default(),
                 provider_metadata: ProviderMetadata::default(),

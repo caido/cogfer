@@ -76,3 +76,10 @@ pub(crate) const BEDROCK_REGION: &str = "us-east-1";
 pub(crate) fn bedrock_config(credentials: Credentials) -> ProviderConfig {
     ProviderConfig::bedrock_anthropic(BEDROCK_REGION, credentials).expect("region is valid")
 }
+
+/// The Bedrock OpenAI-compatible provider configuration for
+/// [`BEDROCK_REGION`], shared by the live tests and future cassettes.
+#[cfg(feature = "aws")]
+pub(crate) fn bedrock_openai_config(credentials: Credentials) -> ProviderConfig {
+    ProviderConfig::bedrock_openai(BEDROCK_REGION, credentials).expect("region is valid")
+}
