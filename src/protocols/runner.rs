@@ -445,7 +445,7 @@ impl StreamState {
                 }
                 None => {
                     let mut flush_failed = false;
-                    // Flushing can discover invalid UTF-8 in an unterminated line.
+                    // Flushing can discover corruption in a pending frame.
                     let final_frame = self.parser.finish();
                     if self.report_corruption(&mut out) {
                         self.queue.extend(out);

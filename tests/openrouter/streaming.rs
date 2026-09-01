@@ -141,15 +141,17 @@ async fn midstream_content_policy_error_is_typed() {
 }
 
 #[tokio::test]
-async fn valid_frame_before_corruption_in_same_chunk_is_delivered() {
+async fn invalid_utf8_is_replaced_without_dropping_prior_frames() {
     let mock = MockTransport::shared();
-    let mut chunk = br#"data: {"id":"gen-corrupt","model":"m","choices":[{"index":0,"delta":{"content":"prefix"},"finish_reason":null}]}
+    let mut chunk = br#"data: {"id":"gen-invalid-utf8","model":"m","choices":[{"index":0,"delta":{"content":"prefix"},"finish_reason":null}]}
 
-data: {"id":"gen-corrupt","choices":[{"index":0,"delta":{"content":""#
+data: {"id":"gen-invalid-utf8","choices":[{"index":0,"delta":{"content":""#
         .to_vec();
     chunk.push(0xFF);
     chunk.extend_from_slice(
         br#""},"finish_reason":null}]}
+
+data: {"id":"gen-invalid-utf8","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}
 
 "#,
     );
@@ -168,14 +170,14 @@ data: {"id":"gen-corrupt","choices":[{"index":0,"delta":{"content":""#
     )
     .await;
 
-    let text = events.iter().find_map(|event| match event {
+    let text = events.iter().filter_map(|event| match event {
         StreamEvent::TextDelta { delta, .. } => Some(delta.as_str()),
         _ => None,
     });
-    assert_eq!(text, Some("prefix"));
+    assert_eq!(text.collect::<String>(), "prefix�");
     assert_terminal_contract(&events);
     assert!(
-        events
+        !events
             .iter()
             .any(|event| matches!(event, StreamEvent::Error { .. }))
     );

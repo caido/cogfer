@@ -18,9 +18,8 @@ pub(crate) enum StreamFrame {
 
 /// Incremental framing of a streamed body.
 ///
-/// Corruption (invalid UTF-8, a frame over the size limit, a failed
-/// checksum) is not an item: the source stops producing frames, and the
-/// runner reads [`FrameSource::corruption`] to end the stream with an error
+/// Framing corruption is not an item: the source stops producing frames, and
+/// the runner reads [`FrameSource::corruption`] to end the stream with an error
 /// after delivering the frames that preceded it.
 pub(crate) trait FrameSource: Send {
     /// Push bytes and return every frame they complete.
@@ -33,7 +32,7 @@ pub(crate) trait FrameSource: Send {
     fn corruption(&self) -> Option<&'static str>;
 }
 
-/// Both framings decode text and both stop on non-UTF-8 bytes, so they share
-/// one reason rather than drifting apart in what the caller is told.
+/// AWS event-stream payloads stop on non-UTF-8 bytes.
+#[cfg(feature = "aws")]
 pub(crate) const INVALID_UTF8: &str =
     "provider stream contained invalid UTF-8; output would be corrupted";

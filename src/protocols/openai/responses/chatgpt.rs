@@ -98,17 +98,14 @@ impl ProtocolHandler for Handler {
     }
 }
 
-/// Parse a buffered SSE transcript without exceeding the line limit.
-///
-/// Chunking matters because the parser bounds one line, not the total body,
-/// so a single push of a large transcript would look like an oversized line.
 fn transcript_frames(body: &[u8]) -> Result<Vec<String>> {
     let mut parser = SseParser::new();
-    let mut frames = Vec::new();
-    for chunk in body.chunks(64 * 1024) {
-        frames.extend(parser.push(chunk));
-    }
+    let mut frames = parser.push(body);
     frames.extend(parser.finish());
+    if let Some(reason) = parser.corruption() {
+        return Err(Error::malformed(format!("chatgpt: {reason}")));
+    }
+
     // Server-Sent Events carry no framing-level exceptions.
     #[cfg_attr(not(feature = "aws"), allow(clippy::unnecessary_filter_map))]
     let frames = frames
@@ -119,16 +116,6 @@ fn transcript_frames(body: &[u8]) -> Result<Vec<String>> {
             StreamFrame::Exception { .. } => None,
         })
         .collect();
-    if parser.saw_invalid_utf8() {
-        return Err(Error::malformed(
-            "chatgpt: response transcript contained invalid UTF-8",
-        ));
-    }
-    if parser.overflowed() {
-        return Err(Error::malformed(
-            "chatgpt: response transcript exceeded the maximum SSE frame size",
-        ));
-    }
     Ok(frames)
 }
 
