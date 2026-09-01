@@ -3,12 +3,13 @@
 use url::Url;
 
 use crate::error::{Error, Result};
+use crate::http::join_url;
 use crate::protocols::openai::shared::decode_openai_error;
 use crate::protocols::{
     ApiProfile, LoweredRequest, ProtocolContext, ProtocolHandler, StreamDecoder,
 };
 use crate::response::{GenerateResult, Warning};
-use crate::transport::{HeaderMap, HttpResponse};
+use crate::transport::{HeaderMap, HttpRequest, HttpResponse};
 
 mod request;
 mod stream;
@@ -116,6 +117,15 @@ impl ProtocolHandler for Handler {
             ));
         }
         Ok(lowered)
+    }
+
+    fn verify_request(&self, base_url: &Url) -> Result<HttpRequest> {
+        // OpenRouter serves /models without a key, so only /key proves one.
+        let path = match self.dialect {
+            ChatDialect::OpenRouter => "key",
+            ChatDialect::OpenAi | ChatDialect::Compatible | ChatDialect::Xai => "models",
+        };
+        Ok(HttpRequest::get(join_url(base_url, path)))
     }
 
     fn decode_response(

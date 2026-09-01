@@ -29,6 +29,10 @@ pub(crate) struct LoweredRequest {
 pub(crate) trait ProtocolHandler: Send + Sync {
     fn lower(&self, ctx: &ProtocolContext<'_>, streaming: bool) -> Result<LoweredRequest>;
 
+    /// The request behind [`Provider::verify`](crate::Provider::verify),
+    /// before authentication.
+    fn verify_request(&self, base_url: &Url) -> Result<HttpRequest>;
+
     fn decode_response(
         &self,
         ctx: &ProtocolContext<'_>,

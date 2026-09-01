@@ -60,6 +60,18 @@ impl HttpRequest {
         })
     }
 
+    /// A GET request that accepts a JSON response.
+    pub fn get(url: Url) -> Self {
+        let mut headers = HeaderMap::new();
+        headers.insert(header::ACCEPT, HeaderValue::from_static("application/json"));
+        Self {
+            method: Method::GET,
+            url,
+            headers,
+            body: None,
+        }
+    }
+
     pub(crate) fn bearer_token(&self) -> Option<&str> {
         self.headers
             .get(header::AUTHORIZATION)?

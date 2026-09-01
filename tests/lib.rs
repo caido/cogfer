@@ -26,4 +26,5 @@ mod openai_responses;
 mod openrouter;
 mod parity;
 mod replay;
+mod verify;
 mod xai;

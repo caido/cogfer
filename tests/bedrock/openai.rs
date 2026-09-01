@@ -210,3 +210,24 @@ async fn function_calls_complete_despite_the_item_id_spelling() {
     assert_eq!(call.item_id.as_deref(), Some("fc_1"));
     assert_eq!(call.arguments, r#"{"location":"Paris"}"#);
 }
+
+#[tokio::test]
+async fn verify_steps_out_of_the_openai_prefix() {
+    let mock = MockTransport::shared();
+    mock.push_json(200, &json!({"asyncInvokeSummaries": []}));
+
+    bedrock_openai(&mock)
+        .verify()
+        .await
+        .expect("a valid key verifies");
+
+    let http: &HttpRequest = &mock.requests()[0];
+    assert_eq!(
+        http.url.as_str(),
+        "https://bedrock-runtime.eu-west-1.amazonaws.com/async-invoke?maxResults=1"
+    );
+    assert_eq!(
+        header(http, "authorization"),
+        Some("Bearer bedrock-api-key")
+    );
+}

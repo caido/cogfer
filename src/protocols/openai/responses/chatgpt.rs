@@ -7,6 +7,7 @@
 //! request streams. Blocking generation decodes the buffered SSE transcript.
 
 use serde_json::Value;
+use url::Url;
 
 use super::ResponsesDialect;
 use super::request::lower_body;
@@ -64,6 +65,15 @@ impl ProtocolHandler for Handler {
                 .expect("a UUID is a valid header value"),
         );
         Ok(LoweredRequest { http, warnings })
+    }
+
+    /// `client_version` is required; the catalog for llmwire's own version is
+    /// empty, which is fine since a bad token is refused first.
+    fn verify_request(&self, base_url: &Url) -> Result<HttpRequest> {
+        let mut url = join_url(base_url, "models");
+        url.query_pairs_mut()
+            .append_pair("client_version", env!("CARGO_PKG_VERSION"));
+        Ok(HttpRequest::get(url))
     }
 
     fn decode_response(

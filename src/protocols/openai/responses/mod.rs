@@ -1,5 +1,7 @@
 //! OpenAI Responses API and the backends that speak its wire format.
 
+use url::Url;
+
 use crate::error::{Error, Result};
 use crate::http::join_url;
 use crate::protocols::openai::shared::decode_openai_error;
@@ -72,6 +74,14 @@ impl ProtocolHandler for Handler {
             http: HttpRequest::post_json(join_url(ctx.base_url, "responses"), &body)?,
             warnings,
         })
+    }
+
+    fn verify_request(&self, base_url: &Url) -> Result<HttpRequest> {
+        #[cfg(feature = "aws")]
+        if self.dialect == ResponsesDialect::Bedrock {
+            return Ok(crate::protocols::bedrock::verify_request(base_url));
+        }
+        Ok(HttpRequest::get(join_url(base_url, "models")))
     }
 
     fn decode_response(

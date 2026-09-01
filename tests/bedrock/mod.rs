@@ -7,6 +7,7 @@ use std::sync::Arc;
 
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD;
+use llmwire::aws::{AwsCredentials, SigV4Authenticator};
 use llmwire::transport::HttpRequest;
 use llmwire::transport::mock::MockTransport;
 use llmwire::{
@@ -540,4 +541,120 @@ mod sigv4 {
         assert_eq!(error.kind(), ErrorKind::Authentication);
         assert_eq!(mock.requests().len(), 2);
     }
+}
+
+#[tokio::test]
+async fn verify_lists_async_invokes_with_the_api_key() {
+    let mock = MockTransport::shared();
+    mock.push_json(200, &json!({"asyncInvokeSummaries": []}));
+
+    bedrock(&mock).verify().await.expect("a valid key verifies");
+
+    let http: &HttpRequest = &mock.requests()[0];
+    assert_eq!(http.method, llmwire::transport::Method::GET);
+    assert_eq!(
+        http.url.as_str(),
+        "https://bedrock-runtime.eu-west-1.amazonaws.com/async-invoke?maxResults=1"
+    );
+    assert_eq!(
+        header(http, "authorization"),
+        Some("Bearer bedrock-api-key")
+    );
+    assert!(http.body.is_none());
+}
+
+fn sigv4_bedrock(mock: &Arc<MockTransport>) -> Provider {
+    let credentials = AwsCredentials::new(
+        "AKIDEXAMPLE",
+        "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY",
+        Some("session-token".into()),
+        None,
+        "test",
+    );
+    provider_with(
+        mock,
+        ProviderConfig::bedrock_anthropic("eu-west-1", Credentials::none())
+            .expect("region is valid")
+            .with_authenticator(Arc::new(SigV4Authenticator::new("eu-west-1", credentials))),
+    )
+}
+
+#[tokio::test]
+async fn verify_signs_the_check() {
+    let mock = MockTransport::shared();
+    mock.push_json(200, &json!({"asyncInvokeSummaries": []}));
+
+    sigv4_bedrock(&mock)
+        .verify()
+        .await
+        .expect("a signed check verifies");
+
+    let http = &mock.requests()[0];
+    let authorization = header(http, "authorization").expect("signature");
+    assert!(
+        authorization.starts_with("AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/"),
+        "{authorization}"
+    );
+    assert!(
+        authorization.contains("/eu-west-1/bedrock/aws4_request"),
+        "{authorization}"
+    );
+    assert_eq!(header(http, "x-amz-security-token"), Some("session-token"));
+}
+
+#[tokio::test]
+async fn verify_tells_a_bad_api_key_from_a_policy_denial() {
+    for (message, kind) in [
+        (
+            "Authentication failed: Please make sure your API Key is valid.",
+            ErrorKind::Authentication,
+        ),
+        (
+            "User: arn:aws:iam::123456789012:user/caido is not authorized to perform: \
+             bedrock:ListAsyncInvokes",
+            ErrorKind::Permission,
+        ),
+    ] {
+        let mock = MockTransport::shared();
+        mock.push_response(
+            403,
+            headers(&[
+                (
+                    "x-amzn-errortype",
+                    "AccessDeniedException:http://internal.amazon.com/coral/com.amazon.coral.service/",
+                ),
+                ("content-type", "application/json"),
+            ]),
+            json!({"Message": message}).to_string(),
+        );
+
+        let error = bedrock(&mock).verify().await.unwrap_err();
+
+        assert_eq!(error.kind(), kind, "{message}");
+        assert_eq!(error.message(), message);
+        assert_eq!(error.code(), Some("AccessDeniedException"));
+        assert_eq!(error.origin(), Some("bedrock-anthropic"));
+    }
+}
+
+#[tokio::test]
+async fn verify_re_signs_a_rejected_signature_once() {
+    let mock = MockTransport::shared();
+    for _ in 0..2 {
+        mock.push_response(
+            403,
+            headers(&[
+                ("x-amzn-errortype", "InvalidSignatureException"),
+                ("content-type", "application/json"),
+            ]),
+            json!({"message": "The request signature we calculated does not match the signature you provided."})
+                .to_string(),
+        );
+    }
+
+    let error = sigv4_bedrock(&mock).verify().await.unwrap_err();
+
+    assert_eq!(error.kind(), ErrorKind::Authentication);
+    assert_eq!(error.code(), Some("InvalidSignatureException"));
+    assert_eq!(mock.requests().len(), 2);
 }

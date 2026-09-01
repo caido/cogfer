@@ -224,3 +224,62 @@ async fn foreign_profile_turn_drops_encrypted_reasoning() {
         "xai-responses"
     );
 }
+
+#[tokio::test]
+async fn flat_envelopes_tell_a_wrong_key_by_its_message() {
+    for (status, code, message, kind) in [
+        (
+            400,
+            "invalid-argument",
+            "Incorrect API key provided. You can obtain an API key from https://console.x.ai.",
+            ErrorKind::Authentication,
+        ),
+        (
+            400,
+            "invalid-argument",
+            "Model not found: no-such-model",
+            ErrorKind::InvalidRequest,
+        ),
+        (
+            401,
+            "unauthenticated:no-credentials",
+            "No credentials presented.",
+            ErrorKind::Authentication,
+        ),
+        (
+            403,
+            "unauthenticated:bad-credentials",
+            "The OAuth2 access token could not be validated.",
+            ErrorKind::Authentication,
+        ),
+    ] {
+        let mock = MockTransport::shared();
+        mock.push_json(status, &json!({"code": code, "error": message}));
+
+        let error = xai(&mock).verify().await.unwrap_err();
+
+        assert_eq!(error.kind(), kind, "{code}: {message}");
+        assert_eq!(error.message(), message);
+        assert_eq!(error.code(), Some(code));
+        assert_eq!(error.status(), Some(status));
+        assert_eq!(error.origin(), Some("xai-responses"));
+    }
+}
+
+#[tokio::test]
+async fn chat_dialect_decodes_the_flat_envelope_too() {
+    let mock = MockTransport::shared();
+    mock.push_json(
+        400,
+        &json!({"code": "invalid-argument", "error": "Incorrect API key provided."}),
+    );
+
+    let error = xai_chat(&mock)
+        .language_model("grok-4.5")
+        .generate(text_request("hi"))
+        .await
+        .unwrap_err();
+
+    assert_eq!(error.kind(), ErrorKind::Authentication);
+    assert_eq!(error.origin(), Some("xai-chat"));
+}

@@ -128,6 +128,16 @@ pub(crate) fn xai_provider_on(
                 .expect("provider builds"),
         );
     }
+    xai_subscription_provider_on(client, config)
+}
+
+/// [`xai_provider_on`] restricted to the subscription sign-in, so a test can
+/// exercise the OAuth token even when an API key is configured too.
+pub(crate) fn xai_subscription_provider_on(
+    client: &Client,
+    config: impl FnOnce(Credentials) -> ProviderConfig,
+) -> Option<Provider> {
+    let _ = dotenvy::dotenv();
     let (tokens, cache_path) = if let Ok(access_token) = std::env::var("XAI_ACCESS_TOKEN") {
         let mut tokens = XaiTokens::new(access_token);
         if let Ok(refresh_token) = std::env::var("XAI_REFRESH_TOKEN") {

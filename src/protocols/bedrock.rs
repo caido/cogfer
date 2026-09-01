@@ -8,15 +8,34 @@
 //! stream plain Server-Sent Events.
 
 use serde::Deserialize;
+use url::Url;
 
 use crate::error::{Error, ErrorKind};
-use crate::http::{enrich_error_from_headers, error_kind_for_status};
+use crate::http::{enrich_error_from_headers, error_kind_for_status, join_url};
 use crate::protocols::ApiProfile;
-use crate::transport::{HeaderMap, HeaderName};
+use crate::transport::{HeaderMap, HeaderName, HttpRequest};
 
 /// The header carrying the exception class on error responses, as
 /// `ValidationException` or `ValidationException:http://...`.
 pub(crate) const ERROR_TYPE: HeaderName = HeaderName::from_static("x-amzn-errortype");
+
+/// The path of the OpenAI-compatible API under the runtime endpoint.
+pub(crate) const OPENAI_PATH: &str = "/openai/v1";
+
+/// `ListAsyncInvokes`: the one free read on the runtime endpoint, so it works
+/// through a custom or VPC endpoint where a control-plane call would not, and
+/// answers in every region.
+pub(crate) fn verify_request(base_url: &Url) -> HttpRequest {
+    let mut root = base_url.clone();
+    let path = root.path().trim_end_matches('/');
+    if let Some(prefix) = path.strip_suffix(OPENAI_PATH).map(str::to_owned) {
+        root.set_path(&prefix);
+    }
+    let mut url = join_url(&root, "async-invoke");
+    // One summary is enough to have the call authorized.
+    url.query_pairs_mut().append_pair("maxResults", "1");
+    HttpRequest::get(url)
+}
 
 /// Whether AWS blamed the credentials or the signature rather than the
 /// caller's permissions, meaning a fresh signature could succeed.
@@ -76,6 +95,15 @@ pub(crate) fn exception_message(body: &[u8]) -> Option<String> {
         .and_then(|body| body.message)
 }
 
+/// Whether an `AccessDeniedException` is about the credentials themselves.
+/// A Bedrock API key that is malformed, wrong or missing is refused this way
+/// rather than with a signature exception, while a policy denial names the
+/// action that is not authorized.
+fn rejects_credentials(message: Option<&str>) -> bool {
+    let message = message.unwrap_or_default().to_ascii_lowercase();
+    message.contains("api key") || message.contains("authorization header")
+}
+
 /// Decode an AWS error envelope, attributed to `profile`.
 pub(crate) fn decode_bedrock_error(
     profile: ApiProfile,
@@ -87,8 +115,14 @@ pub(crate) fn decode_bedrock_error(
         .get(ERROR_TYPE)
         .and_then(|value| value.to_str().ok())
         .map(|value| value.split(':').next().unwrap_or(value).to_owned());
-    let kind = bedrock_error_kind(exception.as_deref(), status);
-    let message = exception_message(body).unwrap_or_else(|| {
+    let message = exception_message(body);
+    let kind = match bedrock_error_kind(exception.as_deref(), status) {
+        ErrorKind::Permission if rejects_credentials(message.as_deref()) => {
+            ErrorKind::Authentication
+        }
+        kind => kind,
+    };
+    let message = message.unwrap_or_else(|| {
         crate::protocols::fallback_provider_error_message(profile, status, body)
     });
     let mut error = Error::new(kind, message).with_origin(profile.as_str());
@@ -153,6 +187,64 @@ mod tests {
             ErrorKind::Provider
         );
         assert_eq!(bedrock_error_kind(None, 503), ErrorKind::Overloaded);
+    }
+
+    #[test]
+    fn api_key_rejections_are_authentication_failures() {
+        let headers =
+            HeaderMap::from_iter([(ERROR_TYPE, "AccessDeniedException".parse().unwrap())]);
+        let decode = |message: &str| {
+            decode_bedrock_error(
+                ApiProfile::BedrockAnthropic,
+                403,
+                &headers,
+                format!(r#"{{"Message":"{message}"}}"#).as_bytes(),
+            )
+        };
+
+        for message in [
+            "Authentication failed: Please make sure your API Key is valid.",
+            "Invalid API Key format: Must start with pre-defined prefix",
+            "Authorization header is missing",
+        ] {
+            assert_eq!(
+                decode(message).kind(),
+                ErrorKind::Authentication,
+                "{message}"
+            );
+        }
+        let denied = decode(
+            "User: arn:aws:iam::123456789012:user/caido is not authorized to perform: \
+             bedrock:ListAsyncInvokes on resource: arn:aws:bedrock:us-east-1:123456789012:*",
+        );
+        assert_eq!(denied.kind(), ErrorKind::Permission);
+        assert_eq!(denied.code(), Some("AccessDeniedException"));
+    }
+
+    #[test]
+    fn verify_lists_async_invokes_on_the_runtime_root() {
+        for (base, expected) in [
+            (
+                "https://bedrock-runtime.eu-west-1.amazonaws.com",
+                "https://bedrock-runtime.eu-west-1.amazonaws.com/async-invoke?maxResults=1",
+            ),
+            (
+                "https://bedrock-runtime.eu-west-1.amazonaws.com/openai/v1",
+                "https://bedrock-runtime.eu-west-1.amazonaws.com/async-invoke?maxResults=1",
+            ),
+            (
+                "https://vpce-1.bedrock-runtime.eu-west-1.vpce.amazonaws.com/openai/v1/",
+                "https://vpce-1.bedrock-runtime.eu-west-1.vpce.amazonaws.com/async-invoke?maxResults=1",
+            ),
+            (
+                "https://gateway.example.com/bedrock/openai/v1",
+                "https://gateway.example.com/bedrock/async-invoke?maxResults=1",
+            ),
+        ] {
+            let request = verify_request(&Url::parse(base).unwrap());
+            assert_eq!(request.method, crate::transport::Method::GET);
+            assert_eq!(request.url.as_str(), expected, "{base}");
+        }
     }
 
     #[test]

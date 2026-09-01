@@ -60,24 +60,13 @@ async fn prepare(
         .map_err(|e| annotate(e, provider, model))?;
     warnings.extend(lowering_warnings);
 
-    for (name, value) in provider.inner.config.default_headers() {
-        apply_header(&mut http, name, value);
-    }
+    apply_provider_headers(provider, &mut http);
     for (name, value) in &request.extra_headers {
         apply_header(&mut http, name, value);
     }
-
-    match provider.inner.config.authentication() {
-        Authentication::Credentials(credentials) => handler
-            .apply_auth(&mut http, credentials)
-            .map_err(|error| annotate(error, provider, model))?,
-        Authentication::Authenticator(authenticator) => {
-            authenticator
-                .authenticate(&mut http)
-                .await
-                .map_err(|error| annotate(error, provider, model))?;
-        }
-    }
+    authenticate(provider, handler, &mut http)
+        .await
+        .map_err(|error| annotate(error, provider, model))?;
 
     Ok(Prepared {
         handler,
@@ -86,6 +75,43 @@ async fn prepare(
         base_url,
         request,
     })
+}
+
+fn apply_provider_headers(provider: &Provider, http: &mut HttpRequest) {
+    for (name, value) in provider.inner.config.default_headers() {
+        apply_header(http, name, value);
+    }
+}
+
+/// Authentication goes last so it has the final say over credential headers
+/// and can sign the finished request.
+async fn authenticate(
+    provider: &Provider,
+    handler: &dyn ProtocolHandler,
+    http: &mut HttpRequest,
+) -> Result<()> {
+    match provider.inner.config.authentication() {
+        Authentication::Credentials(credentials) => handler.apply_auth(http, credentials),
+        Authentication::Authenticator(authenticator) => authenticator.authenticate(http).await,
+    }
+}
+
+/// Send a buffered request, letting a refreshable authenticator recover once
+/// from rejected credentials.
+async fn execute(provider: &Provider, http: HttpRequest) -> Result<HttpResponse> {
+    trace_wire_request(&http);
+    let retry_request = retry_copy(provider, &http);
+    let mut response = provider.inner.transport.execute(http).await?;
+    let rejection = Rejection {
+        status: response.status,
+        headers: &response.headers,
+    };
+    if let Some(request) = authentication_retry(provider, rejection, retry_request).await? {
+        trace_wire_request(&request);
+        response = provider.inner.transport.execute(request).await?;
+    }
+    trace_wire_response(response.status, &response.headers, &response.body);
+    Ok(response)
 }
 
 fn trace_wire_request(http: &HttpRequest) {
@@ -135,12 +161,17 @@ fn apply_header(http: &mut HttpRequest, name: &HeaderName, value: &HeaderValue) 
 const ANTHROPIC_BETA: HeaderName = HeaderName::from_static("anthropic-beta");
 
 /// Fill in origin and model context without overwriting decoder context.
-fn annotate(mut error: Error, provider: &Provider, model: &str) -> Error {
-    if error.origin().is_none() {
-        error = error.with_origin(provider.profile().as_str());
-    }
+fn annotate(error: Error, provider: &Provider, model: &str) -> Error {
+    let mut error = annotate_origin(error, provider);
     if error.model().is_none() {
         error = error.with_model(model);
+    }
+    error
+}
+
+fn annotate_origin(mut error: Error, provider: &Provider) -> Error {
+    if error.origin().is_none() {
+        error = error.with_origin(provider.profile().as_str());
     }
     error
 }
@@ -215,31 +246,9 @@ pub(crate) async fn generate(
         base_url,
         request,
     } = prepare(provider, model, capabilities, &request, false).await?;
-    trace_wire_request(&http);
-    let retry_request = retry_copy(provider, &http);
-    let mut response = provider
-        .inner
-        .transport
-        .execute(http)
+    let response = execute(provider, http)
         .await
         .map_err(|e| annotate(e, provider, model))?;
-    let rejection = Rejection {
-        status: response.status,
-        headers: &response.headers,
-    };
-    if let Some(request) = authentication_retry(provider, rejection, retry_request)
-        .await
-        .map_err(|e| annotate(e, provider, model))?
-    {
-        trace_wire_request(&request);
-        response = provider
-            .inner
-            .transport
-            .execute(request)
-            .await
-            .map_err(|e| annotate(e, provider, model))?;
-    }
-    trace_wire_response(response.status, &response.headers, &response.body);
 
     if !(200..300).contains(&response.status) {
         let error = annotate(
@@ -259,6 +268,30 @@ pub(crate) async fn generate(
         capabilities,
     };
     decode_buffered_response(handler, &ctx, warnings, provider, &response)
+}
+
+pub(crate) async fn verify(provider: &Provider) -> Result<()> {
+    log::debug!(target: TARGET, "verify: profile={}", provider.profile());
+    let result = check_credentials(provider)
+        .await
+        .map_err(|error| annotate_origin(error, provider));
+    if let Err(error) = &result {
+        log::debug!(target: TARGET, "verify failed: {error}");
+    }
+    result
+}
+
+async fn check_credentials(provider: &Provider) -> Result<()> {
+    let handler = super::handler(provider.profile());
+    let mut http = handler.verify_request(&provider.base_url())?;
+    apply_provider_headers(provider, &mut http);
+    authenticate(provider, handler, &mut http).await?;
+    let response = execute(provider, http).await?;
+    if (200..300).contains(&response.status) {
+        Ok(())
+    } else {
+        Err(handler.decode_error(response.status, &response.headers, &response.body))
+    }
 }
 
 pub(crate) async fn stream(

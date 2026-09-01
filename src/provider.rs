@@ -9,10 +9,11 @@ use crate::auth::{Credentials, RequestAuthenticator};
 use crate::capabilities::ModelCapabilities;
 #[cfg(feature = "aws")]
 use crate::error::Error;
-#[cfg(feature = "aws")]
 use crate::error::Result;
 use crate::model::LanguageModel;
 use crate::protocols::ApiProfile;
+#[cfg(feature = "aws")]
+use crate::protocols::bedrock::OPENAI_PATH;
 use crate::transport::{HeaderMap, HeaderName, HeaderValue, HttpTransport};
 
 #[derive(Clone)]
@@ -136,7 +137,7 @@ impl ProviderConfig {
     /// when `region` is not an AWS region name.
     #[cfg(feature = "aws")]
     pub fn bedrock_openai(region: &str, credentials: Credentials) -> Result<Self> {
-        let base_url = bedrock_runtime_url(region, "/openai/v1")?;
+        let base_url = bedrock_runtime_url(region, OPENAI_PATH)?;
         Ok(Self::new(ApiProfile::BedrockOpenAiResponses, credentials).with_base_url(base_url))
     }
 
@@ -245,6 +246,23 @@ impl Provider {
                 Url::parse(self.profile().default_base_url()).expect("default base URLs are valid")
             }
         }
+    }
+
+    /// Check the credentials without generating anything.
+    ///
+    /// Sends the cheapest authenticated call the profile has (a model listing
+    /// on most APIs). Nothing is billed, and a refreshable authenticator gets
+    /// its usual recovery attempt.
+    ///
+    /// # Errors
+    ///
+    /// [`ErrorKind::Authentication`](crate::ErrorKind::Authentication) for
+    /// rejected credentials,
+    /// [`ErrorKind::Permission`](crate::ErrorKind::Permission) when they are
+    /// accepted but may not make the call (a scoped Bedrock policy), otherwise
+    /// the profile's usual classification.
+    pub async fn verify(&self) -> Result<()> {
+        crate::protocols::runner::verify(self).await
     }
 
     /// Create an execution handle for a model identifier.

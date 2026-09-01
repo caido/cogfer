@@ -240,3 +240,102 @@ async fn unauthorized_stream_refreshes_before_exposing_events() {
     assert_eq!(mock.requests().len(), 2);
     assert_eq!(auth_transport.requests().len(), 1);
 }
+
+#[tokio::test]
+async fn verify_refreshes_an_expired_token_before_the_check() {
+    let mock = MockTransport::shared();
+    mock.push_json(200, &json!({"models": []}));
+    let fresh_access = jwt(now() + 3600, "acct_new");
+    let auth_transport = MockTransport::shared();
+    auth_transport.push_json(
+        200,
+        &json!({"access_token": fresh_access, "refresh_token": "refresh-2"}),
+    );
+    let store = Arc::new(RecordingTokenStore::default());
+    let authenticator = ChatGptAuthenticator::new(
+        ChatGptTokens::new(jwt(now() - 10, "acct_old")).with_refresh_token("refresh-1"),
+        ChatGptOAuth::new(auth_transport.clone()),
+    )
+    .with_token_store(store.clone());
+    let provider = provider_with(
+        &mock,
+        ProviderConfig::chatgpt(Credentials::none()).with_authenticator(Arc::new(authenticator)),
+    );
+
+    provider
+        .verify()
+        .await
+        .expect("verify succeeds after refresh");
+
+    let http = &mock.requests()[0];
+    assert_eq!(
+        http.url.as_str(),
+        format!(
+            "https://chatgpt.com/backend-api/codex/models?client_version={}",
+            env!("CARGO_PKG_VERSION")
+        )
+    );
+    assert_eq!(
+        header(http, "authorization"),
+        Some(format!("Bearer {fresh_access}").as_str())
+    );
+    assert_eq!(header(http, "chatgpt-account-id"), Some("acct_new"));
+    assert_eq!(auth_transport.requests().len(), 1);
+    let saved = store.saved().expect("refreshed tokens persisted");
+    assert_eq!(saved.refresh_token.as_deref(), Some("refresh-2"));
+}
+
+#[tokio::test]
+async fn verify_recovers_once_from_a_rejected_token() {
+    let mock = MockTransport::shared();
+    mock.push_json(
+        401,
+        &json!({"detail": "Could not parse your authentication token."}),
+    );
+    mock.push_json(200, &json!({"models": []}));
+    let auth_transport = MockTransport::shared();
+    auth_transport.push_json(
+        200,
+        &json!({"access_token": jwt(now() + 3600, "acct"), "refresh_token": "refresh-2"}),
+    );
+    let authenticator = ChatGptAuthenticator::new(
+        ChatGptTokens::new(jwt(now() + 3600, "acct")).with_refresh_token("refresh-1"),
+        ChatGptOAuth::new(auth_transport.clone()),
+    );
+    let provider = provider_with(
+        &mock,
+        ProviderConfig::chatgpt(Credentials::none()).with_authenticator(Arc::new(authenticator)),
+    );
+
+    provider
+        .verify()
+        .await
+        .expect("verify succeeds after recovery");
+
+    assert_eq!(mock.requests().len(), 2);
+    assert_eq!(auth_transport.requests().len(), 1);
+}
+
+#[tokio::test]
+async fn verify_reports_a_dead_sign_in() {
+    let mock = MockTransport::shared();
+    mock.push_json(
+        401,
+        &json!({"detail": "Could not parse your authentication token."}),
+    );
+    let auth_transport = MockTransport::shared();
+    auth_transport.push_json(400, &json!({"error": "invalid_grant"}));
+    let authenticator = Arc::new(ChatGptAuthenticator::new(
+        ChatGptTokens::new(jwt(now() + 3600, "acct")).with_refresh_token("refresh-dead"),
+        ChatGptOAuth::new(auth_transport.clone()),
+    ));
+    let provider = provider_with(
+        &mock,
+        ProviderConfig::chatgpt(Credentials::none()).with_authenticator(authenticator.clone()),
+    );
+
+    let error = provider.verify().await.unwrap_err();
+
+    assert_eq!(error.kind(), ErrorKind::Authentication);
+    assert_eq!(authenticator.status().await, OAuthStatus::ReauthRequired);
+}

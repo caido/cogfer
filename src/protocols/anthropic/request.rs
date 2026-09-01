@@ -479,10 +479,7 @@ pub(crate) fn lower_anthropic_request(
     let http = match dialect {
         AnthropicDialect::Direct => {
             let mut http = HttpRequest::post_json(join_url(ctx.base_url, "messages"), &body)?;
-            http.headers.insert(
-                HeaderName::from_static("anthropic-version"),
-                HeaderValue::from_static("2023-06-01"),
-            );
+            http.headers.insert(super::VERSION_HEADER, super::VERSION);
             if !beta_features.is_empty() {
                 http.headers.insert(
                     HeaderName::from_static("anthropic-beta"),

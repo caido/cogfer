@@ -1,7 +1,10 @@
 //! Gemini GenerateContent (`generativelanguage.googleapis.com`, v1beta).
 
+use url::Url;
+
 use super::{LoweredRequest, ProtocolContext, ProtocolHandler, StreamDecoder};
 use crate::error::{Error, Result};
+use crate::http::join_url;
 use crate::response::GenerateResult;
 use crate::transport::{HeaderMap, HeaderName, HttpRequest, HttpResponse};
 
@@ -20,6 +23,10 @@ const SIGNATURE_KEY: &str = "thought_signature";
 impl ProtocolHandler for Handler {
     fn lower(&self, ctx: &ProtocolContext<'_>, streaming: bool) -> Result<LoweredRequest> {
         lower_gemini_request(ctx, streaming)
+    }
+
+    fn verify_request(&self, base_url: &Url) -> Result<HttpRequest> {
+        Ok(HttpRequest::get(join_url(base_url, "models")))
     }
 
     fn decode_response(

@@ -82,6 +82,9 @@ pub(crate) fn json_schema_format(output: &StructuredOutput) -> Value {
 }
 
 /// Decode an OpenAI-style error envelope shared by Responses and Chat.
+///
+/// SpaceXAI flattens it to `{"code": ..., "error": "message"}` and refuses a
+/// wrong key with the 400 code every validation failure shares.
 pub(crate) fn decode_openai_error(
     protocol: ApiProfile,
     status: u16,
@@ -90,9 +93,10 @@ pub(crate) fn decode_openai_error(
 ) -> Error {
     #[derive(Deserialize)]
     struct Envelope {
-        error: Option<ErrorBody>,
+        error: Option<Value>,
+        code: Option<String>,
     }
-    #[derive(Deserialize)]
+    #[derive(Deserialize, Default)]
     struct ErrorBody {
         message: Option<String>,
         #[serde(rename = "type")]
@@ -100,30 +104,45 @@ pub(crate) fn decode_openai_error(
         code: Option<Value>,
     }
 
-    let parsed = serde_json::from_slice::<Envelope>(body)
-        .ok()
-        .and_then(|envelope| envelope.error);
-    let code = parsed.as_ref().and_then(|error| match &error.code {
-        Some(Value::String(code)) => Some(code.clone()),
-        Some(Value::Number(code)) => Some(code.to_string()),
-        _ => None,
-    });
-    let message = parsed.as_ref().and_then(|error| error.message.clone());
+    let (message, error_type, code) = match serde_json::from_slice::<Envelope>(body).ok() {
+        Some(Envelope {
+            error: Some(error @ Value::Object(_)),
+            ..
+        }) => {
+            let error: ErrorBody = serde_json::from_value(error).unwrap_or_default();
+            let code = match error.code {
+                Some(Value::String(code)) => Some(code),
+                Some(Value::Number(code)) => Some(code.to_string()),
+                _ => None,
+            };
+            (error.message, error.error_type, code)
+        }
+        Some(Envelope {
+            error: Some(Value::String(message)),
+            code,
+        }) => (Some(message), None, code),
+        _ => (None, None, None),
+    };
 
     let mut kind = error_kind_for_status(status);
-    if matches!(
-        code.as_deref(),
-        Some("context_length_exceeded" | "string_above_max_length")
-    ) {
-        kind = ErrorKind::ContextLength;
+    match code.as_deref() {
+        Some("context_length_exceeded" | "string_above_max_length") => {
+            kind = ErrorKind::ContextLength;
+        }
+        // OpenAI answers exhausted billing with a 429, and retrying cannot help.
+        Some("insufficient_quota") => kind = ErrorKind::Permission,
+        Some(code) if code.starts_with("unauthenticated") => kind = ErrorKind::Authentication,
+        Some("invalid-argument")
+            if message
+                .as_deref()
+                .is_some_and(|message| message.to_ascii_lowercase().contains("api key")) =>
+        {
+            kind = ErrorKind::Authentication;
+        }
+        _ => {}
     }
-    // OpenAI answers exhausted billing with a 429, and retrying cannot help.
-    if code.as_deref() == Some("insufficient_quota") {
-        kind = ErrorKind::Permission;
-    }
-    if parsed
-        .as_ref()
-        .and_then(|error| error.error_type.as_deref())
+    if error_type
+        .as_deref()
         .is_some_and(|error_type| error_type.contains("authentication"))
     {
         kind = ErrorKind::Authentication;

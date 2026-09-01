@@ -13,3 +13,4 @@ mod openai;
 mod openai_compatible;
 mod openrouter;
 mod subscriptions;
+mod verify;
