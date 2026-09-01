@@ -10,7 +10,11 @@ Supports:
 - OpenRouter
 - Anthropic
 - Anthropic on Amazon Bedrock
+- OpenAI on Amazon Bedrock
 - Gemini
+
+Bedrock support covers the Anthropic and OpenAI dialects; other Bedrock
+vendors (which would need the Converse API) are out of scope for now.
 
 ## Quick start
 
