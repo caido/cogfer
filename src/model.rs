@@ -27,9 +27,7 @@ impl LanguageModel {
         &self.capabilities
     }
 
-    /// Narrow the capabilities to what `model` says this model supports, for
-    /// example from a models.dev entry. The profile defaults remain the
-    /// upper bound: nothing the wire format cannot carry is enabled.
+    /// Narrow the capabilities to what `model` says this model supports, defaults to enabled
     #[must_use = "model modifiers return an updated value"]
     pub fn with_capabilities(mut self, model: &ModelCapabilities) -> Self {
         self.capabilities = self.capabilities.restrict(model);

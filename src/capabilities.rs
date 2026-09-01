@@ -181,6 +181,16 @@ impl ModelCapabilities {
                 frequency_penalty: false,
                 ..full
             },
+            #[cfg(feature = "aws")]
+            ApiProfile::BedrockOpenAiResponses => Self {
+                reasoning: openai_reasoning(true),
+                top_k: false,
+                stop_sequences: false,
+                seed: false,
+                presence_penalty: false,
+                frequency_penalty: false,
+                ..full
+            },
             ApiProfile::ChatGptResponses => Self {
                 reasoning: openai_reasoning(true),
                 native_compaction: true,

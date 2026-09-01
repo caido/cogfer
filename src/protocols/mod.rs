@@ -16,6 +16,8 @@ pub(crate) mod runner;
 pub(crate) mod validate;
 
 pub(crate) mod anthropic;
+#[cfg(feature = "aws")]
+pub(crate) mod bedrock;
 pub(crate) mod gemini;
 pub(crate) mod openai;
 
@@ -52,6 +54,10 @@ pub enum ApiProfile {
     /// (`POST {base}/model/{model}/invoke[-with-response-stream]`).
     #[cfg(feature = "aws")]
     BedrockAnthropic,
+    /// OpenAI models on Amazon Bedrock through its OpenAI-compatible
+    /// Responses API (`POST {base}/responses`).
+    #[cfg(feature = "aws")]
+    BedrockOpenAiResponses,
     /// Gemini GenerateContent API.
     GeminiGenerateContent,
 }
@@ -69,6 +75,8 @@ impl ApiProfile {
             ApiProfile::AnthropicMessages => "anthropic",
             #[cfg(feature = "aws")]
             ApiProfile::BedrockAnthropic => "bedrock-anthropic",
+            #[cfg(feature = "aws")]
+            ApiProfile::BedrockOpenAiResponses => "bedrock-openai-responses",
             ApiProfile::GeminiGenerateContent => "gemini",
         }
     }
@@ -81,6 +89,8 @@ impl ApiProfile {
             | ApiProfile::ChatGptResponses
             | ApiProfile::XaiResponses
             | ApiProfile::XaiChatCompletions => "openai",
+            #[cfg(feature = "aws")]
+            ApiProfile::BedrockOpenAiResponses => "openai",
             ApiProfile::OpenRouter => "openrouter",
             ApiProfile::AnthropicMessages => "anthropic",
             #[cfg(feature = "aws")]
@@ -108,8 +118,33 @@ impl ApiProfile {
             ApiProfile::AnthropicMessages => "https://api.anthropic.com/v1",
             #[cfg(feature = "aws")]
             ApiProfile::BedrockAnthropic => "https://bedrock-runtime.us-east-1.amazonaws.com",
+            #[cfg(feature = "aws")]
+            ApiProfile::BedrockOpenAiResponses => {
+                "https://bedrock-runtime.us-east-1.amazonaws.com/openai/v1"
+            }
             ApiProfile::GeminiGenerateContent => "https://generativelanguage.googleapis.com/v1beta",
         }
+    }
+
+    /// The Bedrock profile that serves `model`, read from the vendor segment
+    /// of the model id: `anthropic.` ids select
+    /// [`ApiProfile::BedrockAnthropic`] and `openai.` ids select
+    /// [`ApiProfile::BedrockOpenAiResponses`], whether the id is bare
+    /// (`openai.gpt-oss-120b`), an inference profile
+    /// (`us.anthropic.claude-sonnet-4-6`), or an ARN whose resource name
+    /// carries the vendor. `None` when the vendor is absent — an application
+    /// inference profile's opaque name, or a vendor without a profile here.
+    #[cfg(feature = "aws")]
+    pub fn for_bedrock_model(model: &str) -> Option<ApiProfile> {
+        let resource = match model.rsplit_once('/') {
+            Some((_, resource)) => resource,
+            None => model,
+        };
+        resource.split('.').find_map(|segment| match segment {
+            "anthropic" => Some(ApiProfile::BedrockAnthropic),
+            "openai" => Some(ApiProfile::BedrockOpenAiResponses),
+            _ => None,
+        })
     }
 }
 

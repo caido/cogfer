@@ -16,7 +16,7 @@ mod stream;
 mod types;
 
 #[cfg(feature = "aws")]
-use self::bedrock::{BedrockStreamDecoder, decode_bedrock_error};
+use self::bedrock::BedrockStreamDecoder;
 use self::request::lower_anthropic_request;
 use self::stream::AnthropicStreamDecoder;
 use self::types::{decode_anthropic_error, decode_anthropic_response};
@@ -62,7 +62,12 @@ impl ProtocolHandler for Handler {
         match self.dialect {
             AnthropicDialect::Direct => decode_anthropic_error(status, headers, body),
             #[cfg(feature = "aws")]
-            AnthropicDialect::Bedrock => decode_bedrock_error(status, headers, body),
+            AnthropicDialect::Bedrock => crate::protocols::bedrock::decode_bedrock_error(
+                ApiProfile::BedrockAnthropic,
+                status,
+                headers,
+                body,
+            ),
         }
     }
 

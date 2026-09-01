@@ -176,12 +176,16 @@ pub enum ReasoningContent {
 /// to the provider that produced it. Build results with
 /// [`ToolResultPart::for_call`] and it is carried over automatically.
 ///
-/// | Profile | `call_id` | `item_id` |
-/// |---|---|---|
-/// | Anthropic | `toolu_...` | none |
-/// | OpenAI Chat, SpaceXAI Chat, OpenRouter | `call_...` | none |
-/// | OpenAI Responses, ChatGPT, SpaceXAI Responses | `call_...` | `fc_...` |
-/// | Gemini | provider id, or synthesized when Gemini omits one | provider id, if any |
+/// Provider profiles map tool ids as follows:
+///
+/// - Anthropic keeps its tool-use id, typically `toolu_...`, as `call_id` and
+///   has no `item_id`.
+/// - Chat Completions profiles keep the provider's tool-call id as `call_id`
+///   and have no `item_id`.
+/// - Responses profiles keep the provider's correlation id as `call_id` and
+///   the function-call item handle, typically `fc_...`, as `item_id`.
+/// - Gemini uses the provider id for both fields when available. When Gemini
+///   omits the id, `call_id` is synthesized and `item_id` is absent.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ToolCall {
     /// Stable correlation id, synthesized when the provider omits one. Tool

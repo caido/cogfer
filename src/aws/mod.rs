@@ -20,7 +20,7 @@ pub use aws_credential_types::provider::{ProvideCredentials, SharedCredentialsPr
 pub use self::sigv4::sign_request;
 use crate::auth::{Rejection, RequestAuthenticator};
 use crate::error::{Error, ErrorKind, Result};
-use crate::protocols::anthropic::bedrock::{ERROR_TYPE, is_signature_failure};
+use crate::protocols::bedrock::{ERROR_TYPE, is_signature_failure};
 use crate::transport::{HeaderMap, HttpRequest};
 
 /// Signs Bedrock requests. A 403 naming a signature, clock, or expired-token

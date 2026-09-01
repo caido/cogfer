@@ -329,17 +329,26 @@ fn insert_sampling_configuration(
 fn insert_streaming_configuration(
     object: &mut serde_json::Map<String, Value>,
     streaming: bool,
-    chatgpt: bool,
+    dialect: ResponsesDialect,
 ) {
-    if chatgpt {
+    if dialect.is_chatgpt() {
         object.insert("stream".into(), json!(true));
-    } else if streaming {
-        object.insert("stream".into(), json!(true));
-        object.insert(
-            "stream_options".into(),
-            json!({"include_obfuscation": false}),
-        );
+        return;
     }
+    if !streaming {
+        return;
+    }
+    object.insert("stream".into(), json!(true));
+    // Bedrock's compatible endpoint does not document `stream_options`, and
+    // skipping obfuscation padding is not worth a rejected request there.
+    #[cfg(feature = "aws")]
+    if dialect == ResponsesDialect::Bedrock {
+        return;
+    }
+    object.insert(
+        "stream_options".into(),
+        json!({"include_obfuscation": false}),
+    );
 }
 
 /// Build the Responses request body plus lowering warnings.
@@ -379,7 +388,7 @@ pub(crate) fn lower_body(
     insert_reasoning_configuration(ctx, object, &mut warnings);
     insert_compaction_configuration(ctx, object, &mut warnings);
     insert_sampling_configuration(ctx, object);
-    insert_streaming_configuration(object, streaming, chatgpt);
+    insert_streaming_configuration(object, streaming, dialect);
 
     if let Some(options) = request.provider_options.get("openai") {
         crate::util::json_merge(&mut body, options.clone());

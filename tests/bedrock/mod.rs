@@ -1,6 +1,8 @@
 //! Anthropic on Amazon Bedrock: URL and body shape, buffered and event-stream
 //! responses, stream exceptions, and AWS error envelopes.
 
+mod openai;
+
 use std::sync::Arc;
 
 use base64::Engine as _;

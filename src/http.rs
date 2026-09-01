@@ -24,9 +24,6 @@ const PATH_SEGMENT_ENCODE_SET: &AsciiSet = &NON_ALPHANUMERIC
     .remove(b'_')
     .remove(b'~');
 
-/// Percent-encode `input` as a single URL path segment: every byte except the
-/// RFC 3986 unreserved characters, with uppercase hex digits.
-///
 /// Bedrock puts the model ID in the path and model IDs contain `:`, which must
 /// arrive as `%3A`. The signer percent-encodes the path a second time, so what
 /// this produces is what the signature covers.

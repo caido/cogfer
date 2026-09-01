@@ -70,12 +70,6 @@ impl ProviderConfig {
     }
 
     /// OpenAI Chat Completions and compatible servers such as LiteLLM and Ollama.
-    ///
-    /// Against hosts other than OpenAI's own the portable wire spellings are
-    /// used (`max_tokens`, `stream_options` with only `include_usage`).
-    /// OpenAI's `gpt-5.x` models reject function tools on this API unless a
-    /// reasoning effort is set explicitly (`ReasoningConfig::Disabled` sends
-    /// `reasoning_effort: none`). The Responses API has no such restriction.
     pub fn openai_chat(credentials: Credentials) -> Self {
         Self::new(ApiProfile::OpenAiChatCompletions, credentials)
     }
@@ -123,18 +117,27 @@ impl ProviderConfig {
     /// when `region` is not an AWS region name.
     #[cfg(feature = "aws")]
     pub fn bedrock_anthropic(region: &str, credentials: Credentials) -> Result<Self> {
-        let valid = !region.is_empty()
-            && region
-                .bytes()
-                .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-');
-        if !valid {
-            return Err(Error::configuration(format!(
-                "`{region}` is not an AWS region name"
-            )));
-        }
-        let base_url = Url::parse(&format!("https://bedrock-runtime.{region}.amazonaws.com"))
-            .expect("a region name forms a valid host");
+        let base_url = bedrock_runtime_url(region, "")?;
         Ok(Self::new(ApiProfile::BedrockAnthropic, credentials).with_base_url(base_url))
+    }
+
+    /// OpenAI models on Amazon Bedrock in `region`, through Bedrock's
+    /// OpenAI-compatible Responses API.
+    ///
+    /// Model ids are Bedrock's: the GPT models are served only as inference
+    /// profiles (`us.openai.gpt-5.6-sol`), while the open-weight models also
+    /// take their bare ids (`openai.gpt-oss-120b`). Pass a Bedrock API key as
+    /// [`Credentials::bearer`], or [`Credentials::none`] plus a SigV4
+    /// [`RequestAuthenticator`] through [`ProviderConfig::with_authenticator`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ErrorKind::Configuration`](crate::ErrorKind::Configuration)
+    /// when `region` is not an AWS region name.
+    #[cfg(feature = "aws")]
+    pub fn bedrock_openai(region: &str, credentials: Credentials) -> Result<Self> {
+        let base_url = bedrock_runtime_url(region, "/openai/v1")?;
+        Ok(Self::new(ApiProfile::BedrockOpenAiResponses, credentials).with_base_url(base_url))
     }
 
     /// Use a custom API base URL.
@@ -178,6 +181,25 @@ impl ProviderConfig {
     pub(crate) fn authentication(&self) -> &Authentication {
         &self.authentication
     }
+}
+
+/// The regional `bedrock-runtime` endpoint with `path` appended, or a
+/// configuration error when `region` is not an AWS region name.
+#[cfg(feature = "aws")]
+fn bedrock_runtime_url(region: &str, path: &str) -> Result<Url> {
+    let valid = !region.is_empty()
+        && region
+            .bytes()
+            .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-');
+    if !valid {
+        return Err(Error::configuration(format!(
+            "`{region}` is not an AWS region name"
+        )));
+    }
+    Ok(Url::parse(&format!(
+        "https://bedrock-runtime.{region}.amazonaws.com{path}"
+    ))
+    .expect("a region name forms a valid host"))
 }
 
 pub(crate) struct ProviderInner {

@@ -90,6 +90,8 @@ pub(crate) fn handler(profile: ApiProfile) -> &'static dyn ProtocolHandler {
         ApiProfile::AnthropicMessages => &super::anthropic::Handler::DIRECT,
         #[cfg(feature = "aws")]
         ApiProfile::BedrockAnthropic => &super::anthropic::Handler::BEDROCK,
+        #[cfg(feature = "aws")]
+        ApiProfile::BedrockOpenAiResponses => &super::openai::responses::Handler::BEDROCK,
         ApiProfile::GeminiGenerateContent => &super::gemini::Handler,
     }
 }

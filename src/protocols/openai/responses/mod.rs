@@ -27,6 +27,9 @@ pub(crate) enum ResponsesDialect {
     Xai,
     /// The ChatGPT subscription backend.
     ChatGpt,
+    /// Amazon Bedrock's OpenAI-compatible endpoint.
+    #[cfg(feature = "aws")]
+    Bedrock,
 }
 
 impl ResponsesDialect {
@@ -35,6 +38,8 @@ impl ResponsesDialect {
             ResponsesDialect::OpenAi => ApiProfile::OpenAiResponses,
             ResponsesDialect::Xai => ApiProfile::XaiResponses,
             ResponsesDialect::ChatGpt => ApiProfile::ChatGptResponses,
+            #[cfg(feature = "aws")]
+            ResponsesDialect::Bedrock => ApiProfile::BedrockOpenAiResponses,
         }
     }
 
@@ -53,6 +58,10 @@ impl Handler {
     };
     pub(crate) const XAI: Self = Self {
         dialect: ResponsesDialect::Xai,
+    };
+    #[cfg(feature = "aws")]
+    pub(crate) const BEDROCK: Self = Self {
+        dialect: ResponsesDialect::Bedrock,
     };
 }
 
@@ -74,6 +83,20 @@ impl ProtocolHandler for Handler {
     }
 
     fn decode_error(&self, status: u16, headers: &HeaderMap, body: &[u8]) -> Error {
+        // Bedrock answers endpoint-level failures (auth, throttling,
+        // validation) with an AWS envelope and model-level failures with the
+        // OpenAI one; the exception-class header tells them apart.
+        #[cfg(feature = "aws")]
+        if self.dialect == ResponsesDialect::Bedrock
+            && headers.contains_key(crate::protocols::bedrock::ERROR_TYPE)
+        {
+            return crate::protocols::bedrock::decode_bedrock_error(
+                ApiProfile::BedrockOpenAiResponses,
+                status,
+                headers,
+                body,
+            );
+        }
         decode_openai_error(self.dialect.profile(), status, headers, body)
     }
 

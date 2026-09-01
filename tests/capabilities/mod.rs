@@ -30,6 +30,8 @@ const PROFILES: &[ApiProfile] = &[
     ApiProfile::AnthropicMessages,
     #[cfg(feature = "aws")]
     ApiProfile::BedrockAnthropic,
+    #[cfg(feature = "aws")]
+    ApiProfile::BedrockOpenAiResponses,
     ApiProfile::GeminiGenerateContent,
 ];
 
@@ -40,6 +42,16 @@ fn config(profile: ApiProfile) -> ProviderConfig {
 /// Queue one successful reply in the profile's wire format.
 fn queue_success(mock: &MockTransport, profile: ApiProfile) {
     match profile {
+        #[cfg(feature = "aws")]
+        ApiProfile::BedrockOpenAiResponses => mock.push_json(
+            200,
+            &json!({
+                "id": "resp_1", "object": "response", "status": "completed", "model": "m",
+                "output": [{"type": "message", "id": "msg_1", "status": "completed", "role": "assistant",
+                            "content": [{"type": "output_text", "text": "ok", "annotations": []}]}],
+                "usage": {"input_tokens": 1, "output_tokens": 1, "total_tokens": 2}
+            }),
+        ),
         ApiProfile::OpenAiResponses | ApiProfile::XaiResponses => mock.push_json(
             200,
             &json!({
