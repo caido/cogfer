@@ -71,6 +71,7 @@ fn is_openai_endpoint(base_url: &Url) -> bool {
     let Some(host) = base_url.host_str() else {
         return false;
     };
+    let host = host.to_ascii_lowercase();
     host.eq_ignore_ascii_case("api.openai.com")
         || [
             ".openai.azure.com",
@@ -78,7 +79,7 @@ fn is_openai_endpoint(base_url: &Url) -> bool {
             ".cognitiveservices.azure.com",
         ]
         .iter()
-        .any(|suffix| host.to_ascii_lowercase().ends_with(suffix))
+        .any(|suffix| host.ends_with(suffix))
 }
 
 pub(crate) struct Handler {

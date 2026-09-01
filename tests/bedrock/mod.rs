@@ -3,6 +3,8 @@
 
 use std::sync::Arc;
 
+use base64::Engine as _;
+use base64::engine::general_purpose::STANDARD;
 use llmwire::transport::HttpRequest;
 use llmwire::transport::mock::MockTransport;
 use llmwire::{
@@ -34,28 +36,9 @@ fn message(text: &str) -> serde_json::Value {
     })
 }
 
-/// Standard base64, the encoding Bedrock wraps each model event in.
-fn base64(bytes: &[u8]) -> String {
-    const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    let mut out = String::new();
-    for chunk in bytes.chunks(3) {
-        let mut buffer = [0u8; 3];
-        buffer[..chunk.len()].copy_from_slice(chunk);
-        let value = u32::from_be_bytes([0, buffer[0], buffer[1], buffer[2]]);
-        for index in 0..4 {
-            if index <= chunk.len() {
-                out.push(ALPHABET[((value >> (18 - 6 * index)) & 63) as usize] as char);
-            } else {
-                out.push('=');
-            }
-        }
-    }
-    out
-}
-
 /// One Bedrock `chunk` event carrying an Anthropic stream event.
 fn chunk(event: &str) -> Vec<u8> {
-    json!({"bytes": base64(event.as_bytes()), "p": "abc"})
+    json!({"bytes": STANDARD.encode(event), "p": "abc"})
         .to_string()
         .into_bytes()
 }
@@ -388,8 +371,13 @@ mod sigv4 {
     use crate::common::{header, headers, provider_with, text_request};
 
     fn signed_provider(mock: &Arc<MockTransport>) -> llmwire::Provider {
-        let credentials =
-            AwsCredentials::new("AKIDEXAMPLE", "secret").with_session_token("session");
+        let credentials = AwsCredentials::new(
+            "AKIDEXAMPLE",
+            "secret",
+            Some("session".into()),
+            None,
+            "test",
+        );
         provider_with(
             mock,
             ProviderConfig::bedrock_anthropic("eu-west-1", Credentials::none())
@@ -454,13 +442,22 @@ mod sigv4 {
     }
 
     /// Credentials that rotate on every fetch, like an STS session would.
+    #[derive(Debug)]
     struct Rotating(std::sync::atomic::AtomicU32);
 
-    #[async_trait::async_trait]
-    impl llmwire::aws::AwsCredentialsProvider for Rotating {
-        async fn credentials(&self) -> llmwire::Result<AwsCredentials> {
+    impl llmwire::aws::ProvideCredentials for Rotating {
+        fn provide_credentials<'a>(&'a self) -> llmwire::aws::future::ProvideCredentials<'a>
+        where
+            Self: 'a,
+        {
             let generation = self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
-            Ok(AwsCredentials::new(format!("AKID{generation}"), "secret"))
+            llmwire::aws::future::ProvideCredentials::ready(Ok(AwsCredentials::new(
+                format!("AKID{generation}"),
+                "secret",
+                None,
+                None,
+                "test",
+            )))
         }
     }
 
@@ -477,9 +474,9 @@ mod sigv4 {
             &mock,
             ProviderConfig::bedrock_anthropic("eu-west-1", Credentials::none())
                 .expect("region is valid")
-                .with_authenticator(Arc::new(SigV4Authenticator::with_provider(
+                .with_authenticator(Arc::new(SigV4Authenticator::new(
                     "eu-west-1",
-                    Arc::new(Rotating(Default::default())),
+                    Rotating(Default::default()),
                 ))),
         );
 

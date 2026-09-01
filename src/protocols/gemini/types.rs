@@ -14,48 +14,34 @@ use crate::usage::Usage;
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct GeminiPart {
-    #[serde(default)]
     pub(crate) text: Option<String>,
-    #[serde(default)]
     pub(crate) thought: Option<bool>,
-    #[serde(default)]
     pub(crate) thought_signature: Option<String>,
-    #[serde(default)]
     pub(crate) function_call: Option<GeminiFunctionCall>,
 }
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct GeminiFunctionCall {
-    #[serde(default)]
     pub(crate) id: Option<String>,
-    #[serde(default)]
     pub(crate) name: Option<String>,
-    #[serde(default)]
     pub(crate) args: Option<Value>,
 }
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct GeminiContent {
-    #[serde(default)]
     pub(crate) parts: Option<Vec<GeminiPart>>,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct GeminiCandidate {
-    #[serde(default)]
     pub(crate) content: Option<GeminiContent>,
-    #[serde(default)]
     pub(crate) finish_reason: Option<String>,
     /// Search grounding preserved in `gemini.groundingMetadata`.
-    #[serde(default)]
     pub(crate) grounding_metadata: Option<Value>,
     /// Legacy citation ranges preserved alongside grounding.
-    #[serde(default)]
     pub(crate) citation_metadata: Option<Value>,
-    #[serde(default)]
     pub(crate) safety_ratings: Option<Value>,
-    #[serde(default)]
     pub(crate) finish_message: Option<String>,
 }
 
@@ -78,9 +64,7 @@ impl GeminiCandidate {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct PromptFeedback {
-    #[serde(default)]
     pub(crate) block_reason: Option<String>,
-    #[serde(default)]
     pub(crate) safety_ratings: Option<Value>,
 }
 
@@ -100,17 +84,11 @@ impl PromptFeedback {
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct UsageMetadata {
-    #[serde(default)]
     pub(crate) prompt_token_count: Option<u64>,
-    #[serde(default)]
     pub(crate) candidates_token_count: Option<u64>,
-    #[serde(default)]
     pub(crate) total_token_count: Option<u64>,
-    #[serde(default)]
     pub(crate) thoughts_token_count: Option<u64>,
-    #[serde(default)]
     pub(crate) cached_content_token_count: Option<u64>,
-    #[serde(default)]
     pub(crate) tool_use_prompt_token_count: Option<u64>,
 }
 
@@ -141,17 +119,11 @@ impl UsageMetadata {
 #[serde(rename_all = "camelCase")]
 pub(crate) struct GenerateContentResponse {
     /// Streams report failures as a Google RPC status frame.
-    #[serde(default)]
     pub(crate) error: Option<GoogleStatus>,
-    #[serde(default)]
     pub(crate) candidates: Option<Vec<GeminiCandidate>>,
-    #[serde(default)]
     pub(crate) prompt_feedback: Option<PromptFeedback>,
-    #[serde(default)]
     pub(crate) usage_metadata: Option<UsageMetadata>,
-    #[serde(default)]
     pub(crate) model_version: Option<String>,
-    #[serde(default)]
     pub(crate) response_id: Option<String>,
 }
 
@@ -287,11 +259,8 @@ pub(crate) fn finish_from_reason(reason: Option<&str>) -> Finish {
 #[derive(Debug, Deserialize)]
 pub(crate) struct GoogleStatus {
     /// The HTTP status the RPC status maps to.
-    #[serde(default)]
     code: Option<u16>,
-    #[serde(default)]
     message: Option<String>,
-    #[serde(default)]
     status: Option<String>,
     #[serde(default)]
     details: Vec<Value>,
@@ -368,7 +337,6 @@ impl GoogleStatus {
 pub(crate) fn decode_gemini_error(status: u16, headers: &HeaderMap, body: &[u8]) -> Error {
     #[derive(Deserialize)]
     struct Envelope {
-        #[serde(default)]
         error: Option<GoogleStatus>,
     }
 

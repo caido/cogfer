@@ -38,10 +38,13 @@ pub(crate) fn sigv4_provider() -> Option<Provider> {
         eprintln!("SKIP: AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY not set");
         return None;
     };
-    let mut credentials = AwsCredentials::new(access_key_id, secret);
-    if let Ok(token) = std::env::var("AWS_SESSION_TOKEN") {
-        credentials = credentials.with_session_token(token);
-    }
+    let credentials = AwsCredentials::new(
+        access_key_id,
+        secret,
+        std::env::var("AWS_SESSION_TOKEN").ok(),
+        None,
+        "environment",
+    );
     Some(
         live_client()
             .provider(

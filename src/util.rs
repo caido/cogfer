@@ -25,44 +25,8 @@ pub(crate) fn truncate_for_error(input: &str, max: usize) -> String {
     if input.len() <= max {
         return input.to_string();
     }
-    let mut end = max;
-    while !input.is_char_boundary(end) {
-        end -= 1;
-    }
+    let end = input.floor_char_boundary(max);
     format!("{}…", &input[..end])
-}
-
-/// Decode base64 in the standard or URL-safe alphabet, tolerating optional
-/// padding.
-pub(crate) fn base64_decode(input: &str, url_safe: bool) -> Option<Vec<u8>> {
-    let value = |byte: u8| -> Option<u32> {
-        match byte {
-            b'A'..=b'Z' => Some(u32::from(byte - b'A')),
-            b'a'..=b'z' => Some(u32::from(byte - b'a') + 26),
-            b'0'..=b'9' => Some(u32::from(byte - b'0') + 52),
-            b'-' if url_safe => Some(62),
-            b'_' if url_safe => Some(63),
-            b'+' if !url_safe => Some(62),
-            b'/' if !url_safe => Some(63),
-            _ => None,
-        }
-    };
-
-    let input = input.trim_end_matches('=').as_bytes();
-    let mut output = Vec::with_capacity(input.len() * 3 / 4);
-    for chunk in input.chunks(4) {
-        if chunk.len() == 1 {
-            return None;
-        }
-        let mut buffer: u32 = 0;
-        for byte in chunk {
-            buffer = (buffer << 6) | value(*byte)?;
-        }
-        buffer <<= 6 * (4 - chunk.len()) as u32;
-        let bytes = buffer.to_be_bytes();
-        output.extend_from_slice(&bytes[1..chunk.len()]);
-    }
-    Some(output)
 }
 
 #[cfg(test)]
@@ -88,15 +52,5 @@ mod tests {
     #[test]
     fn truncation_preserves_utf8_boundaries() {
         assert_eq!(truncate_for_error("abéz", 3), "ab…");
-    }
-
-    #[test]
-    fn base64_decodes_both_alphabets() {
-        assert_eq!(base64_decode("+/8=", false).unwrap(), [0xFB, 0xFF]);
-        assert_eq!(base64_decode("-_8", true).unwrap(), [0xFB, 0xFF]);
-        assert_eq!(base64_decode("+/8=", true), None);
-        assert_eq!(base64_decode("-_8", false), None);
-        assert_eq!(base64_decode("aGk=", false).unwrap(), b"hi");
-        assert_eq!(base64_decode("a", false), None);
     }
 }

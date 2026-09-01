@@ -1,14 +1,16 @@
 //! Wire-level conformance tests for the ChatGPT subscription protocol and
 //! its OAuth machinery, against the mock transport.
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
+use base64::Engine as _;
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use llmwire::oauth::chatgpt::{ChatGptAuthenticator, ChatGptOAuth, ChatGptTokens};
 use llmwire::transport::mock::MockTransport;
 use llmwire::transport::{HeaderName, HeaderValue};
 use llmwire::{
-    Credentials, DevicePoll, Error, ErrorKind, FinishReason, Message, OAuthStatus, ProviderConfig,
-    Request, StreamEvent, TokenStore,
+    Credentials, DevicePoll, ErrorKind, FinishReason, Message, OAuthStatus, ProviderConfig,
+    Request, StreamEvent,
 };
 use serde_json::json;
 use url::Url;
@@ -26,22 +28,6 @@ fn completed_transcript() -> Vec<&'static str> {
     ]
 }
 
-fn unpadded_base64url(bytes: &[u8]) -> String {
-    const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-    let mut out = String::new();
-    for chunk in bytes.chunks(3) {
-        let mut buffer = [0u8; 3];
-        buffer[..chunk.len()].copy_from_slice(chunk);
-        let word = ((buffer[0] as u32) << 16) | ((buffer[1] as u32) << 8) | (buffer[2] as u32);
-        for (index, quad) in [word >> 18, word >> 12, word >> 6, word].iter().enumerate() {
-            if index <= chunk.len() {
-                out.push(ALPHABET[(*quad & 63) as usize] as char);
-            }
-        }
-    }
-    out
-}
-
 fn jwt(expires_at: i64, account_id: &str) -> String {
     let claims = json!({
         "exp": expires_at,
@@ -49,54 +35,9 @@ fn jwt(expires_at: i64, account_id: &str) -> String {
     });
     format!(
         "{}.{}.sig",
-        unpadded_base64url(br#"{"alg":"RS256"}"#),
-        unpadded_base64url(claims.to_string().as_bytes()),
+        URL_SAFE_NO_PAD.encode(br#"{"alg":"RS256"}"#),
+        URL_SAFE_NO_PAD.encode(claims.to_string().as_bytes()),
     )
-}
-
-fn now() -> i64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_secs() as i64
-}
-
-struct RecordingTokenStore<T> {
-    saved: Mutex<Option<T>>,
-    fail: bool,
-}
-
-impl<T> Default for RecordingTokenStore<T> {
-    fn default() -> Self {
-        Self {
-            saved: Mutex::new(None),
-            fail: false,
-        }
-    }
-}
-
-impl<T: Clone> RecordingTokenStore<T> {
-    fn failing() -> Self {
-        Self {
-            saved: Mutex::new(None),
-            fail: true,
-        }
-    }
-
-    fn saved(&self) -> Option<T> {
-        self.saved.lock().unwrap().clone()
-    }
-}
-
-#[async_trait::async_trait]
-impl<T: Clone + Send + Sync> TokenStore<T> for RecordingTokenStore<T> {
-    async fn save(&self, tokens: &T) -> llmwire::Result<()> {
-        if self.fail {
-            return Err(Error::new(ErrorKind::Provider, "token store failed"));
-        }
-        *self.saved.lock().unwrap() = Some(tokens.clone());
-        Ok(())
-    }
 }
 
 mod authenticator;

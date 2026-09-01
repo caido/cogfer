@@ -12,12 +12,11 @@ use crate::request::{ReasoningOutput, Request, ToolChoice};
 use crate::response::Warning;
 use crate::transport::HttpRequest;
 
-pub(crate) fn signature_of(metadata: &ProviderMetadata) -> Option<String> {
+pub(crate) fn signature_of(metadata: &ProviderMetadata) -> Option<&str> {
     metadata
         .get("gemini")
         .and_then(|namespace| namespace.get(SIGNATURE_KEY))
         .and_then(Value::as_str)
-        .map(str::to_string)
 }
 
 type CallIndex = HashMap<String, (String, Option<String>)>;

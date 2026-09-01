@@ -45,7 +45,7 @@ pub(crate) type Headers = BTreeMap<String, String>;
 pub(crate) struct RecordedRequest {
     pub url: String,
     pub headers: Headers,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub body: Option<Body>,
 }
 
@@ -101,7 +101,7 @@ impl Chunk {
     fn to_bytes(&self) -> Bytes {
         match self {
             Chunk::Text(text) => Bytes::from(text.clone()),
-            Chunk::Bytes { hex } => Bytes::from(hex_decode(hex)),
+            Chunk::Bytes { hex } => Bytes::from(hex::decode(hex).expect("valid hex chunk")),
         }
     }
 }
@@ -154,7 +154,11 @@ impl Cassette {
                     mock.push_response(response.status, headers, value.to_string());
                 }
                 Body::Text(text) => mock.push_response(response.status, headers, text.clone()),
-                Body::Hex(hex) => mock.push_response(response.status, headers, hex_decode(hex)),
+                Body::Hex(hex) => mock.push_response(
+                    response.status,
+                    headers,
+                    hex::decode(hex).expect("valid hex body"),
+                ),
                 Body::Redacted => panic!("cassette response bodies are never redacted"),
             }
         }
@@ -176,18 +180,6 @@ pub(crate) fn scrub_json(value: &mut serde_json::Value) {
         serde_json::Value::Array(items) => items.iter_mut().for_each(scrub_json),
         _ => {}
     }
-}
-
-pub(super) fn hex_encode(bytes: &[u8]) -> String {
-    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
-}
-
-fn hex_decode(hex: &str) -> Vec<u8> {
-    assert!(hex.len().is_multiple_of(2), "hex chunk has odd length");
-    (0..hex.len())
-        .step_by(2)
-        .map(|index| u8::from_str_radix(&hex[index..index + 2], 16).expect("valid hex chunk"))
-        .collect()
 }
 
 mod tests {
@@ -222,10 +214,10 @@ mod tests {
                     )]),
                     body: Body::Chunks(vec![
                         Chunk::Bytes {
-                            hex: hex_encode(head),
+                            hex: hex::encode(head),
                         },
                         Chunk::Bytes {
-                            hex: hex_encode(tail),
+                            hex: hex::encode(tail),
                         },
                     ]),
                 },

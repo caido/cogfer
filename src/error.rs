@@ -1,6 +1,7 @@
 //! Structured errors for every failure class the SDK distinguishes.
 
 use std::fmt;
+use std::sync::Arc;
 use std::time::Duration;
 
 /// Convenience alias used across the crate.
@@ -50,10 +51,12 @@ pub enum ErrorKind {
 /// provider diagnostics. The SDK does not generally retry generation, though
 /// a refreshable authenticator may recover once from a pre-output 401. Use
 /// [`Error::retryable`] and [`Error::retry_after`] to implement host policy.
+#[derive(Clone)]
 pub struct Error {
     inner: Box<ErrorInner>,
 }
 
+#[derive(Clone)]
 struct ErrorInner {
     kind: ErrorKind,
     message: String,
@@ -64,7 +67,8 @@ struct ErrorInner {
     request_id: Option<String>,
     retry_after: Option<Duration>,
     retryable: Option<bool>,
-    source: Option<Box<dyn std::error::Error + Send + Sync>>,
+    /// `Arc` rather than `Box` so cloning an error keeps its source chain.
+    source: Option<Arc<dyn std::error::Error + Send + Sync>>,
 }
 
 impl Error {
@@ -146,7 +150,7 @@ impl Error {
 
     #[must_use = "error modifiers return an updated error"]
     pub fn with_source(mut self, source: impl std::error::Error + Send + Sync + 'static) -> Self {
-        self.inner.source = Some(Box::new(source));
+        self.inner.source = Some(Arc::new(source));
         self
     }
 
@@ -186,25 +190,6 @@ impl Error {
     /// Provider-suggested wait before retrying, when advertised.
     pub fn retry_after(&self) -> Option<Duration> {
         self.inner.retry_after
-    }
-
-    /// Copy every field except the boxed source.
-    #[must_use]
-    pub fn clone_without_source(&self) -> Self {
-        Self {
-            inner: Box::new(ErrorInner {
-                kind: self.inner.kind,
-                message: self.inner.message.clone(),
-                origin: self.inner.origin.clone(),
-                model: self.inner.model.clone(),
-                status: self.inner.status,
-                code: self.inner.code.clone(),
-                request_id: self.inner.request_id.clone(),
-                retry_after: self.inner.retry_after,
-                retryable: self.inner.retryable,
-                source: None,
-            }),
-        }
     }
 
     /// Whether retrying the identical request may succeed.

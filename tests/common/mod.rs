@@ -5,6 +5,7 @@ mod flows;
 mod headers;
 #[cfg(feature = "reqwest-transport")]
 mod live;
+mod oauth;
 mod providers;
 #[cfg(feature = "reqwest-transport")]
 mod recorder;
@@ -16,6 +17,7 @@ pub(crate) use flows::*;
 pub(crate) use headers::*;
 #[cfg(feature = "reqwest-transport")]
 pub(crate) use live::*;
+pub(crate) use oauth::*;
 pub(crate) use providers::*;
 #[cfg(feature = "reqwest-transport")]
 pub(crate) use recorder::*;

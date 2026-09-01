@@ -12,15 +12,7 @@ use bytes::BytesMut;
 
 use super::framing::{FrameSource, INVALID_UTF8, StreamFrame};
 
-/// Maximum accepted message size. Bedrock payloads are far smaller.
-///
-/// The decoder validates a prelude only once the length it announces has
-/// arrived, so this bounds buffering rather than detecting a corrupt length
-/// early.
-const MAX_MESSAGE_BYTES: usize = 16 * 1024 * 1024;
-
 const MALFORMED: &str = "provider stream contained a malformed event stream message";
-const TOO_LARGE: &str = "provider stream contained an event stream message with an invalid length";
 
 #[derive(Debug, Default)]
 pub(crate) struct AwsEventStreamParser {
@@ -59,13 +51,7 @@ impl FrameSource for AwsEventStreamParser {
                         return frames;
                     }
                 },
-                Ok(DecodedFrame::Incomplete) => {
-                    // The decoder has no size limit of its own.
-                    if self.buffer.len() > MAX_MESSAGE_BYTES {
-                        self.fail(TOO_LARGE);
-                    }
-                    return frames;
-                }
+                Ok(DecodedFrame::Incomplete) => return frames,
                 Err(_) => {
                     self.fail(MALFORMED);
                     return frames;
@@ -115,8 +101,11 @@ fn frame_from(message: &Message) -> Result<Option<StreamFrame>, &'static str> {
 
 #[cfg(test)]
 mod tests {
+    use aws_smithy_eventstream::frame::write_message_to;
+    use aws_smithy_types::event_stream::{Header, HeaderValue};
+
     use super::*;
-    use crate::transport::mock::{crc32, encode_message};
+    use crate::transport::mock::encode_message;
 
     pub(crate) fn event(payload: &str) -> Vec<u8> {
         encode_message(
@@ -127,12 +116,6 @@ mod tests {
             ],
             payload.as_bytes(),
         )
-    }
-
-    #[test]
-    fn crc32_matches_the_gzip_check_value() {
-        assert_eq!(crc32(b"123456789"), 0xCBF4_3926);
-        assert_eq!(crc32(b""), 0);
     }
 
     #[test]
@@ -205,33 +188,18 @@ mod tests {
 
     #[test]
     fn non_string_headers_are_skipped() {
-        let mut headers = Vec::new();
-        for (name, value_type, value) in [
-            (":flag", 0u8, &[][..]),
-            (":byte", 2, &[7][..]),
-            (":stamp", 8, &[0; 8][..]),
-        ] {
-            headers.push(name.len() as u8);
-            headers.extend_from_slice(name.as_bytes());
-            headers.push(value_type);
-            headers.extend_from_slice(value);
-        }
-        let name = ":message-type";
-        headers.push(name.len() as u8);
-        headers.extend_from_slice(name.as_bytes());
-        headers.push(7);
-        headers.extend_from_slice(&5u16.to_be_bytes());
-        headers.extend_from_slice(b"event");
-        let total = (16 + headers.len() + 2) as u32;
-        let mut message = Vec::new();
-        message.extend_from_slice(&total.to_be_bytes());
-        message.extend_from_slice(&(headers.len() as u32).to_be_bytes());
-        message.extend_from_slice(&crc32(&message).to_be_bytes());
-        message.extend_from_slice(&headers);
-        message.extend_from_slice(b"{}");
-        message.extend_from_slice(&crc32(&message).to_be_bytes());
+        let message = Message::new(&b"{}"[..])
+            .add_header(Header::new(":flag", HeaderValue::Bool(true)))
+            .add_header(Header::new(":byte", HeaderValue::Byte(7)))
+            .add_header(Header::new(":number", HeaderValue::Int64(0)))
+            .add_header(Header::new(
+                ":message-type",
+                HeaderValue::String("event".into()),
+            ));
+        let mut bytes = Vec::new();
+        write_message_to(&message, &mut bytes).expect("test event stream message should be valid");
 
-        let frames = AwsEventStreamParser::new().push(&message);
+        let frames = AwsEventStreamParser::new().push(&bytes);
 
         assert_eq!(frames, vec![StreamFrame::Data("{}".into())]);
     }
@@ -256,38 +224,6 @@ mod tests {
 
         assert!(parser.push(&message).is_empty());
         assert_eq!(parser.corruption(), Some(MALFORMED));
-    }
-
-    /// A corrupt length is caught by the size cap rather than on sight:
-    /// bounded buffering is the guarantee, not early detection.
-    #[test]
-    fn a_corrupt_length_is_not_reported_until_the_cap_is_reached() {
-        let mut message = event("{}");
-        message[0..4].copy_from_slice(&0xFFFF_FFFFu32.to_be_bytes());
-        let mut parser = AwsEventStreamParser::new();
-
-        assert!(parser.push(&message).is_empty());
-        assert_eq!(parser.corruption(), None);
-
-        assert!(parser.push(&vec![0; MAX_MESSAGE_BYTES + 1]).is_empty());
-        assert_eq!(parser.corruption(), Some(TOO_LARGE));
-    }
-
-    /// A prelude whose checksum is valid but whose length never arrives must
-    /// not buffer without bound.
-    #[test]
-    fn an_oversized_message_stops_the_stream_rather_than_buffering() {
-        let mut message = Vec::new();
-        message.extend_from_slice(&(MAX_MESSAGE_BYTES as u32 + 64).to_be_bytes());
-        message.extend_from_slice(&0u32.to_be_bytes());
-        message.extend_from_slice(&crc32(&message).to_be_bytes());
-        let mut parser = AwsEventStreamParser::new();
-
-        assert!(parser.push(&message).is_empty());
-        assert_eq!(parser.corruption(), None, "waits for the body");
-
-        assert!(parser.push(&vec![0; MAX_MESSAGE_BYTES + 1]).is_empty());
-        assert_eq!(parser.corruption(), Some(TOO_LARGE));
     }
 
     #[test]

@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use serde_json::Value;
 
 use super::{Citation, StreamEvent};
@@ -133,16 +131,7 @@ impl StreamNormalizer {
     }
 
     pub(crate) fn text_delta(&mut self, out: &mut Vec<StreamEvent>, id: String, delta: String) {
-        if !self.text_is_open(&id) {
-            self.open.push(OpenBlock::Text {
-                id: id.clone(),
-                provider_metadata: ProviderMetadata::default(),
-            });
-            out.push(StreamEvent::TextStart {
-                id: id.clone(),
-                provider_metadata: ProviderMetadata::default(),
-            });
-        }
+        self.start_text(out, id.clone());
         out.push(StreamEvent::TextDelta { id, delta });
     }
 
@@ -194,13 +183,7 @@ impl StreamNormalizer {
         id: String,
         delta: String,
     ) {
-        if !self.reasoning_is_open(&id) {
-            self.open.push(OpenBlock::Reasoning {
-                id: id.clone(),
-                buffer: String::new(),
-            });
-            out.push(StreamEvent::ReasoningStart { id: id.clone() });
-        }
+        self.start_reasoning(out, id.clone());
         if let Some(OpenBlock::Reasoning { buffer, .. }) = self
             .open
             .iter_mut()
@@ -562,9 +545,7 @@ impl StreamNormalizer {
         let error = self.enrich_error(error);
         log::debug!(target: TARGET, "stream error event: {error}");
         self.errored = true;
-        out.push(StreamEvent::Error {
-            error: Arc::new(error),
-        });
+        out.push(StreamEvent::Error { error });
     }
 
     pub(crate) fn fail(&mut self, out: &mut Vec<StreamEvent>, error: Error) {

@@ -22,7 +22,7 @@ pub(crate) fn lower_chat(
 
     let mut body = json!({
         "model": ctx.model,
-        "messages": lower_messages(request, dialect, &mut warnings)?,
+        "messages": lower_messages(request, dialect, &mut warnings),
     });
     let object = body.as_object_mut().expect("body is an object");
 
@@ -153,7 +153,7 @@ pub(crate) fn lower_messages(
     request: &Request,
     dialect: ChatDialect,
     warnings: &mut Vec<Warning>,
-) -> Result<Value> {
+) -> Value {
     let mut messages: Vec<Value> = Vec::new();
     if let Some(system) = request.system_prompt() {
         messages.push(json!({"role": "system", "content": system}));
@@ -181,7 +181,7 @@ pub(crate) fn lower_messages(
             }
         }
     }
-    Ok(Value::Array(messages))
+    Value::Array(messages)
 }
 
 fn lower_user_message(content: &[UserPart]) -> Value {

@@ -32,57 +32,48 @@ impl Usage {
     /// Combined prompt-side tokens: input + cache reads + cache writes,
     /// treating missing values as zero. Returns `None` if nothing was reported.
     pub fn total_input_tokens(&self) -> Option<u64> {
-        if self.input_tokens.is_none()
-            && self.cached_input_tokens.is_none()
-            && self.cache_creation_input_tokens.is_none()
-        {
-            return None;
-        }
-        Some(
-            self.input_tokens
-                .unwrap_or(0)
-                .saturating_add(self.cached_input_tokens.unwrap_or(0))
-                .saturating_add(self.cache_creation_input_tokens.unwrap_or(0)),
-        )
+        [
+            self.input_tokens,
+            self.cached_input_tokens,
+            self.cache_creation_input_tokens,
+        ]
+        .into_iter()
+        .flatten()
+        .reduce(u64::saturating_add)
     }
 
     /// Merge a later usage report into this one.
     ///
     /// Later `Some` values win because streaming usage is cumulative.
     pub fn merge_from(&mut self, later: &Usage) {
-        macro_rules! take_later {
-            ($field:ident) => {
-                if later.$field.is_some() {
-                    self.$field = later.$field;
-                }
-            };
-        }
-        take_later!(input_tokens);
-        take_later!(output_tokens);
-        take_later!(total_tokens);
-        take_later!(cached_input_tokens);
-        take_later!(cache_creation_input_tokens);
-        take_later!(reasoning_tokens);
-        take_later!(tool_use_prompt_tokens);
+        self.input_tokens = later.input_tokens.or(self.input_tokens);
+        self.output_tokens = later.output_tokens.or(self.output_tokens);
+        self.total_tokens = later.total_tokens.or(self.total_tokens);
+        self.cached_input_tokens = later.cached_input_tokens.or(self.cached_input_tokens);
+        self.cache_creation_input_tokens = later
+            .cache_creation_input_tokens
+            .or(self.cache_creation_input_tokens);
+        self.reasoning_tokens = later.reasoning_tokens.or(self.reasoning_tokens);
+        self.tool_use_prompt_tokens = later.tool_use_prompt_tokens.or(self.tool_use_prompt_tokens);
     }
 
     /// Sum multi-pass usage field by field. `None + None` stays `None`.
     pub fn add_from(&mut self, other: &Usage) {
-        macro_rules! add {
-            ($field:ident) => {
-                self.$field = match (self.$field, other.$field) {
-                    (None, None) => None,
-                    (a, b) => Some(a.unwrap_or(0).saturating_add(b.unwrap_or(0))),
-                };
-            };
+        /// The sum of the reported values; `None` when neither is reported.
+        fn add(a: Option<u64>, b: Option<u64>) -> Option<u64> {
+            [a, b].into_iter().flatten().reduce(u64::saturating_add)
         }
-        add!(input_tokens);
-        add!(output_tokens);
-        add!(total_tokens);
-        add!(cached_input_tokens);
-        add!(cache_creation_input_tokens);
-        add!(reasoning_tokens);
-        add!(tool_use_prompt_tokens);
+        self.input_tokens = add(self.input_tokens, other.input_tokens);
+        self.output_tokens = add(self.output_tokens, other.output_tokens);
+        self.total_tokens = add(self.total_tokens, other.total_tokens);
+        self.cached_input_tokens = add(self.cached_input_tokens, other.cached_input_tokens);
+        self.cache_creation_input_tokens = add(
+            self.cache_creation_input_tokens,
+            other.cache_creation_input_tokens,
+        );
+        self.reasoning_tokens = add(self.reasoning_tokens, other.reasoning_tokens);
+        self.tool_use_prompt_tokens =
+            add(self.tool_use_prompt_tokens, other.tool_use_prompt_tokens);
     }
 }
 

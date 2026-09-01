@@ -22,7 +22,7 @@ use llmwire::{ApiProfile, Result};
 
 use super::cassette::{
     Body, Cassette, Chunk, Exchange, Headers, RecordedRequest, RecordedResponse,
-    SCRUBBED_JSON_KEYS, hex_encode, scrub_json,
+    SCRUBBED_JSON_KEYS, scrub_json,
 };
 
 impl Body {
@@ -34,7 +34,7 @@ impl Body {
         let scrubbed = scrub_bytes(bytes, &unscrubbed_value_ranges(bytes));
         match String::from_utf8(scrubbed) {
             Ok(text) => Body::Text(text),
-            Err(error) => Body::Hex(hex_encode(error.as_bytes())),
+            Err(error) => Body::Hex(hex::encode(error.as_bytes())),
         }
     }
 }
@@ -44,7 +44,7 @@ impl Chunk {
         match std::str::from_utf8(bytes) {
             Ok(text) => Chunk::Text(text.to_string()),
             Err(_) => Chunk::Bytes {
-                hex: hex_encode(bytes),
+                hex: hex::encode(bytes),
             },
         }
     }

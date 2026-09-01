@@ -9,10 +9,10 @@ use serde::{Deserialize, Serialize};
 #[must_use = "token modifiers return an updated value"]
 pub struct XaiTokens {
     pub access_token: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub refresh_token: Option<String>,
     /// Unix seconds when the access token expires.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub expires_at: Option<i64>,
 }
 

@@ -3,6 +3,12 @@
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 
+#[cfg(feature = "aws")]
+use aws_smithy_eventstream::frame::write_message_to;
+#[cfg(feature = "aws")]
+use aws_smithy_types::event_stream::{
+    Header as AwsHeader, HeaderValue as AwsHeaderValue, Message as AwsMessage,
+};
 use bytes::Bytes;
 
 use super::{
@@ -34,49 +40,39 @@ pub struct MockTransport {
     requests: Mutex<Vec<HttpRequest>>,
 }
 
-/// CRC-32 (IEEE 802.3, as used by gzip and the AWS event stream encoding).
-#[cfg(feature = "aws")]
-pub(crate) fn crc32(bytes: &[u8]) -> u32 {
-    let mut crc = 0xFFFF_FFFFu32;
-    for byte in bytes {
-        crc ^= u32::from(*byte);
-        for _ in 0..8 {
-            let mask = (crc & 1).wrapping_neg();
-            crc = (crc >> 1) ^ (0xEDB8_8320 & mask);
-        }
-    }
-    !crc
-}
-
 /// Encode one message with string headers.
-///
-/// Hand-written on purpose: this and the event stream decoder are separate
-/// implementations, so a fixture that decodes proves the two agree rather
-/// than that one is self-consistent.
 #[cfg(feature = "aws")]
 pub(crate) fn encode_message(headers: &[(&str, &str)], payload: &[u8]) -> Vec<u8> {
-    /// Prelude plus both checksums.
-    const OVERHEAD: usize = 16;
+    let headers = headers
+        .iter()
+        .map(|&(name, value)| {
+            AwsHeader::new(
+                name.to_owned(),
+                AwsHeaderValue::String(value.to_owned().into()),
+            )
+        })
+        .collect();
+    let message = AwsMessage::new_from_parts(headers, Bytes::copy_from_slice(payload));
+    let mut bytes = Vec::new();
+    write_message_to(&message, &mut bytes).expect("mock AWS event stream message should be valid");
+    bytes
+}
 
-    let mut header_bytes = Vec::new();
-    for (name, value) in headers {
-        header_bytes.push(name.len() as u8);
-        header_bytes.extend_from_slice(name.as_bytes());
-        header_bytes.push(7);
-        header_bytes.extend_from_slice(&(value.len() as u16).to_be_bytes());
-        header_bytes.extend_from_slice(value.as_bytes());
-    }
-    let total = (OVERHEAD + header_bytes.len() + payload.len()) as u32;
-    let mut message = Vec::with_capacity(total as usize);
-    message.extend_from_slice(&total.to_be_bytes());
-    message.extend_from_slice(&(header_bytes.len() as u32).to_be_bytes());
-    let prelude_crc = crc32(&message);
-    message.extend_from_slice(&prelude_crc.to_be_bytes());
-    message.extend_from_slice(&header_bytes);
-    message.extend_from_slice(payload);
-    let message_crc = crc32(&message);
-    message.extend_from_slice(&message_crc.to_be_bytes());
-    message
+#[cfg(feature = "aws")]
+fn event_chunks(events: &[(&str, &[u8])]) -> Vec<Bytes> {
+    events
+        .iter()
+        .map(|&(event_type, payload)| {
+            Bytes::from(encode_message(
+                &[
+                    (":event-type", event_type),
+                    (":content-type", "application/json"),
+                    (":message-type", "event"),
+                ],
+                payload,
+            ))
+        })
+        .collect()
 }
 
 impl MockTransport {
@@ -145,23 +141,10 @@ impl MockTransport {
     /// `{"bytes": base64}` under the `chunk` event type.
     #[cfg(feature = "aws")]
     pub fn push_event_stream(&self, events: &[(&str, &[u8])]) {
-        let chunks = events
-            .iter()
-            .map(|&(event_type, payload)| {
-                Bytes::from(encode_message(
-                    &[
-                        (":event-type", event_type),
-                        (":content-type", "application/json"),
-                        (":message-type", "event"),
-                    ],
-                    payload,
-                ))
-            })
-            .collect();
         self.push_stream_chunks(
             200,
             content_type("application/vnd.amazon.eventstream"),
-            chunks,
+            event_chunks(events),
         );
     }
 
@@ -173,19 +156,7 @@ impl MockTransport {
         exception_type: &str,
         payload: &[u8],
     ) {
-        let mut chunks: Vec<Bytes> = events
-            .iter()
-            .map(|&(event_type, payload)| {
-                Bytes::from(encode_message(
-                    &[
-                        (":event-type", event_type),
-                        (":content-type", "application/json"),
-                        (":message-type", "event"),
-                    ],
-                    payload,
-                ))
-            })
-            .collect();
+        let mut chunks = event_chunks(events);
         chunks.push(Bytes::from(encode_message(
             &[
                 (":exception-type", exception_type),
@@ -212,19 +183,7 @@ impl MockTransport {
         error_code: &str,
         error_message: &str,
     ) {
-        let mut chunks: Vec<Bytes> = events
-            .iter()
-            .map(|&(event_type, payload)| {
-                Bytes::from(encode_message(
-                    &[
-                        (":event-type", event_type),
-                        (":content-type", "application/json"),
-                        (":message-type", "event"),
-                    ],
-                    payload,
-                ))
-            })
-            .collect();
+        let mut chunks = event_chunks(events);
         chunks.push(Bytes::from(encode_message(
             &[
                 (":error-code", error_code),

@@ -19,10 +19,10 @@ const REFUSAL_BLOCK: &str = "ref0";
 
 pub(crate) struct ChatStreamDecoder {
     dialect: ChatDialect,
-    /// Open tool call ids by index.
-    calls_by_index: std::collections::HashMap<u64, String>,
+    /// Open tool call ids by index, drained in index order at finish.
+    calls_by_index: std::collections::BTreeMap<u64, String>,
     /// Fragments for calls not yet fully identified (need id + name).
-    pending_by_index: std::collections::HashMap<u64, PendingCall>,
+    pending_by_index: std::collections::BTreeMap<u64, PendingCall>,
     finish: Option<Finish>,
     response_id_sent: bool,
     response_model_sent: bool,
@@ -68,12 +68,7 @@ impl ChatStreamDecoder {
 
     /// Emit incomplete calls with synthetic ids instead of dropping them.
     fn flush_pending(&mut self, normalizer: &mut StreamNormalizer, out: &mut Vec<StreamEvent>) {
-        let mut indices: Vec<u64> = self.pending_by_index.keys().copied().collect();
-        indices.sort_unstable();
-        for index in indices {
-            let Some(pending) = self.pending_by_index.remove(&index) else {
-                continue;
-            };
+        for (index, pending) in std::mem::take(&mut self.pending_by_index) {
             let Some(name) = pending.name else { continue };
             let call_id = pending.call_id.unwrap_or_else(|| format!("call_{index}"));
             self.calls_by_index.insert(index, call_id.clone());
@@ -86,12 +81,8 @@ impl ChatStreamDecoder {
 
     /// Complete every open call when the response finishes.
     fn complete_tools(&mut self, normalizer: &mut StreamNormalizer) {
-        let mut indices: Vec<u64> = self.calls_by_index.keys().copied().collect();
-        indices.sort_unstable();
-        for index in indices {
-            if let Some(call_id) = self.calls_by_index.remove(&index) {
-                normalizer.complete_tool(&call_id, None);
-            }
+        for call_id in std::mem::take(&mut self.calls_by_index).into_values() {
+            normalizer.complete_tool(&call_id, None);
         }
     }
 
@@ -101,9 +92,11 @@ impl ChatStreamDecoder {
         }
         self.done = true;
         self.close_reasoning(normalizer, out);
-        if let Some(finish) = &self.finish
-            && finish.reason == FinishReason::Error
-        {
+        let mut finish = self
+            .finish
+            .take()
+            .unwrap_or_else(|| Finish::new(FinishReason::Stop));
+        if finish.reason == FinishReason::Error {
             let raw = finish.raw.as_deref().unwrap_or("error");
             normalizer.error(
                 out,
@@ -113,13 +106,9 @@ impl ChatStreamDecoder {
                 )
                 .with_origin(self.dialect.profile().as_str()),
             );
-            normalizer.finish(out, self.finish.clone().expect("checked above"));
+            normalizer.finish(out, finish);
             return;
         }
-        let mut finish = self
-            .finish
-            .clone()
-            .unwrap_or_else(|| Finish::new(FinishReason::Stop));
         if self.saw_refusal {
             finish = Finish::with_raw(FinishReason::ContentFilter, "refusal");
         }
@@ -294,61 +283,41 @@ impl ChatStreamDecoder {
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct ChunkToolCall {
-    #[serde(default)]
     index: Option<u64>,
-    #[serde(default)]
     id: Option<String>,
-    #[serde(default)]
     function: Option<ChatToolCallFunction>,
 }
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct ChunkDelta {
-    #[serde(default)]
     content: Option<String>,
-    #[serde(default)]
     refusal: Option<String>,
-    #[serde(default)]
     tool_calls: Option<Vec<ChunkToolCall>>,
-    #[serde(default)]
     reasoning_content: Option<String>,
-    #[serde(default)]
     reasoning: Option<String>,
-    #[serde(default)]
     reasoning_details: Option<Vec<Value>>,
     /// URL citations (also OpenRouter web-plugin citations).
-    #[serde(default)]
     annotations: Option<Vec<Value>>,
     /// Deprecated single-call streaming form used by some gateways.
-    #[serde(default)]
     function_call: Option<ChatToolCallFunction>,
 }
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct ChunkChoice {
-    #[serde(default)]
     index: Option<u64>,
-    #[serde(default)]
     delta: Option<ChunkDelta>,
-    #[serde(default)]
     finish_reason: Option<String>,
-    #[serde(default)]
     native_finish_reason: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct ChatChunk {
-    #[serde(default)]
     id: Option<String>,
-    #[serde(default)]
     model: Option<String>,
     #[serde(default)]
     choices: Vec<ChunkChoice>,
-    #[serde(default)]
     usage: Option<ChatUsage>,
-    #[serde(default)]
     error: Option<Value>,
-    #[serde(default)]
     provider: Option<Value>,
 }
 

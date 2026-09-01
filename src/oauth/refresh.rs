@@ -17,8 +17,8 @@ pub(super) type SharedRefresh<T> = Shared<BoxFuture<'static, RefreshOutcome<T>>>
 #[derive(Clone)]
 pub(super) enum RefreshOutcome<T> {
     Ready(T),
-    RefreshFailed(Arc<Error>),
-    PersistenceFailed { tokens: T, error: Arc<Error> },
+    RefreshFailed(Error),
+    PersistenceFailed { tokens: T, error: Error },
 }
 
 impl<T> RefreshOutcome<T> {
@@ -26,7 +26,7 @@ impl<T> RefreshOutcome<T> {
         match self {
             Self::Ready(_) => None,
             Self::RefreshFailed(error) | Self::PersistenceFailed { error, .. } => {
-                Some(error.clone_without_source())
+                Some(error.clone())
             }
         }
     }
@@ -42,17 +42,14 @@ where
     async move {
         let tokens = match refresh.await {
             Ok(tokens) => tokens,
-            Err(error) => return RefreshOutcome::RefreshFailed(Arc::new(error)),
+            Err(error) => return RefreshOutcome::RefreshFailed(error),
         };
         let Some(store) = store else {
             return RefreshOutcome::Ready(tokens);
         };
         match store.save(&tokens).await {
             Ok(()) => RefreshOutcome::Ready(tokens),
-            Err(error) => RefreshOutcome::PersistenceFailed {
-                tokens,
-                error: Arc::new(error),
-            },
+            Err(error) => RefreshOutcome::PersistenceFailed { tokens, error },
         }
     }
     .boxed()
@@ -89,20 +86,17 @@ impl<T: Clone> RefreshState<T> {
 
     pub(super) fn cached_refresh_error(&self, provider: &str) -> Option<Error> {
         if let Some(error) = &self.reauth_error {
-            return Some(error.clone_without_source());
+            return Some(error.clone());
         }
         self.refresh_backoff_until
             .filter(|until| Instant::now() < *until)
             .map(|_| {
-                self.last_refresh_error
-                    .as_ref()
-                    .map(Error::clone_without_source)
-                    .unwrap_or_else(|| {
-                        Error::new(
-                            ErrorKind::Authentication,
-                            format!("{provider} token refresh recently failed; retry shortly"),
-                        )
-                    })
+                self.last_refresh_error.clone().unwrap_or_else(|| {
+                    Error::new(
+                        ErrorKind::Authentication,
+                        format!("{provider} token refresh recently failed; retry shortly"),
+                    )
+                })
             })
     }
 
@@ -160,7 +154,7 @@ impl<T: Clone> RefreshState<T> {
             RefreshOutcome::PersistenceFailed { tokens, error } => {
                 self.pending_tokens = Some(tokens.clone());
                 self.refresh_backoff_until = Some(Instant::now() + Self::REFRESH_FAILURE_COOLDOWN);
-                self.last_refresh_error = Some(error.clone_without_source());
+                self.last_refresh_error = Some(error.clone());
             }
         }
         true
@@ -177,18 +171,18 @@ impl<T: Clone> RefreshState<T> {
         )
         .with_origin(provider)
         .with_code("reauth_required");
-        self.reauth_error = Some(error.clone_without_source());
+        self.reauth_error = Some(error.clone());
         error
     }
 
     fn record_refresh_failure(&mut self, error: &Error) {
         if refresh_requires_reauthentication(error) {
-            self.reauth_error = Some(error.clone_without_source());
+            self.reauth_error = Some(error.clone());
             self.refresh_backoff_until = None;
             self.last_refresh_error = None;
         } else {
             self.refresh_backoff_until = Some(Instant::now() + Self::REFRESH_FAILURE_COOLDOWN);
-            self.last_refresh_error = Some(error.clone_without_source());
+            self.last_refresh_error = Some(error.clone());
         }
     }
 }

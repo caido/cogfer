@@ -60,7 +60,8 @@ pub(crate) struct AnthropicStreamDecoder {
     /// Stamped on stream errors, since this decoder serves both the direct
     /// API and Bedrock.
     profile: ApiProfile,
-    blocks: std::collections::HashMap<u64, BlockKind>,
+    /// Open blocks by index, drained in index order at finish.
+    blocks: std::collections::BTreeMap<u64, BlockKind>,
     finish: Option<Finish>,
     done: bool,
 }
@@ -69,7 +70,7 @@ impl AnthropicStreamDecoder {
     pub(crate) fn new(profile: ApiProfile) -> Self {
         Self {
             profile,
-            blocks: std::collections::HashMap::new(),
+            blocks: std::collections::BTreeMap::new(),
             finish: None,
             done: false,
         }
@@ -80,19 +81,12 @@ impl AnthropicStreamDecoder {
 pub(crate) struct StreamEnvelope {
     #[serde(rename = "type", default)]
     event_type: String,
-    #[serde(default)]
     index: Option<u64>,
-    #[serde(default)]
     message: Option<MessageObject>,
-    #[serde(default)]
     content_block: Option<Value>,
-    #[serde(default)]
     delta: Option<Value>,
-    #[serde(default)]
     usage: Option<AnthropicUsage>,
-    #[serde(default)]
     error: Option<Value>,
-    #[serde(default)]
     context_management: Option<Value>,
 }
 
@@ -106,14 +100,13 @@ impl AnthropicStreamDecoder {
             return;
         }
         self.done = true;
-        let mut indices: Vec<u64> = self.blocks.keys().copied().collect();
-        indices.sort_unstable();
-        for index in indices {
+        // close_block removes the entry, so this drains blocks in index order.
+        while let Some(index) = self.blocks.keys().next().copied() {
             self.close_block(index, false, normalizer, out);
         }
         let finish = self
             .finish
-            .clone()
+            .take()
             .unwrap_or_else(|| Finish::new(FinishReason::Stop));
         normalizer.finish(out, finish);
     }

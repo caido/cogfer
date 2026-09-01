@@ -13,29 +13,21 @@ use crate::usage::Usage;
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct ChatUsageDetailsPrompt {
-    #[serde(default)]
     pub(crate) cached_tokens: Option<u64>,
-    #[serde(default)]
     pub(crate) cache_write_tokens: Option<u64>,
 }
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct ChatUsageDetailsCompletion {
-    #[serde(default)]
     pub(crate) reasoning_tokens: Option<u64>,
 }
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct ChatUsage {
-    #[serde(default)]
     pub(crate) prompt_tokens: Option<u64>,
-    #[serde(default)]
     pub(crate) completion_tokens: Option<u64>,
-    #[serde(default)]
     pub(crate) total_tokens: Option<u64>,
-    #[serde(default)]
     pub(crate) prompt_tokens_details: Option<ChatUsageDetailsPrompt>,
-    #[serde(default)]
     pub(crate) completion_tokens_details: Option<ChatUsageDetailsCompletion>,
     #[serde(default, flatten)]
     pub(crate) provider_fields: serde_json::Map<String, Value>,
@@ -72,7 +64,6 @@ impl ChatUsage {
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct ChatToolCallFunction {
-    #[serde(default)]
     pub(crate) name: Option<String>,
     /// Raw argument JSON as a string or compatible gateway object.
     #[serde(default, deserialize_with = "deserialize_arguments")]
@@ -93,62 +84,43 @@ where
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct ChatToolCall {
-    #[serde(default)]
     pub(crate) id: Option<String>,
-    #[serde(default)]
     pub(crate) function: Option<ChatToolCallFunction>,
 }
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct ChatMessage {
-    #[serde(default)]
     pub(crate) content: Option<String>,
-    #[serde(default)]
     pub(crate) refusal: Option<String>,
-    #[serde(default)]
     pub(crate) tool_calls: Option<Vec<ChatToolCall>>,
     /// URL citations (also OpenRouter web-plugin citations).
-    #[serde(default)]
     pub(crate) annotations: Option<Vec<Value>>,
     /// DeepSeek-style plaintext reasoning on compatible servers.
-    #[serde(default)]
     pub(crate) reasoning_content: Option<String>,
     /// OpenRouter / Ollama-style plaintext reasoning.
-    #[serde(default)]
     pub(crate) reasoning: Option<String>,
     /// OpenRouter typed reasoning blocks.
-    #[serde(default)]
     pub(crate) reasoning_details: Option<Vec<Value>>,
     /// Deprecated single-call form, still emitted by some compatible servers.
-    #[serde(default)]
     pub(crate) function_call: Option<ChatToolCallFunction>,
 }
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct ChatChoice {
-    #[serde(default)]
     pub(crate) message: Option<ChatMessage>,
-    #[serde(default)]
     pub(crate) finish_reason: Option<String>,
-    #[serde(default)]
     pub(crate) native_finish_reason: Option<String>,
-    #[serde(default)]
     pub(crate) error: Option<Value>,
 }
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct ChatCompletion {
-    #[serde(default)]
     pub(crate) id: Option<String>,
-    #[serde(default)]
     pub(crate) model: Option<String>,
     #[serde(default)]
     pub(crate) choices: Vec<ChatChoice>,
-    #[serde(default)]
     pub(crate) usage: Option<ChatUsage>,
-    #[serde(default)]
     pub(crate) error: Option<Value>,
-    #[serde(default)]
     pub(crate) provider: Option<Value>,
 }
 
@@ -399,13 +371,10 @@ fn decode_chat_finish(
 pub(crate) fn merge_reasoning_details(details: Vec<Value>) -> Vec<Value> {
     let mut merged: Vec<Value> = Vec::new();
     for detail in details {
-        let detail_type = detail
-            .get("type")
-            .and_then(Value::as_str)
-            .map(str::to_string);
+        let detail_type = detail.get("type").and_then(Value::as_str);
         let index = detail.get("index").and_then(Value::as_u64);
         let joinable = merged.last_mut().filter(|last| {
-            last.get("type").and_then(Value::as_str).map(str::to_string) == detail_type
+            last.get("type").and_then(Value::as_str) == detail_type
                 && last.get("index").and_then(Value::as_u64) == index
                 // Signed entries without indices are separate blocks.
                 && !(index.is_none()

@@ -24,8 +24,6 @@ jobs:
       - run: cargo fmt --all -- --check
       - run: cargo clippy --locked --all-targets --all-features -- -D warnings
       - run: cargo clippy --locked --all-targets --no-default-features -- -D warnings
-      # Each optional feature on its own: the combined runs above cannot catch
-      # a gate that only compiles when its neighbour is also enabled.
       - run: cargo clippy --locked --all-targets --no-default-features --features aws -- -D warnings
       - run: cargo clippy --locked --all-targets --no-default-features --features reqwest-transport -- -D warnings
       - run: cargo test --locked

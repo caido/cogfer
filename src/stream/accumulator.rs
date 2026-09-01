@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use super::StreamEvent;
 use crate::error::{Error, ErrorKind};
 use crate::message::AssistantPart;
@@ -38,7 +36,7 @@ pub struct StreamAccumulator {
     metadata: ResponseMetadata,
     finish: Option<Finish>,
     usage: Usage,
-    error: Option<Arc<Error>>,
+    error: Option<Error>,
     provider_metadata: ProviderMetadata,
 }
 
@@ -180,7 +178,7 @@ impl StreamAccumulator {
     /// Returns the first stream error that occurred.
     pub fn into_result(self) -> crate::Result<GenerateResult> {
         if let Some(error) = self.error {
-            return Err(Arc::try_unwrap(error).unwrap_or_else(|arc| arc.clone_without_source()));
+            return Err(error);
         }
         let finish = self.finish.ok_or_else(|| {
             let mut error = Error::new(

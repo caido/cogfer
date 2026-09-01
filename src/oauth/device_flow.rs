@@ -134,15 +134,10 @@ where
 
 #[derive(Deserialize)]
 struct OAuthErrorBody {
-    #[serde(default)]
     error: Option<Value>,
-    #[serde(default)]
     error_description: Option<String>,
-    #[serde(default)]
     code: Option<String>,
-    #[serde(default)]
     message: Option<String>,
-    #[serde(default)]
     interval: Option<u64>,
 }
 

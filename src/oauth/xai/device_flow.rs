@@ -137,9 +137,7 @@ impl XaiOAuth {
             device_code: String,
             user_code: String,
             verification_uri: String,
-            #[serde(default)]
             verification_uri_complete: Option<String>,
-            #[serde(default)]
             interval: Option<u64>,
             expires_in: u64,
         }
@@ -301,9 +299,7 @@ fn decode_token_response(
     #[derive(Deserialize)]
     struct TokenResponse {
         access_token: String,
-        #[serde(default)]
         refresh_token: Option<String>,
-        #[serde(default)]
         expires_in: Option<i64>,
     }
 

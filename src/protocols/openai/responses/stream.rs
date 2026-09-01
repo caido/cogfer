@@ -31,27 +31,16 @@ pub(crate) struct ResponsesStreamDecoder {
 pub(crate) struct StreamEnvelope {
     #[serde(rename = "type", default)]
     event_type: String,
-    #[serde(default)]
     response: Option<Value>,
-    #[serde(default)]
     item: Option<Value>,
-    #[serde(default)]
     item_id: Option<String>,
-    #[serde(default)]
     content_index: Option<u64>,
-    #[serde(default)]
     delta: Option<String>,
-    #[serde(default)]
     part: Option<Value>,
-    #[serde(default)]
     annotation: Option<Value>,
-    #[serde(default)]
-    code: Option<Value>,
-    #[serde(default)]
-    message: Option<String>,
-    /// ChatGPT nests error details that the API keeps at the top level.
-    #[serde(default)]
-    error: Option<Value>,
+    /// The `error` event's fields, unused by every other event type.
+    #[serde(flatten)]
+    error: StreamErrorEvent,
 }
 
 impl ResponsesStreamDecoder {
@@ -346,12 +335,7 @@ impl ResponsesStreamDecoder {
             }
             "error" => {
                 self.errored = true;
-                let event = StreamErrorEvent {
-                    code: envelope.code,
-                    message: envelope.message,
-                    error: envelope.error,
-                };
-                normalizer.error(out, event.into_error(self.profile));
+                normalizer.error(out, envelope.error.into_error(self.profile));
             }
             other => {
                 if let Some(status) = Self::server_tool_status(other)

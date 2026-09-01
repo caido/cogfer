@@ -394,12 +394,8 @@ fn is_json_body(headers: &HeaderMap) -> bool {
     headers
         .get(header::CONTENT_TYPE)
         .and_then(|value| value.to_str().ok())
-        .is_some_and(|value| {
-            value
-                .trim_start()
-                .to_ascii_lowercase()
-                .starts_with("application/json")
-        })
+        .map(|value| value.split_once(';').map_or(value, |(mime, _)| mime))
+        .is_some_and(|mime| mime.trim().eq_ignore_ascii_case("application/json"))
 }
 
 struct StreamState {
@@ -551,5 +547,22 @@ mod tests {
         assert!(is_json_body(&json));
         assert!(!is_json_body(&sse));
         assert!(!is_json_body(&HeaderMap::new()));
+    }
+
+    /// Only `application/json` exactly: other media types sharing the prefix
+    /// must not be replayed as JSON bodies.
+    #[test]
+    fn json_lookalike_media_types_are_rejected() {
+        for value in [
+            "application/jsonp",
+            "application/json-seq",
+            "application/json5",
+        ] {
+            let headers = HeaderMap::from_iter([(
+                header::CONTENT_TYPE,
+                HeaderValue::from_str(value).unwrap(),
+            )]);
+            assert!(!is_json_body(&headers), "{value}");
+        }
     }
 }

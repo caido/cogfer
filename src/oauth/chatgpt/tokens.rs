@@ -1,9 +1,9 @@
 use std::fmt;
 
+use base64::Engine as _;
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-
-use crate::util::base64_decode;
 
 /// A ChatGPT OAuth token set.
 ///
@@ -12,16 +12,16 @@ use crate::util::base64_decode;
 #[must_use = "token modifiers return an updated value"]
 pub struct ChatGptTokens {
     pub access_token: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub refresh_token: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub id_token: Option<String>,
     /// Unix seconds when the access token expires (the JWT `exp` claim).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub expires_at: Option<i64>,
     /// The account the subscription belongs to, sent as the
     /// `chatgpt-account-id` header.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub account_id: Option<String>,
 }
 
@@ -81,7 +81,7 @@ impl fmt::Debug for ChatGptTokens {
 /// Decode metadata from a TLS-issued JWT without verifying its signature.
 fn jwt_claims(token: &str) -> Option<Value> {
     let payload = token.split('.').nth(1)?;
-    let bytes = base64_decode(payload, true)?;
+    let bytes = URL_SAFE_NO_PAD.decode(payload).ok()?;
     serde_json::from_slice(&bytes).ok()
 }
 
@@ -97,62 +97,12 @@ fn account_id_claim(token: &str) -> Option<String> {
 mod tests {
     use super::*;
 
-    fn unpadded_base64url(bytes: &[u8]) -> String {
-        let alphabet = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-        let mut out = String::new();
-        for chunk in bytes.chunks(3) {
-            let mut buffer = [0u8; 3];
-            buffer[..chunk.len()].copy_from_slice(chunk);
-            let word = ((buffer[0] as u32) << 16) | ((buffer[1] as u32) << 8) | (buffer[2] as u32);
-            let quads = [
-                (word >> 18) & 63,
-                (word >> 12) & 63,
-                (word >> 6) & 63,
-                word & 63,
-            ];
-            for (index, quad) in quads.iter().enumerate() {
-                if index <= chunk.len() {
-                    out.push(alphabet[*quad as usize] as char);
-                }
-            }
-        }
-        out
-    }
-
     fn jwt_with_claims(claims: &Value) -> String {
         format!(
             "{}.{}.signature",
-            unpadded_base64url(br#"{"alg":"RS256"}"#),
-            unpadded_base64url(claims.to_string().as_bytes()),
+            URL_SAFE_NO_PAD.encode(br#"{"alg":"RS256"}"#),
+            URL_SAFE_NO_PAD.encode(claims.to_string().as_bytes()),
         )
-    }
-
-    #[test]
-    fn base64url_round_trips() {
-        for input in [
-            &b""[..],
-            &b"f"[..],
-            &b"fo"[..],
-            &b"foo"[..],
-            &b"foob"[..],
-            &b"fooba"[..],
-            &b"foobar"[..],
-            &[0xff, 0xfe, 0x00, 0x7f][..],
-        ] {
-            let encoded = unpadded_base64url(input);
-            assert_eq!(
-                base64_decode(&encoded, true).as_deref(),
-                Some(input),
-                "round trip failed for {input:?} via {encoded:?}"
-            );
-        }
-    }
-
-    #[test]
-    fn base64url_rejects_invalid_input() {
-        assert_eq!(base64_decode("a", true), None);
-        assert_eq!(base64_decode("ab!c", true), None);
-        assert_eq!(base64_decode("a+/b", true), None);
     }
 
     #[test]

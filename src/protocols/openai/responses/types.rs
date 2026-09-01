@@ -15,29 +15,21 @@ use crate::usage::Usage;
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct ResponseUsageDetailsInput {
-    #[serde(default)]
     pub(crate) cached_tokens: Option<u64>,
-    #[serde(default)]
     pub(crate) cache_write_tokens: Option<u64>,
 }
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct ResponseUsageDetailsOutput {
-    #[serde(default)]
     pub(crate) reasoning_tokens: Option<u64>,
 }
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct ResponseUsage {
-    #[serde(default)]
     pub(crate) input_tokens: Option<u64>,
-    #[serde(default)]
     pub(crate) output_tokens: Option<u64>,
-    #[serde(default)]
     pub(crate) total_tokens: Option<u64>,
-    #[serde(default)]
     pub(crate) input_tokens_details: Option<ResponseUsageDetailsInput>,
-    #[serde(default)]
     pub(crate) output_tokens_details: Option<ResponseUsageDetailsOutput>,
 }
 
@@ -59,9 +51,7 @@ impl ResponseUsage {
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct ResponseError {
-    #[serde(default)]
     pub(crate) code: Option<String>,
-    #[serde(default)]
     pub(crate) message: Option<String>,
 }
 
@@ -84,13 +74,10 @@ pub(crate) fn failed_response_error(error: Option<ResponseError>, profile: ApiPr
 
 /// A top-level `error` stream event. The API keeps `code`/`message` at the
 /// top level while the ChatGPT backend nests them under `error`.
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub(crate) struct StreamErrorEvent {
-    #[serde(default)]
     pub(crate) code: Option<Value>,
-    #[serde(default)]
     pub(crate) message: Option<String>,
-    #[serde(default)]
     pub(crate) error: Option<Value>,
 }
 
@@ -125,7 +112,6 @@ impl StreamErrorEvent {
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct IncompleteDetails {
-    #[serde(default)]
     pub(crate) reason: Option<String>,
 }
 
@@ -133,12 +119,9 @@ pub(crate) struct IncompleteDetails {
 pub(crate) struct ItemContentPart {
     #[serde(rename = "type", default)]
     pub(crate) part_type: String,
-    #[serde(default)]
     pub(crate) text: Option<String>,
-    #[serde(default)]
     pub(crate) refusal: Option<String>,
     /// Server-tool citations preserved in the text part's provider metadata.
-    #[serde(default)]
     pub(crate) annotations: Option<Vec<Value>>,
 }
 
@@ -149,7 +132,6 @@ pub(crate) fn is_server_tool_item(item_type: &str) -> bool {
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct SummaryPart {
-    #[serde(default)]
     pub(crate) text: Option<String>,
 }
 
@@ -157,42 +139,27 @@ pub(crate) struct SummaryPart {
 pub(crate) struct OutputItem {
     #[serde(rename = "type", default)]
     pub(crate) item_type: String,
-    #[serde(default)]
     pub(crate) status: Option<String>,
-    #[serde(default)]
     pub(crate) id: Option<String>,
-    #[serde(default)]
     pub(crate) call_id: Option<String>,
-    #[serde(default)]
     pub(crate) name: Option<String>,
-    #[serde(default)]
     pub(crate) arguments: Option<String>,
-    #[serde(default)]
     pub(crate) content: Option<Vec<ItemContentPart>>,
-    #[serde(default)]
     pub(crate) summary: Option<Vec<SummaryPart>>,
-    #[serde(default)]
     pub(crate) encrypted_content: Option<String>,
     /// Assistant-message phase (`commentary` / `final_answer`) preserved for replay.
-    #[serde(default)]
     pub(crate) phase: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct ResponseObject {
-    #[serde(default)]
     pub(crate) id: Option<String>,
-    #[serde(default)]
     pub(crate) model: Option<String>,
-    #[serde(default)]
     pub(crate) status: Option<String>,
-    #[serde(default)]
     pub(crate) error: Option<ResponseError>,
-    #[serde(default)]
     pub(crate) incomplete_details: Option<IncompleteDetails>,
     #[serde(default)]
     pub(crate) output: Vec<Value>,
-    #[serde(default)]
     pub(crate) usage: Option<ResponseUsage>,
 }
 

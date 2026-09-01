@@ -129,7 +129,6 @@ impl ChatGptOAuth {
             device_auth_id: String,
             #[serde(alias = "usercode")]
             user_code: String,
-            #[serde(default)]
             interval: Option<Value>,
         }
 
@@ -324,11 +323,8 @@ fn decode_token_response(context: &str, response: &HttpResponse) -> Result<ChatG
     #[derive(Deserialize)]
     struct TokenResponse {
         access_token: String,
-        #[serde(default)]
         refresh_token: Option<String>,
-        #[serde(default)]
         id_token: Option<String>,
-        #[serde(default)]
         expires_in: Option<i64>,
     }
 

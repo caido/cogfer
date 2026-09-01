@@ -7,7 +7,6 @@
 
 use std::time::SystemTime;
 
-use aws_credential_types::Credentials;
 use aws_sigv4::http_request::{SignableBody, SignableRequest, SigningSettings, sign};
 use aws_sigv4::sign::v4;
 
@@ -18,9 +17,6 @@ use crate::transport::{HeaderName, HttpRequest, header};
 
 const AMZ_DATE: HeaderName = HeaderName::from_static("x-amz-date");
 const SECURITY_TOKEN: HeaderName = HeaderName::from_static("x-amz-security-token");
-
-/// Credential source name, used only in the signer's own diagnostics.
-const PROVIDER_NAME: &str = "llmwire";
 
 /// Headers a previous signature leaves behind. Removing them first makes
 /// re-signing produce the same result as signing once.
@@ -69,17 +65,7 @@ fn sign_request_at(
     };
     request.headers.insert(header::HOST, header_value(&host)?);
 
-    let identity = Credentials::new(
-        &credentials.access_key_id,
-        credentials.secret_access_key.expose(),
-        credentials
-            .session_token
-            .as_ref()
-            .map(|token| token.expose().to_owned()),
-        None,
-        PROVIDER_NAME,
-    )
-    .into();
+    let identity = credentials.clone().into();
 
     let params = v4::SigningParams::builder()
         .identity(&identity)
@@ -141,28 +127,40 @@ fn sign_request_at(
 
 #[cfg(test)]
 mod tests {
-    use std::time::{Duration, UNIX_EPOCH};
-
+    use aws_smithy_types::DateTime;
+    use aws_smithy_types::date_time::Format;
     use url::Url;
 
     use super::*;
     use crate::transport::{HeaderMap, HeaderValue, Method};
 
-    fn at(year: i64, month: u32, day: u32, hour: u64, minute: u64, second: u64) -> SystemTime {
-        // Days from civil, so the vectors below read as calendar dates.
-        let year = if month <= 2 { year - 1 } else { year };
-        let era = year.div_euclid(400);
-        let year_of_era = year.rem_euclid(400);
-        let month_index = if month > 2 { month - 3 } else { month + 9 } as i64;
-        let day_of_year = (153 * month_index + 2) / 5 + i64::from(day) - 1;
-        let day_of_era = year_of_era * 365 + year_of_era / 4 - year_of_era / 100 + day_of_year;
-        let days = (era * 146_097 + day_of_era - 719_468) as u64;
-        UNIX_EPOCH + Duration::from_secs(days * 86_400 + hour * 3600 + minute * 60 + second)
+    fn at(timestamp: &str) -> SystemTime {
+        DateTime::from_str(timestamp, Format::DateTime)
+            .expect("test timestamp should be valid")
+            .try_into()
+            .expect("test timestamp should fit SystemTime")
     }
 
     /// The AWS SigV4 test-suite credentials.
     fn suite_credentials() -> AwsCredentials {
-        AwsCredentials::new("AKIDEXAMPLE", "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY")
+        AwsCredentials::new(
+            "AKIDEXAMPLE",
+            "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY",
+            None,
+            None,
+            "test-suite",
+        )
+    }
+
+    /// [`suite_credentials`] as a temporary session with a token.
+    fn session_credentials() -> AwsCredentials {
+        AwsCredentials::new(
+            "AKIDEXAMPLE",
+            "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY",
+            Some("session-token".into()),
+            None,
+            "test-suite",
+        )
     }
 
     /// `get-vanilla` from the AWS SigV4 test suite.
@@ -180,7 +178,7 @@ mod tests {
             &suite_credentials(),
             "us-east-1",
             "service",
-            at(2015, 8, 30, 12, 36, 0),
+            at("2015-08-30T12:36:00Z"),
         )
         .unwrap();
 
@@ -211,7 +209,7 @@ mod tests {
             &suite_credentials(),
             "us-east-1",
             "service",
-            at(2015, 8, 30, 12, 36, 0),
+            at("2015-08-30T12:36:00Z"),
         )
         .unwrap();
 
@@ -225,7 +223,7 @@ mod tests {
 
     #[test]
     fn session_tokens_are_signed_and_sent() {
-        let credentials = suite_credentials().with_session_token("session-token");
+        let credentials = session_credentials();
         let mut request = HttpRequest {
             method: Method::POST,
             url: Url::parse("https://bedrock-runtime.eu-west-1.amazonaws.com/model/a%3Ab/invoke")
@@ -239,7 +237,7 @@ mod tests {
             &credentials,
             "eu-west-1",
             "bedrock",
-            at(2026, 1, 2, 3, 4, 5),
+            at("2026-01-02T03:04:05Z"),
         )
         .unwrap();
 
@@ -275,7 +273,7 @@ mod tests {
             &suite_credentials(),
             "eu-west-1",
             "bedrock",
-            at(2026, 1, 2, 3, 4, 5),
+            at("2026-01-02T03:04:05Z"),
         )
         .unwrap();
 
@@ -296,13 +294,13 @@ mod tests {
             headers: HeaderMap::new(),
             body: None,
         };
-        let credentials = suite_credentials().with_session_token("session-token");
+        let credentials = session_credentials();
         sign_request_at(
             &mut request,
             &credentials,
             "us-east-1",
             "service",
-            at(2015, 8, 30, 12, 36, 0),
+            at("2015-08-30T12:36:00Z"),
         )
         .unwrap();
         let first = request.headers[header::AUTHORIZATION].clone();
@@ -312,7 +310,7 @@ mod tests {
             &credentials,
             "us-east-1",
             "service",
-            at(2015, 8, 30, 12, 37, 0),
+            at("2015-08-30T12:37:00Z"),
         )
         .unwrap();
 

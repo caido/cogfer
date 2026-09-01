@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use serde_json::Value;
 
 use crate::error::Error;
@@ -142,7 +140,7 @@ pub enum StreamEvent {
     },
     /// A stream failure followed by an error `Finish`.
     Error {
-        error: Arc<Error>,
+        error: Error,
     },
     /// Always last, exactly once.
     Finish {

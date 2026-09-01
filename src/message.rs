@@ -88,13 +88,13 @@ pub enum AssistantPart {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CompactionPart {
     /// Provider item id (OpenAI `cmp_...`).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
     /// Human-readable summary (Anthropic).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub content: Option<String>,
     /// Opaque compacted state (OpenAI Responses).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub encrypted_content: Option<String>,
 }
 
@@ -104,7 +104,7 @@ pub struct CompactionPart {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ProviderToolPart {
     /// Provider item/block id, when present.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
     /// Provider item or block type.
     pub kind: String,
@@ -119,7 +119,7 @@ pub struct ProviderToolPart {
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct ReasoningPart {
     /// Provider block or item id.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
     /// Typed reasoning content in provider order.
     pub content: Vec<ReasoningContent>,
@@ -154,7 +154,7 @@ pub enum ReasoningContent {
     /// Gemini thought signature).
     Text {
         text: String,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         signature: Option<String>,
     },
     /// Provider-generated reasoning summary (OpenAI Responses).
@@ -194,7 +194,7 @@ pub struct ToolCall {
     /// when the provider keeps a single id, which is already `call_id`
     /// (Anthropic, Chat Completions), or gave none at all (a Gemini call with
     /// a synthesized `call_id`, which then stays local).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub item_id: Option<String>,
     pub name: String,
     /// Raw provider JSON arguments. A blank value (zero-argument call) is
@@ -243,11 +243,11 @@ pub struct ToolResultPart {
     /// Correlates with [`ToolCall::call_id`].
     pub call_id: String,
     /// [`ToolCall::item_id`] of the originating call.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub item_id: Option<String>,
     /// [`ToolCall::name`] of the originating call. Required on the wire by
     /// Gemini.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     pub content: ToolResultContent,
     /// Marks the result as an execution error where the protocol supports it.

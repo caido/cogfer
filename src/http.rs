@@ -3,6 +3,8 @@
 use std::time::Duration;
 
 use http::header::{self, HeaderMap, HeaderName, HeaderValue};
+#[cfg(feature = "aws")]
+use percent_encoding::{AsciiSet, NON_ALPHANUMERIC, utf8_percent_encode};
 use url::Url;
 
 use crate::error::{Error, ErrorKind, Result};
@@ -15,6 +17,13 @@ pub(crate) fn join_url(base: &Url, path: &str) -> Url {
     url
 }
 
+#[cfg(feature = "aws")]
+const PATH_SEGMENT_ENCODE_SET: &AsciiSet = &NON_ALPHANUMERIC
+    .remove(b'-')
+    .remove(b'.')
+    .remove(b'_')
+    .remove(b'~');
+
 /// Percent-encode `input` as a single URL path segment: every byte except the
 /// RFC 3986 unreserved characters, with uppercase hex digits.
 ///
@@ -23,16 +32,7 @@ pub(crate) fn join_url(base: &Url, path: &str) -> Url {
 /// this produces is what the signature covers.
 #[cfg(feature = "aws")]
 pub(crate) fn encode_path_segment(input: &str) -> String {
-    let mut encoded = String::with_capacity(input.len());
-    for byte in input.bytes() {
-        match byte {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
-                encoded.push(byte as char);
-            }
-            _ => encoded.push_str(&format!("%{byte:02X}")),
-        }
-    }
-    encoded
+    utf8_percent_encode(input, PATH_SEGMENT_ENCODE_SET).to_string()
 }
 
 /// Render a URL for diagnostics without credentials or opaque query data.

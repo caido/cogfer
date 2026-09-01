@@ -14,21 +14,15 @@ use crate::usage::Usage;
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct AnthropicUsageDetails {
-    #[serde(default)]
     pub(crate) thinking_tokens: Option<u64>,
 }
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct AnthropicUsage {
-    #[serde(default)]
     pub(crate) input_tokens: Option<u64>,
-    #[serde(default)]
     pub(crate) output_tokens: Option<u64>,
-    #[serde(default)]
     pub(crate) cache_creation_input_tokens: Option<u64>,
-    #[serde(default)]
     pub(crate) cache_read_input_tokens: Option<u64>,
-    #[serde(default)]
     pub(crate) output_tokens_details: Option<AnthropicUsageDetails>,
     /// Per-invocation usage for multi-pass turns. When present, the top-level
     /// counters describe only the final pass, so billing totals use this list.
@@ -64,24 +58,15 @@ impl AnthropicUsage {
 pub(crate) struct ContentBlock {
     #[serde(rename = "type", default)]
     pub(crate) block_type: String,
-    #[serde(default)]
     pub(crate) text: Option<String>,
-    #[serde(default)]
     pub(crate) thinking: Option<String>,
-    #[serde(default)]
     pub(crate) signature: Option<String>,
-    #[serde(default)]
     pub(crate) data: Option<String>,
-    #[serde(default)]
     pub(crate) id: Option<String>,
-    #[serde(default)]
     pub(crate) name: Option<String>,
-    #[serde(default)]
     pub(crate) input: Option<Value>,
-    #[serde(default)]
     pub(crate) content: Option<Value>,
     /// Text block citations preserved in part metadata.
-    #[serde(default)]
     pub(crate) citations: Option<Vec<Value>>,
     /// Everything else (server-tool block fields like `tool_use_id`), so
     /// unmodeled blocks reconstruct losslessly.
@@ -121,19 +106,13 @@ impl ContentBlock {
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct MessageObject {
-    #[serde(default)]
     pub(crate) id: Option<String>,
-    #[serde(default)]
     pub(crate) model: Option<String>,
     #[serde(default)]
     pub(crate) content: Vec<ContentBlock>,
-    #[serde(default)]
     pub(crate) stop_reason: Option<String>,
-    #[serde(default)]
     pub(crate) usage: Option<AnthropicUsage>,
-    #[serde(default)]
     pub(crate) context_management: Option<Value>,
-    #[serde(default)]
     pub(crate) stop_details: Option<Value>,
 }
 
@@ -301,16 +280,13 @@ pub(crate) fn anthropic_error_kind(
 pub(crate) fn decode_anthropic_error(status: u16, headers: &HeaderMap, body: &[u8]) -> Error {
     #[derive(Deserialize)]
     struct Envelope {
-        #[serde(default)]
         error: Option<ErrorBody>,
-        #[serde(default)]
         request_id: Option<String>,
     }
     #[derive(Deserialize)]
     struct ErrorBody {
         #[serde(rename = "type", default)]
         error_type: Option<String>,
-        #[serde(default)]
         message: Option<String>,
     }
 

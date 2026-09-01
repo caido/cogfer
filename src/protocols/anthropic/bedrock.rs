@@ -5,6 +5,8 @@
 //! the AWS event stream encoding with each Anthropic event base64-encoded
 //! inside a `chunk`, and errors use AWS envelopes.
 
+use base64::Engine as _;
+use base64::engine::general_purpose::STANDARD;
 use serde::Deserialize;
 
 use super::stream::AnthropicStreamDecoder;
@@ -13,7 +15,6 @@ use crate::http::{enrich_error_from_headers, error_kind_for_status};
 use crate::protocols::{ApiProfile, StreamDecoder};
 use crate::stream::{StreamEvent, StreamNormalizer};
 use crate::transport::{HeaderMap, HeaderName};
-use crate::util::base64_decode;
 
 /// The body field Bedrock requires in place of the `anthropic-version` header.
 pub(super) const ANTHROPIC_VERSION: &str = "bedrock-2023-05-31";
@@ -70,7 +71,7 @@ fn bedrock_error_kind(exception: Option<&str>, status: u16) -> ErrorKind {
 
 #[derive(Deserialize)]
 struct ExceptionBody {
-    #[serde(default, alias = "Message")]
+    #[serde(alias = "Message")]
     message: Option<String>,
 }
 
@@ -141,8 +142,9 @@ impl StreamDecoder for BedrockStreamDecoder {
     ) -> Result<()> {
         let part: PayloadPart = serde_json::from_str(&data)
             .map_err(|error| Error::malformed(format!("bedrock: invalid stream chunk: {error}")))?;
-        let bytes = base64_decode(&part.bytes, false)
-            .ok_or_else(|| Error::malformed("bedrock: stream chunk is not valid base64"))?;
+        let bytes = STANDARD
+            .decode(&part.bytes)
+            .map_err(|_| Error::malformed("bedrock: stream chunk is not valid base64"))?;
         let event = String::from_utf8(bytes)
             .map_err(|_| Error::malformed("bedrock: stream chunk is not valid UTF-8"))?;
         self.inner.on_frame(event, normalizer, out)

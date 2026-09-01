@@ -40,13 +40,13 @@ fn provider(client: &Client, region: &str) -> Result<Provider, Box<dyn std::erro
     }
 
     eprintln!("[auth] SigV4");
-    let mut credentials = AwsCredentials::new(
+    let credentials = AwsCredentials::new(
         std::env::var("AWS_ACCESS_KEY_ID")?,
         std::env::var("AWS_SECRET_ACCESS_KEY")?,
+        std::env::var("AWS_SESSION_TOKEN").ok(),
+        None,
+        "environment",
     );
-    if let Ok(token) = std::env::var("AWS_SESSION_TOKEN") {
-        credentials = credentials.with_session_token(token);
-    }
     Ok(client.provider(
         ProviderConfig::bedrock_anthropic(region, Credentials::none())?
             .with_authenticator(Arc::new(SigV4Authenticator::new(region, credentials))),
