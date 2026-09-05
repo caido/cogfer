@@ -323,9 +323,10 @@ async fn out_of_range_efforts_are_clamped_to_the_nearest_supported_level() {
     );
     assert_eq!(approximations(&result), ["reasoning.effort"]);
 
-    // OpenAI tops out at `xhigh`.
-    let (_, body) = lower(ApiProfile::OpenAiResponses, effort(ReasoningEffort::Max)).await;
+    // SpaceXAI tops out at `xhigh`.
+    let (result, body) = lower(ApiProfile::XaiResponses, effort(ReasoningEffort::Max)).await;
     assert_eq!(body["reasoning"]["effort"], "xhigh", "{body}");
+    assert_eq!(approximations(&result), ["reasoning.effort"]);
 }
 
 #[test]

@@ -4,7 +4,7 @@ use serde_json::{Value, json};
 use super::ChatDialect;
 use super::types::{
     ChatToolCallFunction, ChatUsage, decode_inline_error, map_chat_finish_reason,
-    merge_reasoning_details, reasoning_part_from_details, refusal_metadata,
+    merge_reasoning_details, plaintext_reasoning, reasoning_part_from_details, refusal_metadata,
     result_provider_metadata,
 };
 use crate::error::{Error, ErrorKind, Result};
@@ -28,6 +28,7 @@ pub(crate) struct ChatStreamDecoder {
     response_model_sent: bool,
     /// OpenRouter reasoning_details accumulated across deltas.
     reasoning_details: Vec<Value>,
+    reasoning_metadata: ProviderMetadata,
     /// Citations accumulated across deltas and attached as a replace-merged list.
     annotations: Vec<Value>,
     saw_reasoning: bool,
@@ -45,6 +46,7 @@ impl ChatStreamDecoder {
             response_id_sent: false,
             response_model_sent: false,
             reasoning_details: Vec::new(),
+            reasoning_metadata: ProviderMetadata::default(),
             annotations: Vec::new(),
             saw_reasoning: false,
             saw_refusal: false,
@@ -58,12 +60,15 @@ impl ChatStreamDecoder {
         }
         self.saw_reasoning = false;
         let details = merge_reasoning_details(std::mem::take(&mut self.reasoning_details));
-        let part = if details.is_empty() {
+        let mut part = if details.is_empty() {
             None
         } else {
             reasoning_part_from_details(Some(details), None, self.dialect)
-        };
-        normalizer.end_reasoning(out, REASONING_BLOCK, part);
+        }
+        .unwrap_or_default();
+        part.provider_metadata
+            .merge(std::mem::take(&mut self.reasoning_metadata));
+        normalizer.end_reasoning(out, REASONING_BLOCK, Some(part));
     }
 
     /// Emit incomplete calls with synthetic ids instead of dropping them.
@@ -154,7 +159,12 @@ impl ChatStreamDecoder {
         normalizer: &mut StreamNormalizer,
         out: &mut Vec<StreamEvent>,
     ) {
-        let reasoning_delta = delta.reasoning_content.or(delta.reasoning);
+        let (reasoning_delta, metadata) =
+            plaintext_reasoning(delta.reasoning_content, delta.reasoning, self.dialect);
+        self.reasoning_metadata.merge(metadata);
+        let has_plaintext = reasoning_delta
+            .as_ref()
+            .is_some_and(|text| !text.is_empty());
         if let Some(text) = reasoning_delta
             && !text.is_empty()
         {
@@ -166,6 +176,19 @@ impl ChatStreamDecoder {
         {
             self.saw_reasoning = true;
             normalizer.start_reasoning(out, REASONING_BLOCK.into());
+            if !has_plaintext {
+                for detail in &details {
+                    let text = match detail.get("type").and_then(Value::as_str) {
+                        Some("reasoning.text") => detail.get("text"),
+                        Some("reasoning.summary") => detail.get("summary"),
+                        _ => None,
+                    };
+                    if let Some(text) = text.and_then(Value::as_str).filter(|text| !text.is_empty())
+                    {
+                        normalizer.reasoning_delta(out, REASONING_BLOCK.into(), text.to_string());
+                    }
+                }
+            }
             self.reasoning_details.extend(details);
         }
         if let Some(text) = delta.content

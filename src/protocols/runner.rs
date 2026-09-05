@@ -345,7 +345,7 @@ pub(crate) async fn stream(
         let status = byte_stream.status;
         let headers = byte_stream.headers.clone();
         // Error bodies only need enough bytes to decode the provider envelope.
-        let body = collect_body(byte_stream, 256 * 1024).await;
+        let body = collect_error_body(byte_stream, 256 * 1024).await;
         log::trace!(target: TARGET, "wire error body: body_bytes={}", body.len());
         return Err(annotate(
             handler.decode_error(status, &headers, &body),
@@ -377,12 +377,17 @@ pub(crate) async fn stream(
         let status = byte_stream.status;
         let headers = byte_stream.headers.clone();
         // Bounded like the built-in transport's buffered responses.
-        let body = collect_body(byte_stream, 16 * 1024 * 1024).await;
+        let body = collect_json_body(byte_stream, 16 * 1024 * 1024)
+            .await
+            .map_err(|error| {
+                let error = enrich_error_from_headers(error, status, &headers);
+                annotate(error, provider, model)
+            })?;
         trace_wire_response(status, &headers, &body);
         let response = HttpResponse {
             status,
             headers,
-            body: Bytes::from(body),
+            body,
         };
         // The stream start already carries the lowering warnings.
         let ctx = ProtocolContext {
@@ -540,7 +545,23 @@ impl StreamState {
     }
 }
 
-async fn collect_body(byte_stream: HttpByteStream, limit: usize) -> Vec<u8> {
+async fn collect_json_body(byte_stream: HttpByteStream, limit: usize) -> Result<Bytes> {
+    let mut body = Vec::new();
+    let mut bytes = byte_stream.bytes;
+    while let Some(chunk) = bytes.next().await {
+        let chunk = chunk?;
+        if chunk.len() > limit.saturating_sub(body.len()) {
+            return Err(Error::malformed(format!(
+                "buffered response body exceeded the configured {limit} byte limit"
+            )));
+        }
+        body.extend_from_slice(&chunk);
+    }
+    Ok(Bytes::from(body))
+}
+
+/// Preserve the HTTP failure even when its diagnostic body cannot be read fully.
+async fn collect_error_body(byte_stream: HttpByteStream, limit: usize) -> Vec<u8> {
     let mut body = Vec::new();
     let mut bytes = byte_stream.bytes;
     while let Some(chunk) = bytes.next().await {
@@ -564,7 +585,110 @@ async fn collect_body(byte_stream: HttpByteStream, limit: usize) -> Vec<u8> {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use super::*;
+    use crate::transport::HttpTransport;
+    use crate::transport::mock::MockTransport;
+    use crate::{Client, Credentials, Message, ProviderConfig};
+
+    #[derive(Debug)]
+    struct JsonTransport(Arc<MockTransport>);
+
+    #[async_trait::async_trait]
+    impl HttpTransport for JsonTransport {
+        async fn execute(&self, request: HttpRequest) -> Result<HttpResponse> {
+            self.0.execute(request).await
+        }
+
+        async fn stream(&self, request: HttpRequest) -> Result<HttpByteStream> {
+            let mut response = self.0.stream(request).await?;
+            response.headers.insert(
+                header::CONTENT_TYPE,
+                HeaderValue::from_static("application/json"),
+            );
+            response.headers.insert(
+                HeaderName::from_static("x-request-id"),
+                HeaderValue::from_static("json-request"),
+            );
+            response.bytes = Box::pin(response.bytes.map(|chunk| {
+                chunk.map_err(|error| {
+                    error.with_source(std::io::Error::other("body read interrupted"))
+                })
+            }));
+            Ok(response)
+        }
+    }
+
+    #[tokio::test]
+    async fn json_stream_read_failure_preserves_transport_error() {
+        for kind in [ErrorKind::Timeout, ErrorKind::Transport] {
+            let mock = MockTransport::shared();
+            mock.push_stream_then_error(
+                vec![Bytes::from_static(
+                    br#"{"choices":[{"message":{"content":"partial"#,
+                )],
+                kind,
+            );
+            let provider = Client::builder()
+                .http_transport(Arc::new(JsonTransport(mock)))
+                .build()
+                .unwrap()
+                .provider(ProviderConfig::openai_chat(Credentials::none()))
+                .unwrap();
+
+            let error = provider
+                .language_model("custom-model")
+                .stream(Request::builder().message(Message::user("hi")).build())
+                .await
+                .expect_err("a failed JSON response must fail before emitting events");
+
+            assert_eq!(error.kind(), kind);
+            assert!(error.retryable());
+            assert_eq!(error.origin(), Some("openai-chat"));
+            assert_eq!(error.model(), Some("custom-model"));
+            assert_eq!(error.request_id(), Some("json-request"));
+            assert_eq!(
+                std::error::Error::source(&error).unwrap().to_string(),
+                "body read interrupted"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn json_body_collection_rejects_overflow_without_reading_the_remainder() {
+        let response = |chunks: Vec<&'static [u8]>| HttpByteStream {
+            status: 200,
+            headers: HeaderMap::new(),
+            bytes: Box::pin(futures_util::stream::iter(
+                chunks
+                    .into_iter()
+                    .map(|chunk| Ok(Bytes::from_static(chunk))),
+            )),
+        };
+        assert_eq!(
+            collect_json_body(response(vec![b"{", b"}"]), 2)
+                .await
+                .unwrap(),
+            Bytes::from_static(b"{}")
+        );
+
+        for chunks in [
+            vec![b"{} ".as_slice()],
+            vec![b"{".as_slice(), b"} ".as_slice()],
+        ] {
+            let mut oversized = response(chunks);
+            oversized.bytes =
+                Box::pin(oversized.bytes.chain(futures_util::stream::poll_fn(|_| {
+                    panic!("an oversized response must be dropped immediately")
+                })));
+
+            let error = collect_json_body(oversized, 2).await.unwrap_err();
+
+            assert_eq!(error.kind(), ErrorKind::MalformedResponse);
+            assert!(error.message().contains("byte limit"));
+        }
+    }
 
     #[test]
     fn json_bodies_are_detected_case_insensitively_with_parameters() {

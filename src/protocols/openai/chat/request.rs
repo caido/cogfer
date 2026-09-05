@@ -212,6 +212,7 @@ fn lower_assistant_message(
     let mut tool_calls: Vec<Value> = Vec::new();
     let mut reasoning_details: Vec<Value> = Vec::new();
     let mut reasoning_text = String::new();
+    let mut plaintext_reasoning = std::collections::BTreeMap::<&str, String>::new();
     for part in content {
         match part {
             AssistantPart::Text {
@@ -226,6 +227,19 @@ fn lower_assistant_message(
                 },
             })),
             AssistantPart::Reasoning(reasoning) => {
+                if dialect == ChatDialect::Compatible && origin.is_none() {
+                    let field = reasoning
+                        .provider_metadata
+                        .get("openai")
+                        .and_then(|metadata| metadata.get("reasoning_field"))
+                        .and_then(Value::as_str);
+                    if let Some(field @ ("reasoning_content" | "reasoning")) = field {
+                        plaintext_reasoning
+                            .entry(field)
+                            .or_default()
+                            .push_str(&reasoning.visible_text());
+                    }
+                }
                 if dialect != ChatDialect::OpenRouter {
                     continue;
                 }
@@ -272,6 +286,7 @@ fn lower_assistant_message(
         && tool_calls.is_empty()
         && reasoning_details.is_empty()
         && reasoning_text.is_empty()
+        && plaintext_reasoning.is_empty()
     {
         return None;
     }
@@ -288,6 +303,9 @@ fn lower_assistant_message(
         assistant.insert("reasoning_details".into(), Value::Array(reasoning_details));
     } else if !reasoning_text.is_empty() {
         assistant.insert("reasoning".into(), json!(reasoning_text));
+    }
+    for (field, text) in plaintext_reasoning {
+        assistant.insert(field.into(), json!(text));
     }
     Some(Value::Object(assistant))
 }

@@ -165,6 +165,26 @@ pub(crate) fn map_chat_finish_reason(reason: &str) -> FinishReason {
     }
 }
 
+/// Keep the compatible server's plaintext field spelling for tool-history replay.
+pub(crate) fn plaintext_reasoning(
+    content: Option<String>,
+    reasoning: Option<String>,
+    dialect: ChatDialect,
+) -> (Option<String>, ProviderMetadata) {
+    let Some((field, text)) = content
+        .map(|text| ("reasoning_content", text))
+        .or_else(|| reasoning.map(|text| ("reasoning", text)))
+    else {
+        return (None, ProviderMetadata::default());
+    };
+    let metadata = if dialect == ChatDialect::Compatible && !text.is_empty() {
+        ProviderMetadata::with("openai", json!({"reasoning_field": field}))
+    } else {
+        ProviderMetadata::default()
+    };
+    (Some(text), metadata)
+}
+
 /// Build a reasoning part from OpenRouter `reasoning_details` plus plaintext fallbacks.
 pub(crate) fn reasoning_part_from_details(
     details: Option<Vec<Value>>,
@@ -291,10 +311,12 @@ pub(crate) fn decode_chat_response(
 
 fn decode_chat_message(message: ChatMessage, dialect: ChatDialect) -> Vec<AssistantPart> {
     let mut content = Vec::new();
-    let plaintext_reasoning = message.reasoning_content.or(message.reasoning);
-    if let Some(part) =
-        reasoning_part_from_details(message.reasoning_details, plaintext_reasoning, dialect)
+    let (plaintext, metadata) =
+        plaintext_reasoning(message.reasoning_content, message.reasoning, dialect);
+    if let Some(mut part) =
+        reasoning_part_from_details(message.reasoning_details, plaintext, dialect)
     {
+        part.provider_metadata.merge(metadata);
         content.push(AssistantPart::Reasoning(part));
     }
     if let Some(text) = message.content

@@ -130,10 +130,10 @@ impl ProtocolHandler for Handler {
 
     fn decode_response(
         &self,
-        _ctx: &ProtocolContext<'_>,
+        ctx: &ProtocolContext<'_>,
         response: &HttpResponse,
     ) -> Result<GenerateResult> {
-        decode_chat_response(response, self.dialect)
+        decode_chat_response(response, self.dialect.for_endpoint(ctx.base_url))
     }
 
     fn decode_error(&self, status: u16, headers: &HeaderMap, body: &[u8]) -> Error {
@@ -143,8 +143,10 @@ impl ProtocolHandler for Handler {
         }
     }
 
-    fn new_stream_decoder(&self, _ctx: &ProtocolContext<'_>) -> Box<dyn StreamDecoder> {
-        Box::new(ChatStreamDecoder::new(self.dialect))
+    fn new_stream_decoder(&self, ctx: &ProtocolContext<'_>) -> Box<dyn StreamDecoder> {
+        Box::new(ChatStreamDecoder::new(
+            self.dialect.for_endpoint(ctx.base_url),
+        ))
     }
 }
 

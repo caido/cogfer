@@ -297,3 +297,82 @@ async fn dialect_downgrade_is_surfaced_when_the_output_cap_changes_spelling() {
         .expect("generate succeeds");
     assert!(result.warnings.is_empty(), "{:?}", result.warnings);
 }
+
+#[tokio::test]
+async fn compatible_reasoning_survives_tool_replay_without_changing_its_wire_field() {
+    for field in ["reasoning_content", "reasoning"] {
+        for streaming in [false, true] {
+            let mock = MockTransport::shared();
+            let message = json!({
+                field: "I need the weather.",
+                "tool_calls": [{"index": 0, "id": "call_weather", "type": "function",
+                    "function": {"name": "get_weather", "arguments": "{\"location\":\"Paris\"}"}}]
+            });
+            if streaming {
+                mock.push_sse(&[
+                    &json!({"choices": [{"index": 0, "delta": message,
+                        "finish_reason": "tool_calls"}]})
+                    .to_string(),
+                    "[DONE]",
+                ]);
+            } else {
+                mock.push_json(
+                    200,
+                    &json!({"choices": [{"message": message,
+                    "finish_reason": "tool_calls"}]}),
+                );
+            }
+            let provider = provider_with(
+                &mock,
+                llmwire::ProviderConfig::openai_chat(llmwire::Credentials::none())
+                    .with_base_url("https://api.deepseek.com".parse().unwrap()),
+            );
+            let model = provider.language_model("deepseek-v4-pro");
+            let result = if streaming {
+                model
+                    .stream(tool_request("Weather?"))
+                    .await
+                    .unwrap()
+                    .collect_result()
+                    .await
+                    .unwrap()
+            } else {
+                model.generate(tool_request("Weather?")).await.unwrap()
+            };
+            let call = result.tool_calls().next().expect("weather call");
+            let mut request = tool_request("Weather?");
+            request.messages.push(result.to_assistant_message());
+            request
+                .messages
+                .push(Message::tool_result(ToolResultPart::for_call(call, "21C")));
+            mock.push_json(200, &minimal_completion());
+            model.generate(request.clone()).await.unwrap();
+            let body = mock.request_json(1);
+            assert_eq!(
+                body["messages"][1][field], "I need the weather.",
+                "{field}, streaming={streaming}"
+            );
+            let other = if field == "reasoning" { "reasoning_content" } else { "reasoning" };
+            assert!(body["messages"][1].get(other).is_none());
+
+            // OpenAI does not accept the compatible server's extra message field.
+            mock.push_json(200, &minimal_completion());
+            openai_chat(&mock)
+                .language_model("gpt-5.6")
+                .generate(request.clone())
+                .await
+                .unwrap();
+            assert!(mock.request_json(2)["messages"][1].get(field).is_none());
+
+            if let Message::Assistant {
+                provider_metadata, ..
+            } = &mut request.messages[1]
+            {
+                provider_metadata.insert("llmwire", json!({"profile": "anthropic"}));
+            }
+            mock.push_json(200, &minimal_completion());
+            model.generate(request).await.unwrap();
+            assert!(mock.request_json(3)["messages"][1].get(field).is_none());
+        }
+    }
+}

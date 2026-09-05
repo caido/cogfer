@@ -182,3 +182,66 @@ data: {"id":"gen-invalid-utf8","choices":[{"index":0,"delta":{},"finish_reason":
             .any(|event| matches!(event, StreamEvent::Error { .. }))
     );
 }
+
+#[tokio::test]
+async fn visible_reasoning_details_emit_deltas_without_duplicating_plaintext() {
+    for include_plaintext in [false, true] {
+        let mock = MockTransport::shared();
+        let mut frames = Vec::new();
+        for detail in [
+            json!({"type": "reasoning.summary", "summary": "First, ", "index": 0}),
+            json!({"type": "reasoning.summary", "summary": "check. ", "index": 0}),
+            json!({"type": "reasoning.text", "text": "Then answer.", "index": 1}),
+            json!({"type": "reasoning.encrypted", "data": "OPAQUE", "index": 2}),
+        ] {
+            let mut delta = json!({"reasoning_details": [detail.clone()]});
+            if include_plaintext {
+                delta["reasoning"] = detail
+                    .get("text")
+                    .or_else(|| detail.get("summary"))
+                    .cloned()
+                    .unwrap_or(serde_json::Value::Null);
+            }
+            frames.push(json!({"choices": [{"index": 0, "delta": delta}]}).to_string());
+        }
+        frames.push(
+            json!({"choices": [{"index": 0, "delta": {"content": "Done"},
+            "finish_reason": "stop"}]})
+            .to_string(),
+        );
+        frames.push("[DONE]".into());
+        mock.push_sse(&frames.iter().map(String::as_str).collect::<Vec<_>>());
+        let events = drain(
+            openrouter(&mock)
+                .language_model("model")
+                .stream(text_request("hi"))
+                .await
+                .unwrap(),
+        )
+        .await;
+        assert_terminal_contract(&events);
+        let visible: String = events
+            .iter()
+            .filter_map(|event| match event {
+                StreamEvent::ReasoningDelta { delta, .. } => Some(delta.as_str()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(
+            visible, "First, check. Then answer.",
+            "include_plaintext={include_plaintext}"
+        );
+        let part = events
+            .iter()
+            .find_map(|event| match event {
+                StreamEvent::ReasoningEnd { part, .. } => Some(part),
+                _ => None,
+            })
+            .unwrap();
+        assert_eq!(part.visible_text(), visible);
+        assert_eq!(
+            part.provider_metadata.get("openrouter").unwrap()["reasoning_details"][2]["data"],
+            "OPAQUE"
+        );
+    }
+}

@@ -149,7 +149,7 @@ impl ModelCapabilities {
         use ReasoningEffort::{High, Low, Max, Medium, Minimal, XHigh};
 
         let openai_reasoning = |output: bool| ReasoningSupport {
-            efforts: vec![Minimal, Low, Medium, High, XHigh],
+            efforts: vec![Minimal, Low, Medium, High, XHigh, Max],
             budget: false,
             disable: true,
             output,
@@ -211,7 +211,7 @@ impl ModelCapabilities {
             },
             ApiProfile::XaiResponses => Self {
                 reasoning: ReasoningSupport {
-                    efforts: vec![Low, Medium, High],
+                    efforts: vec![Low, Medium, High, XHigh],
                     budget: false,
                     disable: true,
                     output: true,
@@ -225,7 +225,7 @@ impl ModelCapabilities {
             },
             ApiProfile::XaiChatCompletions => Self {
                 reasoning: ReasoningSupport {
-                    efforts: vec![Low, Medium, High],
+                    efforts: vec![Low, Medium, High, XHigh],
                     budget: false,
                     disable: true,
                     output: false,
@@ -235,7 +235,7 @@ impl ModelCapabilities {
             },
             ApiProfile::OpenRouter => Self {
                 reasoning: ReasoningSupport {
-                    efforts: vec![Minimal, Low, Medium, High, XHigh],
+                    efforts: vec![Minimal, Low, Medium, High, XHigh, Max],
                     budget: true,
                     disable: true,
                     output: true,
