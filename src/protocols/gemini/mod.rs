@@ -25,7 +25,7 @@ impl ProtocolHandler for Handler {
         lower_gemini_request(ctx, streaming)
     }
 
-    fn verify_request(&self, base_url: &Url) -> Result<HttpRequest> {
+    fn new_verify_request(&self, base_url: &Url) -> Result<HttpRequest> {
         Ok(HttpRequest::get(join_url(base_url, "models")))
     }
 

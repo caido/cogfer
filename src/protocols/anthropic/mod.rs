@@ -57,7 +57,7 @@ impl ProtocolHandler for Handler {
         lower_anthropic_request(ctx, streaming, self.dialect)
     }
 
-    fn verify_request(&self, base_url: &Url) -> Result<HttpRequest> {
+    fn new_verify_request(&self, base_url: &Url) -> Result<HttpRequest> {
         match self.dialect {
             AnthropicDialect::Direct => {
                 let mut http = HttpRequest::get(join_url(base_url, "models"));
@@ -65,7 +65,9 @@ impl ProtocolHandler for Handler {
                 Ok(http)
             }
             #[cfg(feature = "aws")]
-            AnthropicDialect::Bedrock => Ok(crate::protocols::bedrock::verify_request(base_url)),
+            AnthropicDialect::Bedrock => {
+                Ok(crate::protocols::bedrock::new_verify_request(base_url))
+            }
         }
     }
 

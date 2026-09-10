@@ -76,10 +76,10 @@ impl ProtocolHandler for Handler {
         })
     }
 
-    fn verify_request(&self, base_url: &Url) -> Result<HttpRequest> {
+    fn new_verify_request(&self, base_url: &Url) -> Result<HttpRequest> {
         #[cfg(feature = "aws")]
         if self.dialect == ResponsesDialect::Bedrock {
-            return Ok(crate::protocols::bedrock::verify_request(base_url));
+            return Ok(crate::protocols::bedrock::new_verify_request(base_url));
         }
         Ok(HttpRequest::get(join_url(base_url, "models")))
     }

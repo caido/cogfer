@@ -31,7 +31,7 @@ pub(crate) trait ProtocolHandler: Send + Sync {
 
     /// The request behind [`Provider::verify`](crate::Provider::verify),
     /// before authentication.
-    fn verify_request(&self, base_url: &Url) -> Result<HttpRequest>;
+    fn new_verify_request(&self, base_url: &Url) -> Result<HttpRequest>;
 
     fn decode_response(
         &self,

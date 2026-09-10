@@ -69,7 +69,7 @@ impl ProtocolHandler for Handler {
 
     /// `client_version` is required; the catalog for llmwire's own version is
     /// empty, which is fine since a bad token is refused first.
-    fn verify_request(&self, base_url: &Url) -> Result<HttpRequest> {
+    fn new_verify_request(&self, base_url: &Url) -> Result<HttpRequest> {
         let mut url = join_url(base_url, "models");
         url.query_pairs_mut()
             .append_pair("client_version", env!("CARGO_PKG_VERSION"));

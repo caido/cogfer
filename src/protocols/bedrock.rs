@@ -25,7 +25,7 @@ pub(crate) const OPENAI_PATH: &str = "/openai/v1";
 /// `ListAsyncInvokes`: the one free read on the runtime endpoint, so it works
 /// through a custom or VPC endpoint where a control-plane call would not, and
 /// answers in every region.
-pub(crate) fn verify_request(base_url: &Url) -> HttpRequest {
+pub(crate) fn new_verify_request(base_url: &Url) -> HttpRequest {
     let mut root = base_url.clone();
     let path = root.path().trim_end_matches('/');
     if let Some(prefix) = path.strip_suffix(OPENAI_PATH).map(str::to_owned) {
@@ -241,7 +241,7 @@ mod tests {
                 "https://gateway.example.com/bedrock/async-invoke?maxResults=1",
             ),
         ] {
-            let request = verify_request(&Url::parse(base).unwrap());
+            let request = new_verify_request(&Url::parse(base).unwrap());
             assert_eq!(request.method, crate::transport::Method::GET);
             assert_eq!(request.url.as_str(), expected, "{base}");
         }

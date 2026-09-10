@@ -104,7 +104,7 @@ impl ProtocolHandler for Handler {
         lower_chat(ctx, streaming, self.dialect)
     }
 
-    fn verify_request(&self, base_url: &Url) -> Result<HttpRequest> {
+    fn new_verify_request(&self, base_url: &Url) -> Result<HttpRequest> {
         // OpenRouter serves /models without a key, so only /key proves one.
         let path = match self.dialect {
             ChatDialect::OpenRouter => "key",

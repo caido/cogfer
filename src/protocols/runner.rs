@@ -283,7 +283,7 @@ pub(crate) async fn verify(provider: &Provider) -> Result<()> {
 
 async fn check_credentials(provider: &Provider) -> Result<()> {
     let handler = super::handler(provider.profile());
-    let mut http = handler.verify_request(&provider.base_url())?;
+    let mut http = handler.new_verify_request(&provider.base_url())?;
     apply_provider_headers(provider, &mut http);
     authenticate(provider, handler, &mut http).await?;
     let response = execute(provider, http).await?;
