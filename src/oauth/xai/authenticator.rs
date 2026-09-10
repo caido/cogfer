@@ -28,10 +28,6 @@ impl XaiAuthenticator {
 }
 
 impl OAuthTokens for XaiTokens {
-    const PROVIDER: &'static str = "xai";
-    /// SpaceXAI tokens live about an hour, so refresh five minutes early.
-    const EXPIRY_SKEW: Duration = Duration::from_secs(5 * 60);
-
     fn access_token(&self) -> &str {
         &self.access_token
     }
@@ -58,6 +54,10 @@ impl OAuthTokens for XaiTokens {
 }
 
 impl TokenRefresher<XaiTokens> for XaiOAuth {
+    const PROVIDER: &'static str = "xai";
+    /// SpaceXAI tokens live about an hour, so refresh five minutes early.
+    const EXPIRY_SKEW: Duration = Duration::from_secs(5 * 60);
+
     fn refresh(&self, refresh_token: String) -> BoxFuture<'static, Result<XaiTokens>> {
         let oauth = self.clone();
         async move { oauth.refresh(&refresh_token).await }.boxed()

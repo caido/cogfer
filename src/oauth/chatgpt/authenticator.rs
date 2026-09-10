@@ -31,9 +31,6 @@ impl ChatGptAuthenticator {
 const CHATGPT_ACCOUNT_ID: HeaderName = HeaderName::from_static("chatgpt-account-id");
 
 impl OAuthTokens for ChatGptTokens {
-    const PROVIDER: &'static str = "chatgpt";
-    const EXPIRY_SKEW: Duration = Duration::from_secs(60);
-
     fn access_token(&self) -> &str {
         &self.access_token
     }
@@ -75,6 +72,9 @@ impl OAuthTokens for ChatGptTokens {
 }
 
 impl TokenRefresher<ChatGptTokens> for ChatGptOAuth {
+    const PROVIDER: &'static str = "chatgpt";
+    const EXPIRY_SKEW: Duration = Duration::from_secs(60);
+
     fn refresh(&self, refresh_token: String) -> BoxFuture<'static, Result<ChatGptTokens>> {
         let oauth = self.clone();
         async move { oauth.refresh(&refresh_token).await }.boxed()

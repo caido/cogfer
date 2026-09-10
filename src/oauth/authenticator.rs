@@ -19,14 +19,8 @@ const TARGET: &str = "ai|oauth";
 ///
 /// Implement this together with a [`TokenRefresher`] to give any bearer
 /// credential with a refresh token (an OAuth subscription, Azure Entra, an
-/// STS session) the shared single-flight refresh policy.
+/// STS session) the shared single-flight refresh.
 pub trait OAuthTokens: Clone + Send + Sync + 'static {
-    /// The provider name used in errors and logs.
-    const PROVIDER: &'static str;
-
-    /// Refresh this long before expiry so a token cannot lapse mid-request.
-    const EXPIRY_SKEW: Duration;
-
     fn access_token(&self) -> &str;
 
     fn refresh_token(&self) -> Option<&str>;
@@ -52,7 +46,16 @@ pub trait OAuthTokens: Clone + Send + Sync + 'static {
 }
 
 /// The client that exchanges refresh tokens for new token sets.
+///
+/// It names the provider and owns the refresh policy since the tokens are
+/// plain data.
 pub trait TokenRefresher<T>: Clone + Send + Sync + fmt::Debug + 'static {
+    /// The provider name used in errors and logs.
+    const PROVIDER: &'static str;
+
+    /// Refresh this long before expiry so a token cannot lapse mid-request.
+    const EXPIRY_SKEW: Duration;
+
     fn refresh(&self, refresh_token: String) -> BoxFuture<'static, Result<T>>;
 }
 
@@ -80,10 +83,10 @@ pub struct OAuthAuthenticator<T, R> {
     token_store: Option<Arc<dyn TokenStore<T>>>,
 }
 
-impl<T: OAuthTokens, R: fmt::Debug> fmt::Debug for OAuthAuthenticator<T, R> {
+impl<T: OAuthTokens, R: TokenRefresher<T>> fmt::Debug for OAuthAuthenticator<T, R> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("OAuthAuthenticator")
-            .field("provider", &T::PROVIDER)
+            .field("provider", &R::PROVIDER)
             .field("refresher", &self.refresher)
             .field("token_store", &self.token_store.is_some())
             .finish_non_exhaustive()
@@ -118,7 +121,7 @@ impl<T: OAuthTokens, R: TokenRefresher<T>> OAuthAuthenticator<T, R> {
             && state.tokens.refresh_token().is_none()
             && expires_within(state.tokens.expires_at(), Duration::ZERO)
         {
-            state.require_reauthentication(T::PROVIDER);
+            state.require_reauthentication(R::PROVIDER);
         }
         state.status()
     }
@@ -136,7 +139,7 @@ impl<T: OAuthTokens, R: TokenRefresher<T>> OAuthAuthenticator<T, R> {
                 let (rejected_current, needs_refresh) = match trigger {
                     RefreshTrigger::Proactive => (
                         false,
-                        expires_within(state.tokens.expires_at(), T::EXPIRY_SKEW),
+                        expires_within(state.tokens.expires_at(), R::EXPIRY_SKEW),
                     ),
                     RefreshTrigger::Unauthorized(rejected) => {
                         let current =
@@ -154,7 +157,7 @@ impl<T: OAuthTokens, R: TokenRefresher<T>> OAuthAuthenticator<T, R> {
                     if pending.is_none() && !needs_refresh {
                         return Ok(state.tokens.clone());
                     }
-                    if let Some(error) = state.cached_refresh_error(T::PROVIDER) {
+                    if let Some(error) = state.cached_refresh_error(R::PROVIDER) {
                         if usable {
                             return Ok(state.tokens.clone());
                         }
@@ -163,7 +166,7 @@ impl<T: OAuthTokens, R: TokenRefresher<T>> OAuthAuthenticator<T, R> {
 
                     if let Some(tokens) = pending {
                         let Some(store) = self.token_store.clone() else {
-                            return Err(state.require_reauthentication(T::PROVIDER));
+                            return Err(state.require_reauthentication(R::PROVIDER));
                         };
                         let operation = refresh_operation(async move { Ok(tokens) }, Some(store));
                         state.start(operation)
@@ -177,12 +180,12 @@ impl<T: OAuthTokens, R: TokenRefresher<T>> OAuthAuthenticator<T, R> {
                             },
                             self.token_store.clone(),
                         );
-                        log::debug!(target: TARGET, "{} access token requires refresh", T::PROVIDER);
+                        log::debug!(target: TARGET, "{} access token requires refresh", R::PROVIDER);
                         state.start(operation)
                     } else if usable {
                         return Ok(state.tokens.clone());
                     } else {
-                        return Err(state.require_reauthentication(T::PROVIDER));
+                        return Err(state.require_reauthentication(R::PROVIDER));
                     }
                 };
                 (usable, operation)
@@ -199,7 +202,7 @@ impl<T: OAuthTokens, R: TokenRefresher<T>> OAuthAuthenticator<T, R> {
                         log::warn!(
                             target: TARGET,
                             "{} token refresh failed; using the current token until it expires: {error}",
-                            T::PROVIDER
+                            R::PROVIDER
                         );
                         Ok(state.tokens.clone())
                     }
