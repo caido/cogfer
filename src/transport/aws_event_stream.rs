@@ -12,6 +12,7 @@ use bytes::BytesMut;
 
 use super::framing::{FrameSource, INVALID_UTF8, StreamFrame};
 
+const TARGET: &str = "ai|aws";
 const MALFORMED: &str = "provider stream contained a malformed event stream message";
 
 #[derive(Debug, Default)]
@@ -94,7 +95,13 @@ fn frame_from(message: &Message) -> Result<Option<StreamFrame>, &'static str> {
             kind: header(":error-code").unwrap_or("error").to_owned(),
             payload: header(":error-message").unwrap_or_default().to_owned(),
         },
-        _ => return Ok(None),
+        other => {
+            log::warn!(
+                target: TARGET,
+                "skipping event stream message with :message-type {other:?}"
+            );
+            return Ok(None);
+        }
     };
     Ok(Some(frame))
 }
