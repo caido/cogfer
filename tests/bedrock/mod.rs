@@ -414,10 +414,6 @@ mod sigv4 {
             ),
             "{authorization}"
         );
-        assert_eq!(
-            header(http, "host"),
-            Some("bedrock-runtime.eu-west-1.amazonaws.com")
-        );
         assert!(header(http, "x-amz-date").is_some_and(|date| date.ends_with('Z')));
         assert_eq!(header(http, "x-amz-security-token"), Some("session"));
     }

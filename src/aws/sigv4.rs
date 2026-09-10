@@ -25,8 +25,9 @@ const GENERATED: [HeaderName; 3] = [header::AUTHORIZATION, AMZ_DATE, SECURITY_TO
 /// Sign `request` in place, replacing any previous signature.
 ///
 /// The body must be final: its hash is part of the signature. Signing sets
-/// `host`, `x-amz-date`, `authorization`, and `x-amz-security-token` for
-/// temporary credentials.
+/// `x-amz-date`, `authorization`, and `x-amz-security-token` for temporary
+/// credentials. `host` is signed from the URL and left for the transport to
+/// send.
 ///
 /// # Errors
 ///
@@ -53,18 +54,6 @@ fn sign_request_at(
         request.headers.remove(name);
     }
 
-    // The signer derives `host` from the URL but leaves the wire header to the
-    // transport. Setting it here keeps what is sent identical to what is signed.
-    let host = request
-        .url
-        .host_str()
-        .ok_or_else(|| Error::configuration("aws requests need a host to sign"))?;
-    let host = match request.url.port() {
-        Some(port) => format!("{host}:{port}"),
-        None => host.to_owned(),
-    };
-    request.headers.insert(header::HOST, header_value(&host)?);
-
     let identity = credentials.clone().into();
 
     let params = v4::SigningParams::builder()
@@ -79,38 +68,29 @@ fn sign_request_at(
         })?
         .into();
 
-    // The signer borrows the request, so its headers are collected before any
-    // are written back.
-    let signed = {
-        let headers: Vec<(&str, &str)> = request
+    let signable = SignableRequest::new(
+        request.method.as_str(),
+        request.url.as_str(),
+        request
             .headers
             .iter()
-            .filter_map(|(name, value)| Some((name.as_str(), value.to_str().ok()?)))
-            .collect();
-        let signable = SignableRequest::new(
-            request.method.as_str(),
-            request.url.as_str(),
-            headers.iter().copied(),
-            SignableBody::Bytes(request.body.as_deref().unwrap_or_default()),
-        )
-        // The URL carries the caller's model ID, so an unsignable one is a bad
-        // request rather than a misconfigured provider.
-        .map_err(|error| {
-            Error::invalid_request("aws: request cannot be signed").with_source(error)
-        })?;
+            .filter_map(|(name, value)| Some((name.as_str(), value.to_str().ok()?))),
+        SignableBody::Bytes(request.body.as_deref().unwrap_or_default()),
+    )
+    // The URL carries the caller's model ID, so an unsignable one is a bad
+    // request rather than a misconfigured provider.
+    .map_err(|error| Error::invalid_request("aws: request cannot be signed").with_source(error))?;
 
-        let (instructions, _signature) = sign(signable, &params)
-            .map_err(|error| Error::configuration("aws: signing failed").with_source(error))?
-            .into_parts();
-        let (headers, query) = instructions.into_parts();
-        // Settings put the signature in headers. Were that ever to change, the
-        // request would otherwise go out unsigned with nothing to show for it.
-        debug_assert!(
-            query.is_empty(),
-            "signer returned query parameters; the signature would be dropped"
-        );
-        headers
-    };
+    let (instructions, _signature) = sign(signable, &params)
+        .map_err(|error| Error::configuration("aws: signing failed").with_source(error))?
+        .into_parts();
+    let (signed, query) = instructions.into_parts();
+    // Settings put the signature in headers. Were that ever to change, the
+    // request would otherwise go out unsigned with nothing to show for it.
+    debug_assert!(
+        query.is_empty(),
+        "signer returned query parameters; the signature would be dropped"
+    );
 
     for signed in signed {
         let name = HeaderName::try_from(signed.name()).map_err(|error| {
