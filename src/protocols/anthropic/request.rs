@@ -451,8 +451,9 @@ pub(crate) fn lower_anthropic_request(
     }
     lower_tools(request, object);
     let budget_thinking = matches!(reasoning, Some((ResolvedReasoning::Budget(_), _)));
-    // Forced tool choice is only rejected with a manual budget (adaptive
-    // thinking accepts it), but the samplers are rejected with any thinking.
+    // Anthropic rejects a forced `tool_choice` when thinking has a token
+    // budget but allows it with adaptive thinking. It rejects temperature,
+    // top_p and top_k with either kind of thinking.
     let thinking_enabled =
         budget_thinking || matches!(reasoning, Some((ResolvedReasoning::Effort(_), _)));
     lower_request_reasoning(request, reasoning, max_tokens, object)?;
