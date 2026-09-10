@@ -82,7 +82,7 @@ pub(crate) fn bearer_value(token: &str) -> Result<HeaderValue> {
 /// arbitrary authentication header names, so a denylist of known secrets
 /// would leak custom credentials.
 pub(crate) fn redact_headers(headers: &HeaderMap) -> Vec<(&str, &str)> {
-    static VISIBLE: [HeaderName; 14] = [
+    static VISIBLE: [HeaderName; 15] = [
         header::ACCEPT,
         header::ACCEPT_ENCODING,
         HeaderName::from_static("anthropic-beta"),
@@ -92,6 +92,7 @@ pub(crate) fn redact_headers(headers: &HeaderMap) -> Vec<(&str, &str)> {
         header::DATE,
         HeaderName::from_static("http-referer"),
         header::RETRY_AFTER,
+        HeaderName::from_static("session_id"),
         header::USER_AGENT,
         HeaderName::from_static("x-amzn-errortype"),
         HeaderName::from_static("x-openrouter-title"),
