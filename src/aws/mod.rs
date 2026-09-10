@@ -3,8 +3,11 @@
 //! [`SigV4Authenticator`] is a [`RequestAuthenticator`] that signs each
 //! request with AWS Signature Version 4. It takes any [`ProvideCredentials`]
 //! implementation: static [`AwsCredentials`], or a custom provider for
-//! credentials that rotate (STS, an instance role, SSO). Hosts with their own
-//! signing pipeline can call [`sign_request`] directly.
+//! credentials that rotate (STS, an instance role, SSO). Hosts wanting the AWS
+//! default credential chain can pass
+//! `aws_config::default_provider::credentials::DefaultCredentialsChain` to
+//! [`SigV4Authenticator::new`], since it implements [`ProvideCredentials`].
+//! Hosts with their own signing pipeline can call [`sign_request`] directly.
 //!
 //! Credential types are re-exported from [`aws_credential_types`], with
 //! `Credentials` aliased to [`AwsCredentials`] so it cannot be confused with
