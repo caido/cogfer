@@ -62,11 +62,11 @@ impl ResponsesStreamDecoder {
 
     /// The output item's handle. Bedrock's OpenAI-compatible endpoint spells
     /// it `item_id` on `output_item.done` events where OpenAI uses `id`.
-    fn item_handle(item: &Value) -> &str {
+    fn item_handle(item: &Value) -> Option<&str> {
         item.get("id")
             .or_else(|| item.get("item_id"))
             .and_then(Value::as_str)
-            .unwrap_or("")
+            .filter(|id| !id.is_empty())
     }
 
     fn server_tool_status(event_type: &str) -> Option<&str> {
@@ -109,7 +109,8 @@ impl ResponsesStreamDecoder {
             return;
         };
         let item_type = item.get("type").and_then(Value::as_str).unwrap_or("");
-        let item_id = Self::item_handle(item);
+        let handle = Self::item_handle(item);
+        let item_id = handle.unwrap_or_default();
         match item_type {
             "function_call" => {
                 let call_id = item
@@ -123,12 +124,7 @@ impl ResponsesStreamDecoder {
                     .and_then(Value::as_str)
                     .unwrap_or_default()
                     .to_string();
-                normalizer.start_tool(
-                    out,
-                    call_id,
-                    name,
-                    (!item_id.is_empty()).then(|| item_id.to_string()),
-                );
+                normalizer.start_tool(out, call_id, name, handle.map(str::to_owned));
             }
             "reasoning" => {
                 normalizer.start_reasoning(out, item_id.to_string());
@@ -203,7 +199,8 @@ impl ResponsesStreamDecoder {
             return Ok(());
         };
         let item_type = item.get("type").and_then(Value::as_str).unwrap_or("");
-        let item_id = Self::item_handle(item);
+        let handle = Self::item_handle(item);
+        let item_id = handle.unwrap_or_default();
         match item_type {
             "function_call" => {
                 let final_arguments = item
@@ -260,7 +257,7 @@ impl ResponsesStreamDecoder {
                     out,
                     item_id,
                     ProviderToolPart {
-                        id: (!item_id.is_empty()).then(|| item_id.to_string()),
+                        id: handle.map(str::to_owned),
                         kind: other.to_string(),
                         namespace: "openai".into(),
                         payload: item.clone(),
