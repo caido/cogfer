@@ -15,10 +15,12 @@ use crate::transport::HttpRequest;
 pub(crate) fn lower_chat(
     ctx: &ProtocolContext<'_>,
     streaming: bool,
-    dialect: ChatDialect,
+    declared: ChatDialect,
 ) -> Result<LoweredRequest> {
     let mut warnings = Vec::new();
     let request = ctx.request;
+    let dialect = declared.for_endpoint(ctx.base_url);
+    let downgraded = declared == ChatDialect::OpenAi && dialect == ChatDialect::Compatible;
 
     let mut body = json!({
         "model": ctx.model,
@@ -34,7 +36,7 @@ pub(crate) fn lower_chat(
         );
     }
     insert_reasoning(ctx, dialect, object, &mut warnings);
-    insert_generation_settings(request, dialect, object);
+    insert_generation_settings(request, dialect, downgraded, object, &mut warnings);
 
     if streaming {
         object.insert("stream".into(), json!(true));
@@ -115,7 +117,9 @@ fn insert_reasoning(
 fn insert_generation_settings(
     request: &Request,
     dialect: ChatDialect,
+    downgraded: bool,
     object: &mut Map<String, Value>,
+    warnings: &mut Vec<Warning>,
 ) {
     if let Some(max) = request.max_output_tokens {
         // OpenAI deprecated `max_tokens` in favour of `max_completion_tokens`,
@@ -125,6 +129,16 @@ fn insert_generation_settings(
             ChatDialect::Compatible | ChatDialect::OpenRouter => "max_tokens",
         };
         object.insert(key.into(), json!(max));
+        // The downgrade changes the output-cap spelling, which OpenAI itself
+        // rejects. Surface it so a gateway in front of OpenAI is debuggable.
+        if downgraded {
+            warnings.push(Warning::approximated_setting(
+                "max_output_tokens",
+                "base URL is not an OpenAI endpoint, so the generic Chat \
+                 Completions dialect was used: `max_tokens` was sent instead \
+                 of `max_completion_tokens`",
+            ));
+        }
     }
     if let Some(temperature) = request.temperature {
         object.insert("temperature".into(), json!(temperature));

@@ -8,7 +8,7 @@ use crate::protocols::openai::shared::decode_openai_error;
 use crate::protocols::{
     ApiProfile, LoweredRequest, ProtocolContext, ProtocolHandler, StreamDecoder,
 };
-use crate::response::{GenerateResult, Warning};
+use crate::response::GenerateResult;
 use crate::transport::{HeaderMap, HttpRequest, HttpResponse};
 
 mod request;
@@ -101,22 +101,7 @@ impl Handler {
 
 impl ProtocolHandler for Handler {
     fn lower(&self, ctx: &ProtocolContext<'_>, streaming: bool) -> Result<LoweredRequest> {
-        let dialect = self.dialect.for_endpoint(ctx.base_url);
-        let mut lowered = lower_chat(ctx, streaming, dialect)?;
-        // The downgrade changes the output-cap spelling, which OpenAI itself
-        // rejects; surface it so a gateway in front of OpenAI is debuggable.
-        if self.dialect == ChatDialect::OpenAi
-            && dialect == ChatDialect::Compatible
-            && ctx.request.max_output_tokens.is_some()
-        {
-            lowered.warnings.push(Warning::approximated_setting(
-                "max_output_tokens",
-                "base URL is not an OpenAI endpoint, so the generic Chat \
-                 Completions dialect was used: `max_tokens` was sent instead \
-                 of `max_completion_tokens`",
-            ));
-        }
-        Ok(lowered)
+        lower_chat(ctx, streaming, self.dialect)
     }
 
     fn verify_request(&self, base_url: &Url) -> Result<HttpRequest> {
