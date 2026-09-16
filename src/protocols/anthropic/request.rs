@@ -379,24 +379,21 @@ fn lower_sampling(
     object: &mut serde_json::Map<String, Value>,
     warnings: &mut Vec<Warning>,
 ) {
-    // Anthropic rejects the samplers whenever thinking is on, in both the
-    // budget ("enabled") and the adaptive mode. The API does accept
-    // `temperature: 1` and `top_p >= 0.95` alongside thinking; that carve-out
-    // is deliberately not modeled, any set value is dropped with a warning.
-    let rejects_sampling = thinking_enabled;
+    // Some models allow a narrow sampling range during thinking. We omit all
+    // sampling settings to keep the behavior consistent across models.
     for (setting, present) in [
         ("temperature", request.temperature.is_some()),
         ("top_p", request.top_p.is_some()),
         ("top_k", request.top_k.is_some()),
     ] {
-        if rejects_sampling && present {
+        if thinking_enabled && present {
             warnings.push(Warning::unsupported_setting(
                 setting,
-                format!("this model rejects `{setting}`; it was not sent"),
+                format!("llmwire omits `{setting}` when thinking is enabled"),
             ));
         }
     }
-    if !rejects_sampling {
+    if !thinking_enabled {
         if let Some(temperature) = request.temperature {
             object.insert("temperature".into(), json!(temperature));
         }
@@ -451,9 +448,8 @@ pub(crate) fn lower_anthropic_request(
     }
     lower_tools(request, object);
     let budget_thinking = matches!(reasoning, Some((ResolvedReasoning::Budget(_), _)));
-    // Anthropic rejects a forced `tool_choice` when thinking has a token
-    // budget but allows it with adaptive thinking. It rejects temperature,
-    // top_p and top_k with either kind of thinking.
+    // Manual budgets need separate forced-tool-choice validation. Sampling
+    // settings are omitted in both thinking modes.
     let thinking_enabled =
         budget_thinking || matches!(reasoning, Some((ResolvedReasoning::Effort(_), _)));
     lower_request_reasoning(request, reasoning, max_tokens, object)?;

@@ -76,7 +76,7 @@ pub(crate) fn bearer_value(token: &str) -> Result<HeaderValue> {
 }
 
 /// Headers for `Debug` output and wire traces, with every value outside the
-/// allowlist replaced by `<redacted>`.
+/// allowlist or marked sensitive replaced by `<redacted>`.
 ///
 /// This is deliberately an allowlist. [`crate::Credentials::Header`] accepts
 /// arbitrary authentication header names, so a denylist of known secrets
@@ -102,7 +102,8 @@ pub(crate) fn redact_headers(headers: &HeaderMap) -> Vec<(&str, &str)> {
     headers
         .iter()
         .map(|(name, value)| {
-            let visible = VISIBLE.contains(name) || REQUEST_ID_HEADERS.contains(name);
+            let visible = !value.is_sensitive()
+                && (VISIBLE.contains(name) || REQUEST_ID_HEADERS.contains(name));
             let value =
                 if visible { value.to_str().unwrap_or("<non-ascii>") } else { "<redacted>" };
             (name.as_str(), value)
@@ -214,13 +215,14 @@ mod tests {
 
     #[test]
     fn header_redaction_hides_everything_outside_the_allowlist() {
-        let headers = HeaderMap::from_iter(
+        let mut headers = HeaderMap::from_iter(
             [
                 ("set-cookie", "session=secret-cookie"),
                 ("x-api-key", "secret-key"),
                 ("x-provider-account", "account-secret"),
                 ("X-Request-Id", "request-123"),
                 ("content-type", "application/json"),
+                ("session_id", "session-123"),
             ]
             .map(|(name, value)| {
                 (
@@ -236,5 +238,14 @@ mod tests {
         assert_eq!(redacted[2].1, "<redacted>");
         assert_eq!(redacted[3].1, "request-123");
         assert_eq!(redacted[4].1, "application/json");
+        assert_eq!(redacted[5].1, "session-123");
+
+        // Explicit sensitivity takes precedence over diagnostic header names.
+        for name in ["session_id", "x-request-id"] {
+            headers.get_mut(name).unwrap().set_sensitive(true);
+        }
+        let redacted = redact_headers(&headers);
+        assert_eq!(redacted[3].1, "<redacted>");
+        assert_eq!(redacted[5].1, "<redacted>");
     }
 }

@@ -118,13 +118,13 @@ fn trace_wire_request(http: &HttpRequest) {
     if !log::log_enabled!(target: TARGET, log::Level::Trace) {
         return;
     }
-    let header_names: Vec<_> = http.headers.keys().map(HeaderName::as_str).collect();
     log::trace!(
         target: TARGET,
-        "wire request: method={} url={} query_present={} headers={header_names:?} body_bytes={}",
+        "wire request: method={} url={} query_present={} headers={:?} body_bytes={}",
         http.method,
         sanitized_url(&http.url),
         http.url.query().is_some(),
+        redact_headers(&http.headers),
         http.body.as_ref().map_or(0, Bytes::len),
     );
 }

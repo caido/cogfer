@@ -124,7 +124,7 @@ async fn lower(profile: ApiProfile, request: Request) -> (GenerateResult, Value)
 
 /// A request with every setting the capabilities table describes, except
 /// compaction (an error, not a warning, where unsupported) and a reasoning
-/// budget (which Anthropic answers by rejecting sampling parameters).
+/// budget (reasoning effort exercises reasoning support instead).
 fn everything() -> Request {
     let mut tool = ToolDefinition::new("lookup", "Look something up", json!({"type": "object"}));
     tool.strict = Some(true);
@@ -182,8 +182,8 @@ async fn unsupported_settings_match_the_capability_table() {
             .map(|warning| warning.subject.as_deref().expect("subject"))
             .collect();
         let mut expected = expected_dropped(&capabilities);
-        // The request turns reasoning on, and Anthropic rejects the samplers
-        // whenever thinking is enabled, adaptive mode included.
+        // The library omits sampling settings for Anthropic when thinking is
+        // enabled, including adaptive mode.
         #[cfg(feature = "aws")]
         let anthropic_thinking = matches!(
             profile,

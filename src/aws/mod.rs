@@ -60,6 +60,18 @@ impl SigV4Authenticator {
 }
 
 const SERVICE: &str = "bedrock";
+const MANTLE_SERVICE: &str = "bedrock-mantle";
+
+fn signing_service(request: &HttpRequest) -> &'static str {
+    match request
+        .url
+        .host_str()
+        .and_then(|host| host.split('.').next())
+    {
+        Some(MANTLE_SERVICE) => MANTLE_SERVICE,
+        _ => SERVICE,
+    }
+}
 
 #[async_trait::async_trait]
 impl RequestAuthenticator for SigV4Authenticator {
@@ -71,7 +83,12 @@ impl RequestAuthenticator for SigV4Authenticator {
             )
             .with_source(error)
         })?;
-        sign_request(request, &credentials, &self.region, SERVICE)
+        sign_request(
+            request,
+            &credentials,
+            &self.region,
+            signing_service(request),
+        )
     }
 
     async fn reauthenticate(
@@ -98,4 +115,26 @@ fn signature_rejected(headers: &HeaderMap) -> bool {
         .get(ERROR_TYPE)
         .and_then(|value| value.to_str().ok())
         .is_some_and(is_signature_failure)
+}
+
+#[cfg(test)]
+mod tests {
+    use url::Url;
+
+    use super::*;
+
+    #[test]
+    fn mantle_hosts_sign_for_the_mantle_service() {
+        let service = |url: &str| signing_service(&HttpRequest::get(Url::parse(url).unwrap()));
+
+        assert_eq!(
+            service("https://bedrock-mantle.us-east-1.api.aws/openai/v1/responses"),
+            "bedrock-mantle"
+        );
+        assert_eq!(
+            service("https://bedrock-runtime.us-east-1.amazonaws.com/openai/v1/responses"),
+            "bedrock"
+        );
+        assert_eq!(service("https://gateway.example.com/bedrock"), "bedrock");
+    }
 }

@@ -360,9 +360,7 @@ async fn derived_budget_fit_handles_the_minimum_boundaries() {
 
 #[tokio::test]
 async fn adaptive_thinking_drops_the_samplers_with_warnings() {
-    // Anthropic rejects temperature/top_p/top_k in adaptive mode just like
-    // with a manual budget ("`temperature` may only be set to 1 when thinking
-    // is enabled or in adaptive mode").
+    // The library omits sampling settings in both thinking modes.
     let mock = MockTransport::shared();
     mock.push_json(200, &minimal_message());
     let result = anthropic(&mock)
