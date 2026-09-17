@@ -1,0 +1,23 @@
+name: Publish
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+*'
+
+jobs:
+  publish:
+    if: github.repository == 'caido/llmwire'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@efa25f7f19611383d5b0ccf2d1c8914531636bf9
+        with:
+          toolchain: stable
+
+      - name: Publish crates
+        uses: katyo/publish-crates@02cc2f1ad653fb25c7d1ff9eb590a8a50d06186b
+        with:
+          registry-token: ${{ secrets.CRATES_TOKEN }}
