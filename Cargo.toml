@@ -1,12 +1,11 @@
 [package]
 name = "llmwire"
 version = "0.1.0"
-authors = ["caido <info@caido.io>"]
+authors = ["Caido Labs Inc. <dev@caido.io>"]
 description = "🤖 Multi-provider LLM client"
 edition = "2024"
 rust-version = "1.95"
 license = "MIT"
-publish = false
 repository = "https://github.com/caido/llmwire"
 readme = "README.md"
 exclude = [".github/", "mise.toml", "rust-toolchain.toml", "tests/"]
