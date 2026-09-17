@@ -27,7 +27,7 @@ async fn device_flow_start_poll_and_tokens() {
     );
 
     let oauth = XaiOAuth::new(transport.clone()).with_client_config(
-        llmwire::OAuthClientConfig::scoped("caido-client", "openid api:access")
+        cogfer::OAuthClientConfig::scoped("caido-client", "openid api:access")
             .expect("valid OAuth client"),
     );
     let device = oauth
@@ -71,7 +71,7 @@ async fn device_flow_start_poll_and_tokens() {
     let start_form = form_body(&requests[0]);
     assert!(start_form.contains("client_id=caido-client"));
     assert!(start_form.contains("scope=openid+api%3Aaccess"));
-    assert!(start_form.contains("referrer=llmwire"));
+    assert!(start_form.contains("referrer=cogfer"));
     assert_eq!(requests[1].url.as_str(), "https://auth.x.ai/oauth2/token");
     let poll_form = form_body(&requests[1]);
     assert!(

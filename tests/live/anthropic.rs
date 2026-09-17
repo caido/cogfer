@@ -1,4 +1,4 @@
-use llmwire::{
+use cogfer::{
     Message, ProviderConfig, ReasoningConfig, ReasoningEffort, Request, StreamEvent,
     StructuredOutput,
 };

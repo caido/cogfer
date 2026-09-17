@@ -6,7 +6,7 @@ on:
 
 jobs:
   publish:
-    if: github.repository == 'caido/llmwire'
+    if: github.repository == 'caido/cogfer'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository

@@ -1,5 +1,5 @@
-use llmwire::transport::mock::MockTransport;
-use llmwire::{
+use cogfer::transport::mock::MockTransport;
+use cogfer::{
     AssistantPart, Compaction, CompactionPart, ErrorKind, FinishReason, Message, ProviderMetadata,
     ProviderToolPart, ReasoningConfig, ReasoningContent, ReasoningEffort, ReasoningOutput,
     ReasoningPart, Request, StreamEvent, StructuredOutput, ToolCall, ToolResultPart,

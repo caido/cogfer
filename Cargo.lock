@@ -252,6 +252,34 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c9ea0ac24bc397ab3c98583a3c9ba74fa56b09a4449bbe172b9b1ddb016027a"
 
 [[package]]
+name = "cogfer"
+version = "0.1.0"
+dependencies = [
+ "async-stream",
+ "async-trait",
+ "aws-credential-types",
+ "aws-sigv4",
+ "aws-smithy-eventstream",
+ "aws-smithy-types",
+ "base64",
+ "bytes",
+ "dotenvy",
+ "futures-util",
+ "hex",
+ "http 1.5.0",
+ "log",
+ "percent-encoding",
+ "reqwest",
+ "rustls",
+ "serde",
+ "serde_json",
+ "sse-core",
+ "tokio",
+ "url",
+ "uuid",
+]
+
+[[package]]
 name = "combine"
 version = "4.6.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -792,34 +820,6 @@ name = "litemap"
 version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "92daf443525c4cce67b150400bc2316076100ce0b3686209eb8cf3c31612e6f0"
-
-[[package]]
-name = "llmwire"
-version = "0.1.0"
-dependencies = [
- "async-stream",
- "async-trait",
- "aws-credential-types",
- "aws-sigv4",
- "aws-smithy-eventstream",
- "aws-smithy-types",
- "base64",
- "bytes",
- "dotenvy",
- "futures-util",
- "hex",
- "http 1.5.0",
- "log",
- "percent-encoding",
- "reqwest",
- "rustls",
- "serde",
- "serde_json",
- "sse-core",
- "tokio",
- "url",
- "uuid",
-]
 
 [[package]]
 name = "log"

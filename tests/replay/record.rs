@@ -6,8 +6,8 @@ use std::panic::AssertUnwindSafe;
 use std::sync::Arc;
 
 use futures_util::FutureExt;
-use llmwire::transport::ReqwestTransport;
-use llmwire::{Client, Provider};
+use cogfer::transport::ReqwestTransport;
+use cogfer::{Client, Provider};
 
 use crate::common::RecordingTransport;
 
@@ -25,7 +25,7 @@ impl RecordSession {
         live: impl FnOnce(&Client) -> Option<Provider>,
         model: &'static str,
     ) -> Option<Self> {
-        llmwire::transport::install_default_crypto_provider();
+        cogfer::transport::install_default_crypto_provider();
         let recorder = Arc::new(RecordingTransport::new(Arc::new(
             ReqwestTransport::new().expect("reqwest transport builds"),
         )));

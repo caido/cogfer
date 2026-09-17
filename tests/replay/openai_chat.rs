@@ -2,7 +2,7 @@
 //! effort is set explicitly (see [`ProviderConfig::openai_chat`]), so the tool
 //! loop runs with `ReasoningConfig::Disabled` here.
 
-use llmwire::ProviderConfig;
+use cogfer::ProviderConfig;
 
 use super::cassette_suite;
 

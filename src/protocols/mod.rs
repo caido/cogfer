@@ -156,19 +156,19 @@ impl std::fmt::Display for ApiProfile {
 
 /// Response-level provenance stamp: the profile that produced the turn.
 ///
-/// Decoders record it in the library-reserved `llmwire` namespace, and
+/// Decoders record it in the library-reserved `cogfer` namespace, and
 /// request lowering uses [`foreign_origin`] to replay opaque state (encrypted
 /// reasoning, item ids, server tool payloads) only to the profile that
 /// produced it, because backends cannot verify each other's items and reject the
 /// request with errors like `invalid_encrypted_content`.
 pub(crate) fn origin_metadata(profile: ApiProfile) -> ProviderMetadata {
-    ProviderMetadata::with("llmwire", json!({"profile": profile.as_str()}))
+    ProviderMetadata::with("cogfer", json!({"profile": profile.as_str()}))
 }
 
 /// The producing profile stamped on a replayed turn, when it differs from the
 /// serving profile. Unstamped turns count as native.
 pub(crate) fn foreign_origin(metadata: &ProviderMetadata, profile: ApiProfile) -> Option<&str> {
-    let stamp = metadata.get("llmwire")?.get("profile")?.as_str()?;
+    let stamp = metadata.get("cogfer")?.get("profile")?.as_str()?;
     (stamp != profile.as_str()).then_some(stamp)
 }
 

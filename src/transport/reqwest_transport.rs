@@ -70,7 +70,7 @@ impl ReqwestTransport {
         if rustls::crypto::CryptoProvider::get_default().is_none() {
             return Err(Error::configuration(
                 "no process-wide rustls crypto provider is installed; call \
-                 llmwire::transport::install_default_crypto_provider() or install \
+                 cogfer::transport::install_default_crypto_provider() or install \
                  your own before building the transport",
             ));
         }

@@ -4,13 +4,13 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use llmwire::oauth::chatgpt::{ChatGptAuthenticator, ChatGptTokens};
-use llmwire::oauth::xai::{XaiAuthenticator, XaiTokens};
-use llmwire::{Client, Credentials, Provider, ProviderConfig, TokenStore};
+use cogfer::oauth::chatgpt::{ChatGptAuthenticator, ChatGptTokens};
+use cogfer::oauth::xai::{XaiAuthenticator, XaiTokens};
+use cogfer::{Client, Credentials, Provider, ProviderConfig, TokenStore};
 
 pub(crate) fn live_client() -> Client {
     let _ = dotenvy::dotenv();
-    llmwire::transport::install_default_crypto_provider();
+    cogfer::transport::install_default_crypto_provider();
     Client::builder().build().expect("client builds")
 }
 
@@ -174,7 +174,7 @@ fn cached_tokens<T: serde::de::DeserializeOwned>(file: &str) -> Option<(T, PathB
     let base = std::env::var_os("XDG_CONFIG_HOME")
         .map(PathBuf::from)
         .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".config")));
-    let path = base?.join("llmwire").join(file);
+    let path = base?.join("cogfer").join(file);
     let tokens = serde_json::from_slice(&std::fs::read(&path).ok()?).ok()?;
     Some((tokens, path))
 }
@@ -186,28 +186,28 @@ struct JsonTokenStore {
 
 #[async_trait::async_trait]
 impl TokenStore<ChatGptTokens> for JsonTokenStore {
-    async fn save(&self, tokens: &ChatGptTokens) -> llmwire::Result<()> {
+    async fn save(&self, tokens: &ChatGptTokens) -> cogfer::Result<()> {
         save_tokens(&self.path, tokens)
     }
 }
 
 #[async_trait::async_trait]
 impl TokenStore<XaiTokens> for JsonTokenStore {
-    async fn save(&self, tokens: &XaiTokens) -> llmwire::Result<()> {
+    async fn save(&self, tokens: &XaiTokens) -> cogfer::Result<()> {
         save_tokens(&self.path, tokens)
     }
 }
 
-fn save_tokens(path: &std::path::Path, tokens: &impl serde::Serialize) -> llmwire::Result<()> {
+fn save_tokens(path: &std::path::Path, tokens: &impl serde::Serialize) -> cogfer::Result<()> {
     let bytes = serde_json::to_vec_pretty(tokens).map_err(|error| {
-        llmwire::Error::new(
-            llmwire::ErrorKind::Provider,
+        cogfer::Error::new(
+            cogfer::ErrorKind::Provider,
             format!("failed to serialize refreshed tokens: {error}"),
         )
     })?;
     std::fs::write(path, bytes).map_err(|error| {
-        llmwire::Error::new(
-            llmwire::ErrorKind::Provider,
+        cogfer::Error::new(
+            cogfer::ErrorKind::Provider,
             format!("failed to persist refreshed tokens: {error}"),
         )
     })

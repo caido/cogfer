@@ -10,8 +10,8 @@
 //! ```
 
 use futures_util::StreamExt;
-use llmwire::transport::{HeaderName, HeaderValue};
-use llmwire::{Client, Credentials, Message, ProviderConfig, Request, StreamEvent};
+use cogfer::transport::{HeaderName, HeaderValue};
+use cogfer::{Client, Credentials, Message, ProviderConfig, Request, StreamEvent};
 use url::Url;
 
 #[tokio::main]
@@ -24,7 +24,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Err(_) => Credentials::none(),
     };
 
-    llmwire::transport::install_default_crypto_provider();
+    cogfer::transport::install_default_crypto_provider();
 
     let client = Client::builder().build()?;
     let provider = client.provider(
@@ -33,7 +33,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             // Headers some gateways read for attribution.
             .with_header(
                 HeaderName::from_static("x-title"),
-                HeaderValue::from_static("llmwire example"),
+                HeaderValue::from_static("cogfer example"),
             ),
     )?;
     let model = provider.language_model(model_id);

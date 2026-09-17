@@ -38,8 +38,8 @@ mod xai_responses;
 
 use std::sync::Arc;
 
-use llmwire::transport::mock::MockTransport;
-use llmwire::{Credentials, Provider, ProviderConfig};
+use cogfer::transport::mock::MockTransport;
+use cogfer::{Credentials, Provider, ProviderConfig};
 
 #[cfg(feature = "reqwest-transport")]
 pub(crate) use self::record::RecordSession;

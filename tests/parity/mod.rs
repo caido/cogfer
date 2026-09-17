@@ -6,8 +6,8 @@
 //! the one a consumer assembles from the stream, so the two paths cannot drift
 //! in content, identities, finish reason, usage, or metadata.
 
-use llmwire::transport::mock::MockTransport;
-use llmwire::{
+use cogfer::transport::mock::MockTransport;
+use cogfer::{
     AssistantPart, Credentials, FinishReason, GenerateResult, ProviderConfig, Request,
     ToolDefinition,
 };

@@ -53,11 +53,11 @@ impl ProtocolHandler for Handler {
         // header overrides it.
         http.headers.insert(
             HeaderName::from_static("originator"),
-            HeaderValue::from_static("llmwire"),
+            HeaderValue::from_static("cogfer"),
         );
         http.headers.insert(
             header::USER_AGENT,
-            HeaderValue::from_static(concat!("llmwire/", env!("CARGO_PKG_VERSION"))),
+            HeaderValue::from_static(concat!("cogfer/", env!("CARGO_PKG_VERSION"))),
         );
         http.headers.insert(
             HeaderName::from_static("session_id"),
@@ -67,7 +67,7 @@ impl ProtocolHandler for Handler {
         Ok(LoweredRequest { http, warnings })
     }
 
-    /// `client_version` is required; the catalog for llmwire's own version is
+    /// `client_version` is required; the catalog for cogfer's own version is
     /// empty, which is fine since a bad token is refused first.
     fn new_verify_request(&self, base_url: &Url) -> Result<HttpRequest> {
         let mut url = join_url(base_url, "models");

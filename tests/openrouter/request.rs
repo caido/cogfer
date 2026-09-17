@@ -54,8 +54,8 @@ async fn effort_and_output_visibility_are_sent_without_coercion() {
     let request = Request::builder()
         .message(Message::user("hi"))
         .reasoning(ReasoningConfig::Effort {
-            effort: llmwire::ReasoningEffort::XHigh,
-            output: Some(llmwire::ReasoningOutput::Omit),
+            effort: cogfer::ReasoningEffort::XHigh,
+            output: Some(cogfer::ReasoningOutput::Omit),
         })
         .build();
 
@@ -173,18 +173,18 @@ async fn foreign_encrypted_reasoning_is_not_rebuilt_into_details() {
         .message(Message::user("hi"))
         .message(Message::Assistant {
             content: vec![
-                llmwire::AssistantPart::Reasoning(llmwire::ReasoningPart {
+                cogfer::AssistantPart::Reasoning(cogfer::ReasoningPart {
                     id: Some("rs_1".into()),
-                    content: vec![llmwire::ReasoningContent::Encrypted { data: "ENC".into() }],
-                    provider_metadata: llmwire::ProviderMetadata::default(),
+                    content: vec![cogfer::ReasoningContent::Encrypted { data: "ENC".into() }],
+                    provider_metadata: cogfer::ProviderMetadata::default(),
                 }),
-                llmwire::AssistantPart::Text {
+                cogfer::AssistantPart::Text {
                     text: "hello".into(),
-                    provider_metadata: llmwire::ProviderMetadata::default(),
+                    provider_metadata: cogfer::ProviderMetadata::default(),
                 },
             ],
-            provider_metadata: llmwire::ProviderMetadata::with(
-                "llmwire",
+            provider_metadata: cogfer::ProviderMetadata::with(
+                "cogfer",
                 json!({"profile": "openai-responses"}),
             ),
         })

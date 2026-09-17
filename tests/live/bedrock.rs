@@ -8,8 +8,8 @@
 
 use std::sync::Arc;
 
-use llmwire::aws::{AwsCredentials, SigV4Authenticator};
-use llmwire::{Credentials, Provider, ReasoningConfig, ReasoningEffort, StreamEvent};
+use cogfer::aws::{AwsCredentials, SigV4Authenticator};
+use cogfer::{Credentials, Provider, ReasoningConfig, ReasoningEffort, StreamEvent};
 
 use crate::common::{
     BEDROCK_REGION, agentic_loop, assert_terminal_contract, bedrock_config, bedrock_provider_on,

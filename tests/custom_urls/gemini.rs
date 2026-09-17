@@ -1,5 +1,5 @@
-use llmwire::transport::mock::MockTransport;
-use llmwire::{Credentials, ProviderConfig};
+use cogfer::transport::mock::MockTransport;
+use cogfer::{Credentials, ProviderConfig};
 use serde_json::json;
 use url::Url;
 

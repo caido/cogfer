@@ -1,14 +1,14 @@
-//! # llmwire
+//! # cogfer
 //!
 //! A library for calling LLMs through one typed request model, stream contract, and error taxonomy.
 //!
 //! ```no_run
 //! # #[cfg(feature = "reqwest-transport")]
-//! # async fn demo() -> Result<(), llmwire::Error> {
-//! use llmwire::{Client, Credentials, ProviderConfig, Request, Message};
+//! # async fn demo() -> Result<(), cogfer::Error> {
+//! use cogfer::{Client, Credentials, ProviderConfig, Request, Message};
 //!
 //! // Once per process, unless the host already installed a Rustls provider.
-//! llmwire::transport::install_default_crypto_provider();
+//! cogfer::transport::install_default_crypto_provider();
 //! let client = Client::builder().build()?;
 //! let provider = client.provider(
 //!     ProviderConfig::openai_responses(Credentials::api_key("sk-...")),

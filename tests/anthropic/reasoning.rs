@@ -7,9 +7,9 @@ async fn effort_uses_adaptive_thinking_without_model_inference() {
     let provider = anthropic(&mock);
     let request = Request::builder()
         .message(Message::user("hi"))
-        .reasoning(llmwire::ReasoningConfig::Effort {
-            effort: llmwire::ReasoningEffort::High,
-            output: Some(llmwire::ReasoningOutput::Include),
+        .reasoning(cogfer::ReasoningConfig::Effort {
+            effort: cogfer::ReasoningEffort::High,
+            output: Some(cogfer::ReasoningOutput::Include),
         })
         .build();
 
@@ -34,9 +34,9 @@ async fn budget_uses_exact_manual_thinking_configuration() {
     let provider = anthropic(&mock);
     let request = Request::builder()
         .message(Message::user("hi"))
-        .reasoning(llmwire::ReasoningConfig::Budget {
+        .reasoning(cogfer::ReasoningConfig::Budget {
             tokens: std::num::NonZeroU32::new(2048).unwrap(),
-            output: Some(llmwire::ReasoningOutput::Omit),
+            output: Some(cogfer::ReasoningOutput::Omit),
         })
         .max_output_tokens(4096)
         .build();
@@ -60,7 +60,7 @@ async fn disabled_reasoning_is_sent_explicitly() {
     let provider = anthropic(&mock);
     let request = Request::builder()
         .message(Message::user("hi"))
-        .reasoning(llmwire::ReasoningConfig::Disabled)
+        .reasoning(cogfer::ReasoningConfig::Disabled)
         .build();
 
     provider
@@ -81,7 +81,7 @@ async fn manual_budget_below_protocol_minimum_is_rejected() {
     let provider = anthropic(&mock);
     let request = Request::builder()
         .message(Message::user("hi"))
-        .reasoning(llmwire::ReasoningConfig::budget(
+        .reasoning(cogfer::ReasoningConfig::budget(
             std::num::NonZeroU32::new(1023).unwrap(),
         ))
         .max_output_tokens(4096)
@@ -103,7 +103,7 @@ async fn manual_budget_is_not_clamped_to_fit_output_limit() {
     let provider = anthropic(&mock);
     let request = Request::builder()
         .message(Message::user("hi"))
-        .reasoning(llmwire::ReasoningConfig::budget(
+        .reasoning(cogfer::ReasoningConfig::budget(
             std::num::NonZeroU32::new(4096).unwrap(),
         ))
         .max_output_tokens(4096)
@@ -127,7 +127,7 @@ async fn manual_budget_does_not_rewrite_forced_tool_choice() {
         .message(Message::user("hi"))
         .tools(tool_request("x").tools)
         .tool_choice(ToolChoice::Required)
-        .reasoning(llmwire::ReasoningConfig::budget(
+        .reasoning(cogfer::ReasoningConfig::budget(
             std::num::NonZeroU32::new(2048).unwrap(),
         ))
         .max_output_tokens(4096)
@@ -201,13 +201,13 @@ async fn effort_falls_back_to_budget_when_the_model_has_no_efforts() {
     // instead of sending `thinking: {"type": "adaptive"}`.
     let mock = MockTransport::shared();
     mock.push_json(200, &minimal_message());
-    let profile = llmwire::ApiProfile::AnthropicMessages;
-    let capabilities = llmwire::ModelCapabilities {
-        reasoning: llmwire::ReasoningSupport {
+    let profile = cogfer::ApiProfile::AnthropicMessages;
+    let capabilities = cogfer::ModelCapabilities {
+        reasoning: cogfer::ReasoningSupport {
             efforts: Vec::new(),
-            ..llmwire::ModelCapabilities::for_profile(profile).reasoning
+            ..cogfer::ModelCapabilities::for_profile(profile).reasoning
         },
-        ..llmwire::ModelCapabilities::for_profile(profile)
+        ..cogfer::ModelCapabilities::for_profile(profile)
     };
     let result = anthropic(&mock)
         .language_model("claude-haiku-4-5")
@@ -215,8 +215,8 @@ async fn effort_falls_back_to_budget_when_the_model_has_no_efforts() {
         .generate(
             Request::builder()
                 .message(Message::user("hi"))
-                .reasoning(llmwire::ReasoningConfig::effort(
-                    llmwire::ReasoningEffort::Medium,
+                .reasoning(cogfer::ReasoningConfig::effort(
+                    cogfer::ReasoningEffort::Medium,
                 ))
                 .build(),
         )
@@ -240,13 +240,13 @@ async fn effort_falls_back_to_budget_when_the_model_has_no_efforts() {
 async fn derived_budget_is_fitted_under_the_output_cap() {
     let mock = MockTransport::shared();
     mock.push_json(200, &minimal_message());
-    let profile = llmwire::ApiProfile::AnthropicMessages;
-    let capabilities = llmwire::ModelCapabilities {
-        reasoning: llmwire::ReasoningSupport {
+    let profile = cogfer::ApiProfile::AnthropicMessages;
+    let capabilities = cogfer::ModelCapabilities {
+        reasoning: cogfer::ReasoningSupport {
             efforts: Vec::new(),
-            ..llmwire::ModelCapabilities::for_profile(profile).reasoning
+            ..cogfer::ModelCapabilities::for_profile(profile).reasoning
         },
-        ..llmwire::ModelCapabilities::for_profile(profile)
+        ..cogfer::ModelCapabilities::for_profile(profile)
     };
     let result = anthropic(&mock)
         .language_model("claude-haiku-4-5")
@@ -254,8 +254,8 @@ async fn derived_budget_is_fitted_under_the_output_cap() {
         .generate(
             Request::builder()
                 .message(Message::user("hi"))
-                .reasoning(llmwire::ReasoningConfig::effort(
-                    llmwire::ReasoningEffort::Medium,
+                .reasoning(cogfer::ReasoningConfig::effort(
+                    cogfer::ReasoningEffort::Medium,
                 ))
                 .max_output_tokens(2000)
                 .build(),
@@ -280,13 +280,13 @@ async fn derived_budget_is_fitted_under_the_output_cap() {
 async fn derived_budget_is_dropped_when_the_output_cap_cannot_fit_thinking() {
     let mock = MockTransport::shared();
     mock.push_json(200, &minimal_message());
-    let profile = llmwire::ApiProfile::AnthropicMessages;
-    let capabilities = llmwire::ModelCapabilities {
-        reasoning: llmwire::ReasoningSupport {
+    let profile = cogfer::ApiProfile::AnthropicMessages;
+    let capabilities = cogfer::ModelCapabilities {
+        reasoning: cogfer::ReasoningSupport {
             efforts: Vec::new(),
-            ..llmwire::ModelCapabilities::for_profile(profile).reasoning
+            ..cogfer::ModelCapabilities::for_profile(profile).reasoning
         },
-        ..llmwire::ModelCapabilities::for_profile(profile)
+        ..cogfer::ModelCapabilities::for_profile(profile)
     };
     let result = anthropic(&mock)
         .language_model("claude-haiku-4-5")
@@ -294,8 +294,8 @@ async fn derived_budget_is_dropped_when_the_output_cap_cannot_fit_thinking() {
         .generate(
             Request::builder()
                 .message(Message::user("hi"))
-                .reasoning(llmwire::ReasoningConfig::effort(
-                    llmwire::ReasoningEffort::Low,
+                .reasoning(cogfer::ReasoningConfig::effort(
+                    cogfer::ReasoningEffort::Low,
                 ))
                 .max_output_tokens(512)
                 .build(),
@@ -316,19 +316,19 @@ async fn derived_budget_is_dropped_when_the_output_cap_cannot_fit_thinking() {
 
 #[tokio::test]
 async fn derived_budget_fit_handles_the_minimum_boundaries() {
-    let profile = llmwire::ApiProfile::AnthropicMessages;
-    let capabilities = llmwire::ModelCapabilities {
-        reasoning: llmwire::ReasoningSupport {
+    let profile = cogfer::ApiProfile::AnthropicMessages;
+    let capabilities = cogfer::ModelCapabilities {
+        reasoning: cogfer::ReasoningSupport {
             efforts: Vec::new(),
-            ..llmwire::ModelCapabilities::for_profile(profile).reasoning
+            ..cogfer::ModelCapabilities::for_profile(profile).reasoning
         },
-        ..llmwire::ModelCapabilities::for_profile(profile)
+        ..cogfer::ModelCapabilities::for_profile(profile)
     };
     let request_with_max = |max| {
         Request::builder()
             .message(Message::user("hi"))
-            .reasoning(llmwire::ReasoningConfig::effort(
-                llmwire::ReasoningEffort::Medium,
+            .reasoning(cogfer::ReasoningConfig::effort(
+                cogfer::ReasoningEffort::Medium,
             ))
             .max_output_tokens(max)
             .build()
@@ -368,8 +368,8 @@ async fn adaptive_thinking_drops_the_samplers_with_warnings() {
         .generate(
             Request::builder()
                 .message(Message::user("hi"))
-                .reasoning(llmwire::ReasoningConfig::effort(
-                    llmwire::ReasoningEffort::Low,
+                .reasoning(cogfer::ReasoningConfig::effort(
+                    cogfer::ReasoningEffort::Low,
                 ))
                 .temperature(0.5)
                 .top_p(0.9)
@@ -410,8 +410,8 @@ async fn adaptive_thinking_keeps_forced_tool_choice() {
                 .message(Message::user("hi"))
                 .tools(tool_request("x").tools)
                 .tool_choice(ToolChoice::Required)
-                .reasoning(llmwire::ReasoningConfig::effort(
-                    llmwire::ReasoningEffort::Low,
+                .reasoning(cogfer::ReasoningConfig::effort(
+                    cogfer::ReasoningEffort::Low,
                 ))
                 .build(),
         )
@@ -432,7 +432,7 @@ async fn disabled_thinking_keeps_the_samplers() {
         .generate(
             Request::builder()
                 .message(Message::user("hi"))
-                .reasoning(llmwire::ReasoningConfig::Disabled)
+                .reasoning(cogfer::ReasoningConfig::Disabled)
                 .temperature(0.5)
                 .build(),
         )
@@ -447,13 +447,13 @@ async fn dropped_derived_budget_re_enables_the_samplers() {
     // on the wire and the samplers must come back.
     let mock = MockTransport::shared();
     mock.push_json(200, &minimal_message());
-    let profile = llmwire::ApiProfile::AnthropicMessages;
-    let capabilities = llmwire::ModelCapabilities {
-        reasoning: llmwire::ReasoningSupport {
+    let profile = cogfer::ApiProfile::AnthropicMessages;
+    let capabilities = cogfer::ModelCapabilities {
+        reasoning: cogfer::ReasoningSupport {
             efforts: Vec::new(),
-            ..llmwire::ModelCapabilities::for_profile(profile).reasoning
+            ..cogfer::ModelCapabilities::for_profile(profile).reasoning
         },
-        ..llmwire::ModelCapabilities::for_profile(profile)
+        ..cogfer::ModelCapabilities::for_profile(profile)
     };
     anthropic(&mock)
         .language_model("claude-haiku-4-5")
@@ -461,8 +461,8 @@ async fn dropped_derived_budget_re_enables_the_samplers() {
         .generate(
             Request::builder()
                 .message(Message::user("hi"))
-                .reasoning(llmwire::ReasoningConfig::effort(
-                    llmwire::ReasoningEffort::Low,
+                .reasoning(cogfer::ReasoningConfig::effort(
+                    cogfer::ReasoningEffort::Low,
                 ))
                 .max_output_tokens(512)
                 .temperature(0.5)

@@ -73,7 +73,7 @@ async fn replaying_a_compaction_block_enables_the_beta() {
     let request = Request::builder()
         .message(Message::user("hi"))
         .message(Message::Assistant {
-            content: vec![AssistantPart::Compaction(llmwire::CompactionPart {
+            content: vec![AssistantPart::Compaction(cogfer::CompactionPart {
                 id: None,
                 content: Some("Earlier we discussed X.".into()),
                 encrypted_content: None,
@@ -144,14 +144,14 @@ async fn foreign_opaque_compaction_is_rejected() {
     let request = Request::builder()
         .message(Message::user("hi"))
         .message(Message::Assistant {
-            content: vec![llmwire::AssistantPart::Compaction(
-                llmwire::CompactionPart {
+            content: vec![cogfer::AssistantPart::Compaction(
+                cogfer::CompactionPart {
                     id: Some("cmp_1".into()),
                     content: None,
                     encrypted_content: Some("OPAQUE".into()),
                 },
             )],
-            provider_metadata: llmwire::ProviderMetadata::default(),
+            provider_metadata: cogfer::ProviderMetadata::default(),
         })
         .message(Message::user("next"))
         .build();
@@ -160,7 +160,7 @@ async fn foreign_opaque_compaction_is_rejected() {
         .generate(request)
         .await
         .unwrap_err();
-    assert_eq!(error.kind(), llmwire::ErrorKind::UnsupportedContent);
+    assert_eq!(error.kind(), cogfer::ErrorKind::UnsupportedContent);
     assert!(mock.requests().is_empty());
 }
 
@@ -298,7 +298,7 @@ async fn empty_compaction_part_in_history_names_the_missing_summary() {
     let request = Request::builder()
         .message(Message::user("hi"))
         .message(Message::Assistant {
-            content: vec![AssistantPart::Compaction(llmwire::CompactionPart {
+            content: vec![AssistantPart::Compaction(cogfer::CompactionPart {
                 id: None,
                 content: None,
                 encrypted_content: None,
@@ -312,7 +312,7 @@ async fn empty_compaction_part_in_history_names_the_missing_summary() {
         .generate(request)
         .await
         .unwrap_err();
-    assert_eq!(error.kind(), llmwire::ErrorKind::UnsupportedContent);
+    assert_eq!(error.kind(), cogfer::ErrorKind::UnsupportedContent);
     assert!(
         error.to_string().contains("without summary content"),
         "{error}"

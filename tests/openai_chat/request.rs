@@ -17,7 +17,7 @@ async fn request_golden() {
         .system("Be helpful.")
         .message(Message::user("Weather?"))
         .message(Message::Assistant {
-            content: vec![llmwire::AssistantPart::ToolCall(call.clone())],
+            content: vec![cogfer::AssistantPart::ToolCall(call.clone())],
             provider_metadata: ProviderMetadata::default(),
         })
         .message(Message::tool_result(ToolResultPart::for_call(&call, "21C")))
@@ -88,8 +88,8 @@ async fn opaque_compaction_part_is_rejected() {
     let provider = openai_chat(&mock);
     let request = Request::builder()
         .message(Message::user("hi"))
-        .message(assistant_with(vec![llmwire::AssistantPart::Compaction(
-            llmwire::CompactionPart {
+        .message(assistant_with(vec![cogfer::AssistantPart::Compaction(
+            cogfer::CompactionPart {
                 id: Some("cmp_1".into()),
                 content: None,
                 encrypted_content: Some("OPAQUE".into()),
@@ -113,8 +113,8 @@ async fn summary_compaction_part_is_flattened_with_warning() {
     let provider = openai_chat(&mock);
     let request = Request::builder()
         .message(Message::user("hi"))
-        .message(assistant_with(vec![llmwire::AssistantPart::Compaction(
-            llmwire::CompactionPart {
+        .message(assistant_with(vec![cogfer::AssistantPart::Compaction(
+            cogfer::CompactionPart {
                 id: None,
                 content: Some("Earlier we discussed pricing.".into()),
                 encrypted_content: None,
@@ -149,10 +149,10 @@ async fn reasoning_only_assistant_turn_is_skipped() {
     let provider = openai_chat(&mock);
     let request = Request::builder()
         .message(Message::user("hi"))
-        .message(assistant_with(vec![llmwire::AssistantPart::Reasoning(
-            llmwire::ReasoningPart {
+        .message(assistant_with(vec![cogfer::AssistantPart::Reasoning(
+            cogfer::ReasoningPart {
                 id: Some("rs_1".into()),
-                content: vec![llmwire::ReasoningContent::Encrypted {
+                content: vec![cogfer::ReasoningContent::Encrypted {
                     data: "BLOB".into(),
                 }],
                 provider_metadata: ProviderMetadata::default(),
@@ -178,10 +178,10 @@ async fn multiple_user_text_parts_stay_separate_content_parts() {
     let request = Request::builder()
         .message(Message::User {
             content: vec![
-                llmwire::UserPart::Text {
+                cogfer::UserPart::Text {
                     text: "Summarize:".into(),
                 },
-                llmwire::UserPart::Text {
+                cogfer::UserPart::Text {
                     text: "<body>".into(),
                 },
             ],
@@ -218,7 +218,7 @@ async fn compatible_servers_get_the_portable_wire_spellings() {
     mock.push_sse(&["[DONE]"]);
     let provider = provider_with(
         &mock,
-        llmwire::ProviderConfig::openai_chat(llmwire::Credentials::none())
+        cogfer::ProviderConfig::openai_chat(cogfer::Credentials::none())
             .with_base_url("http://localhost:11434/v1".parse().unwrap()),
     );
     let request = Request::builder()
@@ -266,7 +266,7 @@ async fn dialect_downgrade_is_surfaced_when_the_output_cap_changes_spelling() {
     mock.push_json(200, &minimal_completion());
     let provider = provider_with(
         &mock,
-        llmwire::ProviderConfig::openai_chat(llmwire::Credentials::none())
+        cogfer::ProviderConfig::openai_chat(cogfer::Credentials::none())
             .with_base_url("http://localhost:11434/v1".parse().unwrap()),
     );
     let result = provider
@@ -324,7 +324,7 @@ async fn compatible_reasoning_survives_tool_replay_without_changing_its_wire_fie
             }
             let provider = provider_with(
                 &mock,
-                llmwire::ProviderConfig::openai_chat(llmwire::Credentials::none())
+                cogfer::ProviderConfig::openai_chat(cogfer::Credentials::none())
                     .with_base_url("https://api.deepseek.com".parse().unwrap()),
             );
             let model = provider.language_model("deepseek-v4-pro");
@@ -368,7 +368,7 @@ async fn compatible_reasoning_survives_tool_replay_without_changing_its_wire_fie
                 provider_metadata, ..
             } = &mut request.messages[1]
             {
-                provider_metadata.insert("llmwire", json!({"profile": "anthropic"}));
+                provider_metadata.insert("cogfer", json!({"profile": "anthropic"}));
             }
             mock.push_json(200, &minimal_completion());
             model.generate(request).await.unwrap();

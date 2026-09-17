@@ -1,6 +1,6 @@
 //! Header helpers for request assertions and canned responses.
 
-use llmwire::transport::{HeaderMap, HeaderName, HeaderValue, HttpRequest};
+use cogfer::transport::{HeaderMap, HeaderName, HeaderValue, HttpRequest};
 
 pub(crate) fn header<'a>(request: &'a HttpRequest, name: &str) -> Option<&'a str> {
     request.headers.get(name)?.to_str().ok()

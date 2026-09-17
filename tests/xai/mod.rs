@@ -4,10 +4,10 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use llmwire::oauth::xai::{XaiAuthenticator, XaiOAuth, XaiTokens};
-use llmwire::transport::mock::MockTransport;
-use llmwire::transport::{HeaderName, HttpRequest};
-use llmwire::{
+use cogfer::oauth::xai::{XaiAuthenticator, XaiOAuth, XaiTokens};
+use cogfer::transport::mock::MockTransport;
+use cogfer::transport::{HeaderName, HttpRequest};
+use cogfer::{
     ApiProfile, Credentials, DevicePoll, ErrorKind, FinishReason, OAuthStatus, ProviderConfig,
     RequestAuthenticator,
 };
@@ -44,7 +44,7 @@ fn chat_completed(model: &str) -> serde_json::Value {
     })
 }
 
-fn form_body(request: &llmwire::transport::HttpRequest) -> String {
+fn form_body(request: &cogfer::transport::HttpRequest) -> String {
     String::from_utf8(request.body.clone().expect("form body").to_vec()).unwrap()
 }
 

@@ -1,4 +1,4 @@
-use llmwire::{AssistantPart, Message, Usage};
+use cogfer::{AssistantPart, Message, Usage};
 
 pub(crate) use crate::common::provider_from_env;
 
@@ -45,7 +45,7 @@ pub(crate) fn oversized_history(turns: usize, sentences_per_turn: usize) -> Vec<
     messages
 }
 
-pub(crate) fn compaction_parts(result: &llmwire::GenerateResult) -> Vec<&llmwire::CompactionPart> {
+pub(crate) fn compaction_parts(result: &cogfer::GenerateResult) -> Vec<&cogfer::CompactionPart> {
     result
         .content
         .iter()

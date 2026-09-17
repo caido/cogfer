@@ -137,7 +137,7 @@ async fn user_beta_headers_merge_with_protocol_betas() {
     mock.push_json(200, &minimal_message());
     let provider = provider_with(
         &mock,
-        llmwire::ProviderConfig::anthropic(llmwire::Credentials::api_key("k")).with_header(
+        cogfer::ProviderConfig::anthropic(cogfer::Credentials::api_key("k")).with_header(
             HeaderName::from_static("anthropic-beta"),
             HeaderValue::from_static("context-management-2025-06-27"),
         ),
@@ -168,14 +168,14 @@ async fn consecutive_tool_results_merge_into_one_user_message() {
     let mock = MockTransport::shared();
     mock.push_json(200, &minimal_message());
     let provider = anthropic(&mock);
-    let call_a = llmwire::ToolCall {
+    let call_a = cogfer::ToolCall {
         call_id: "toolu_a".into(),
         item_id: None,
         name: "get_weather".into(),
         arguments: "{}".into(),
         provider_metadata: ProviderMetadata::default(),
     };
-    let call_b = llmwire::ToolCall {
+    let call_b = cogfer::ToolCall {
         call_id: "toolu_b".into(),
         ..call_a.clone()
     };
@@ -210,7 +210,7 @@ async fn malformed_tool_arguments_are_rejected() {
     let mock = MockTransport::shared();
     mock.push_json(200, &minimal_message());
     let provider = anthropic(&mock);
-    let call = llmwire::ToolCall {
+    let call = cogfer::ToolCall {
         call_id: "toolu_x".into(),
         item_id: None,
         name: "t".into(),
@@ -241,11 +241,11 @@ async fn empty_text_parts_are_not_sent() {
         .message(Message::user("hi"))
         .message(Message::Assistant {
             content: vec![
-                llmwire::AssistantPart::Text {
+                cogfer::AssistantPart::Text {
                     text: String::new(),
                     provider_metadata: ProviderMetadata::default(),
                 },
-                llmwire::AssistantPart::Text {
+                cogfer::AssistantPart::Text {
                     text: "kept".into(),
                     provider_metadata: ProviderMetadata::default(),
                 },

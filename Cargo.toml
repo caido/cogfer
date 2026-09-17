@@ -1,17 +1,17 @@
 [package]
-name = "llmwire"
+name = "cogfer"
 version = "0.1.0"
 authors = ["Caido Labs Inc. <dev@caido.io>"]
 description = "🤖 Multi-provider LLM client"
 edition = "2024"
 rust-version = "1.95"
 license = "MIT"
-repository = "https://github.com/caido/llmwire"
+repository = "https://github.com/caido/cogfer"
 readme = "README.md"
 exclude = [".github/", "mise.toml", "rust-toolchain.toml", "tests/"]
 
 [lib]
-name = "llmwire"
+name = "cogfer"
 path = "src/lib.rs"
 
 [features]

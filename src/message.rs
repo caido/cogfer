@@ -16,7 +16,7 @@ pub enum Message {
     Assistant {
         content: Vec<AssistantPart>,
         /// Provider metadata for the whole turn. Decoders stamp the producing
-        /// profile here (`{"llmwire": {"profile": ...}}`) so lowering can
+        /// profile here (`{"cogfer": {"profile": ...}}`) so lowering can
         /// drop opaque state another provider cannot verify. Preserve it when
         /// rebuilding history.
         #[serde(default, skip_serializing_if = "ProviderMetadata::is_empty")]

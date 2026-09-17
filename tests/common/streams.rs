@@ -1,14 +1,14 @@
 use std::collections::HashSet;
 
 use futures_util::StreamExt;
-use llmwire::{EventStream, FinishReason, GenerateResult, StreamAccumulator, StreamEvent};
+use cogfer::{EventStream, FinishReason, GenerateResult, StreamAccumulator, StreamEvent};
 
 pub(crate) async fn drain(stream: EventStream) -> Vec<StreamEvent> {
     stream.collect::<Vec<_>>().await
 }
 
 /// Assemble the [`GenerateResult`] a consumer would build from `events`.
-pub(crate) fn collect(events: &[StreamEvent]) -> llmwire::Result<GenerateResult> {
+pub(crate) fn collect(events: &[StreamEvent]) -> cogfer::Result<GenerateResult> {
     let mut accumulator = StreamAccumulator::new();
     for event in events {
         accumulator.push(event.clone());

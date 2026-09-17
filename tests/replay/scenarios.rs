@@ -6,7 +6,7 @@
 //! provider (non-empty text, finish reason, usage present) and never depend on
 //! exact wording.
 
-use llmwire::{
+use cogfer::{
     ErrorKind, FinishReason, Message, Provider, ReasoningConfig, ReasoningEffort, ReasoningOutput,
     Request, StreamEvent, StructuredOutput,
 };

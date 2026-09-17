@@ -12,8 +12,8 @@
 
 use std::sync::Arc;
 
-use llmwire::aws::{AwsCredentials, SigV4Authenticator};
-use llmwire::{Credentials, Provider, ReasoningConfig, ReasoningEffort, StreamEvent};
+use cogfer::aws::{AwsCredentials, SigV4Authenticator};
+use cogfer::{Credentials, Provider, ReasoningConfig, ReasoningEffort, StreamEvent};
 use url::Url;
 
 use crate::common::{

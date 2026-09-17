@@ -11,7 +11,7 @@ use crate::usage::Usage;
 /// the assistant message for history replay:
 ///
 /// ```no_run
-/// # use llmwire::{Result, StreamAccumulator, StreamEvent};
+/// # use cogfer::{Result, StreamAccumulator, StreamEvent};
 /// # use futures_util::StreamExt;
 /// # async fn accumulate(
 /// #     mut stream: impl futures_util::Stream<Item = StreamEvent> + Unpin,

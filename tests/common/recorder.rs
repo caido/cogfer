@@ -15,10 +15,10 @@ use std::sync::{Arc, Mutex};
 
 use bytes::Bytes;
 use futures_util::StreamExt;
-use llmwire::transport::{
+use cogfer::transport::{
     HeaderMap, HttpByteStream, HttpRequest, HttpResponse, HttpTransport, header,
 };
-use llmwire::{ApiProfile, Result};
+use cogfer::{ApiProfile, Result};
 
 use super::cassette::{
     Body, Cassette, Chunk, Exchange, Headers, RecordedRequest, RecordedResponse,

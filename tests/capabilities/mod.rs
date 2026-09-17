@@ -8,8 +8,8 @@
 use std::collections::BTreeSet;
 use std::num::NonZeroU32;
 
-use llmwire::transport::mock::MockTransport;
-use llmwire::{
+use cogfer::transport::mock::MockTransport;
+use cogfer::{
     ApiProfile, Compaction, Credentials, ErrorKind, GenerateResult, Message, ModelCapabilities,
     ProviderConfig, ReasoningConfig, ReasoningEffort, ReasoningOutput, Request, ToolDefinition,
     WarningKind,
@@ -349,7 +349,7 @@ async fn model_capabilities_narrow_the_profile_defaults() {
     let profile = ApiProfile::OpenAiChatCompletions;
     let model_data = ModelCapabilities {
         temperature: false,
-        reasoning: llmwire::ReasoningSupport {
+        reasoning: cogfer::ReasoningSupport {
             efforts: vec![ReasoningEffort::Low],
             ..ModelCapabilities::for_profile(profile).reasoning
         },

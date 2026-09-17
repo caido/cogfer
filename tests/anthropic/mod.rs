@@ -1,6 +1,6 @@
-use llmwire::transport::mock::MockTransport;
-use llmwire::transport::{HeaderName, HeaderValue};
-use llmwire::{
+use cogfer::transport::mock::MockTransport;
+use cogfer::transport::{HeaderName, HeaderValue};
+use cogfer::{
     AssistantPart, Compaction, ErrorKind, FinishReason, Message, ProviderMetadata, ReasoningConfig,
     ReasoningContent, ReasoningPart, Request, StreamEvent, StructuredOutput, ToolChoice,
     ToolResultPart,

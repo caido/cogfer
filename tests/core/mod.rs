@@ -1,6 +1,6 @@
 #[test]
 fn credential_headers_are_redacted_in_debug() {
-    use llmwire::transport::{HeaderName, HeaderValue, HttpRequest};
+    use cogfer::transport::{HeaderName, HeaderValue, HttpRequest};
 
     let mut request = HttpRequest::post_json(
         "https://example.com".parse().unwrap(),
@@ -20,7 +20,7 @@ fn credential_headers_are_redacted_in_debug() {
 
 #[test]
 fn request_debug_redacts_url_credentials_and_query() {
-    use llmwire::transport::HttpRequest;
+    use cogfer::transport::HttpRequest;
 
     let request = HttpRequest::post_json(
         "https://user:password@example.com/v1?api_key=secret#fragment"
@@ -41,9 +41,9 @@ fn request_debug_redacts_url_credentials_and_query() {
 
 #[test]
 fn provider_debug_redacts_url_credentials_and_query() {
-    let config = llmwire::ProviderConfig::new(
-        llmwire::ApiProfile::OpenAiResponses,
-        llmwire::Credentials::api_key("k"),
+    let config = cogfer::ProviderConfig::new(
+        cogfer::ApiProfile::OpenAiResponses,
+        cogfer::Credentials::api_key("k"),
     )
     .with_base_url(
         "https://user:password@example.com/v1?api_key=secret#fragment"
@@ -62,8 +62,8 @@ fn provider_debug_redacts_url_credentials_and_query() {
 
 #[test]
 fn provider_tool_assistant_part_has_an_unambiguous_wire_discriminator() {
-    let part = llmwire::AssistantPart::ProviderTool {
-        provider_tool: llmwire::ProviderToolPart {
+    let part = cogfer::AssistantPart::ProviderTool {
+        provider_tool: cogfer::ProviderToolPart {
             id: Some("provider-tool-1".into()),
             kind: "web_search_call".into(),
             namespace: "openai".into(),
@@ -75,26 +75,26 @@ fn provider_tool_assistant_part_has_an_unambiguous_wire_discriminator() {
     assert_eq!(value["kind"], "provider-tool");
     assert_eq!(value["provider_tool"]["kind"], "web_search_call");
     assert_eq!(
-        serde_json::from_value::<llmwire::AssistantPart>(value).unwrap(),
+        serde_json::from_value::<cogfer::AssistantPart>(value).unwrap(),
         part
     );
 }
 
 #[test]
 fn secret_string_debug_is_redacted() {
-    let secret = llmwire::SecretString::new("sk-live-123");
+    let secret = cogfer::SecretString::new("sk-live-123");
     assert_eq!(format!("{secret:?}"), "SecretString(<redacted>)");
 }
 
 #[test]
 fn secret_string_display_is_redacted() {
-    let secret = llmwire::SecretString::new("sk-live-123");
+    let secret = cogfer::SecretString::new("sk-live-123");
     assert_eq!(format!("{secret}"), "<redacted>");
 }
 
 #[test]
 fn credentials_debug_redacts_nested_secrets() {
-    let credentials = llmwire::Credentials::api_key("sk-live-123");
+    let credentials = cogfer::Credentials::api_key("sk-live-123");
     assert_eq!(
         format!("{credentials:?}"),
         "ApiKey(SecretString(<redacted>))"
@@ -103,8 +103,8 @@ fn credentials_debug_redacts_nested_secrets() {
 
 #[test]
 fn null_provider_option_does_not_erase_the_body() {
-    let mut metadata = llmwire::ProviderMetadata::new();
-    metadata.merge(llmwire::ProviderMetadata::with(
+    let mut metadata = cogfer::ProviderMetadata::new();
+    metadata.merge(cogfer::ProviderMetadata::with(
         "openai",
         serde_json::Value::Null,
     ));
@@ -116,11 +116,11 @@ fn null_provider_option_does_not_erase_the_body() {
 
 #[tokio::test]
 async fn provider_options_must_be_objects() {
-    use llmwire::transport::mock::MockTransport;
-    use llmwire::{Credentials, ErrorKind, Message, ProviderConfig, ProviderMetadata, Request};
+    use cogfer::transport::mock::MockTransport;
+    use cogfer::{Credentials, ErrorKind, Message, ProviderConfig, ProviderMetadata, Request};
 
     let mock = MockTransport::shared();
-    let provider = llmwire::Client::builder()
+    let provider = cogfer::Client::builder()
         .http_transport(mock.clone())
         .build()
         .unwrap()
@@ -155,27 +155,27 @@ struct CountingSigner {
 }
 
 #[async_trait::async_trait]
-impl llmwire::RequestAuthenticator for CountingSigner {
+impl cogfer::RequestAuthenticator for CountingSigner {
     async fn authenticate(
         &self,
-        request: &mut llmwire::transport::HttpRequest,
-    ) -> llmwire::Result<()> {
+        request: &mut cogfer::transport::HttpRequest,
+    ) -> cogfer::Result<()> {
         let generation = self
             .signatures
             .fetch_add(1, std::sync::atomic::Ordering::SeqCst)
             + 1;
         request.headers.insert(
-            llmwire::transport::HeaderName::from_static("x-signature"),
-            llmwire::transport::HeaderValue::from_str(&format!("v{generation}")).unwrap(),
+            cogfer::transport::HeaderName::from_static("x-signature"),
+            cogfer::transport::HeaderValue::from_str(&format!("v{generation}")).unwrap(),
         );
         Ok(())
     }
 
     async fn reauthenticate(
         &self,
-        request: &mut llmwire::transport::HttpRequest,
-        rejection: &llmwire::Rejection<'_>,
-    ) -> llmwire::Result<bool> {
+        request: &mut cogfer::transport::HttpRequest,
+        rejection: &cogfer::Rejection<'_>,
+    ) -> cogfer::Result<bool> {
         if rejection.status != 403 {
             return Ok(false);
         }
@@ -186,8 +186,8 @@ impl llmwire::RequestAuthenticator for CountingSigner {
 
 #[tokio::test]
 async fn signers_recover_from_a_forbidden_response() {
-    use llmwire::transport::mock::MockTransport;
-    use llmwire::{Credentials, ProviderConfig};
+    use cogfer::transport::mock::MockTransport;
+    use cogfer::{Credentials, ProviderConfig};
 
     let mock = MockTransport::shared();
     mock.push_json(403, &serde_json::json!({"message": "signature expired"}));
@@ -215,7 +215,7 @@ async fn signers_recover_from_a_forbidden_response() {
     assert_eq!(result.text(), "ok");
     let requests = mock.requests();
     assert_eq!(requests.len(), 2);
-    assert_eq!(requests[0].method, llmwire::transport::Method::POST);
+    assert_eq!(requests[0].method, cogfer::transport::Method::POST);
     assert_eq!(
         crate::common::header(&requests[0], "x-signature"),
         Some("v1")

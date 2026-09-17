@@ -1,4 +1,4 @@
-use llmwire::ProviderConfig;
+use cogfer::ProviderConfig;
 
 use super::cassette_suite;
 

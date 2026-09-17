@@ -1,5 +1,5 @@
-use llmwire::transport::mock::MockTransport;
-use llmwire::{ErrorKind, FinishReason, Message, ReasoningConfig, Request, StreamEvent};
+use cogfer::transport::mock::MockTransport;
+use cogfer::{ErrorKind, FinishReason, Message, ReasoningConfig, Request, StreamEvent};
 use serde_json::json;
 
 use crate::common::*;

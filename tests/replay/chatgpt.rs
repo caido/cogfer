@@ -1,7 +1,7 @@
 //! ChatGPT subscription backend. Recording needs the sign-in cached by
 //! `cargo run --example chatgpt_login` (or `CHATGPT_ACCESS_TOKEN`).
 
-use llmwire::ProviderConfig;
+use cogfer::ProviderConfig;
 
 use super::cassette_suite;
 

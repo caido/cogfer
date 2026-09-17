@@ -32,7 +32,7 @@ async fn request_golden() {
         Some("Bearer chatgpt-access-token")
     );
     assert_eq!(header(http, "accept"), Some("text/event-stream"));
-    assert_eq!(header(http, "originator"), Some("llmwire"));
+    assert_eq!(header(http, "originator"), Some("cogfer"));
     let session_id = header(http, "session_id").expect("session_id header");
     assert!(
         uuid::Uuid::parse_str(session_id).is_ok(),
@@ -183,7 +183,7 @@ async fn generate_reconstructs_items_when_terminal_output_is_empty() {
     assert_eq!(result.finish.reason, FinishReason::ToolCalls);
     assert_eq!(result.usage.input_tokens, Some(7));
     assert_eq!(
-        result.provider_metadata.get("llmwire").unwrap()["profile"],
+        result.provider_metadata.get("cogfer").unwrap()["profile"],
         "chatgpt"
     );
 }
@@ -222,7 +222,7 @@ async fn nested_error_envelopes_keep_their_details() {
     let stream_error = events
         .iter()
         .find_map(|event| match event {
-            llmwire::StreamEvent::Error { error } => Some(error),
+            cogfer::StreamEvent::Error { error } => Some(error),
             _ => None,
         })
         .expect("stream reports the error event");
@@ -328,7 +328,7 @@ async fn chatgpt_turns_do_not_leak_opaque_state_to_other_responses_backends() {
         .await
         .expect("chatgpt generate succeeds");
     assert_eq!(
-        result.provider_metadata.get("llmwire").unwrap()["profile"],
+        result.provider_metadata.get("cogfer").unwrap()["profile"],
         "chatgpt"
     );
 

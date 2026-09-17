@@ -8,14 +8,14 @@
 //! OPENAI_API_KEY=... cargo run --example reasoning
 //! ```
 
-use llmwire::{
+use cogfer::{
     Client, Credentials, Message, ProviderConfig, ReasoningConfig, ReasoningEffort,
     ReasoningOutput, Request,
 };
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    llmwire::transport::install_default_crypto_provider();
+    cogfer::transport::install_default_crypto_provider();
     let client = Client::builder().build()?;
     let provider = client.provider(ProviderConfig::openai_responses(Credentials::api_key(
         std::env::var("OPENAI_API_KEY")?,

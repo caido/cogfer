@@ -5,10 +5,10 @@ use std::sync::Arc;
 
 use base64::Engine as _;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
-use llmwire::oauth::chatgpt::{ChatGptAuthenticator, ChatGptOAuth, ChatGptTokens};
-use llmwire::transport::mock::MockTransport;
-use llmwire::transport::{HeaderName, HeaderValue};
-use llmwire::{
+use cogfer::oauth::chatgpt::{ChatGptAuthenticator, ChatGptOAuth, ChatGptTokens};
+use cogfer::transport::mock::MockTransport;
+use cogfer::transport::{HeaderName, HeaderValue};
+use cogfer::{
     Credentials, DevicePoll, ErrorKind, FinishReason, Message, OAuthStatus, ProviderConfig,
     Request, StreamEvent,
 };

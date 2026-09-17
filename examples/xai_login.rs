@@ -7,8 +7,8 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use llmwire::oauth::xai::{XaiAuthenticator, XaiOAuth};
-use llmwire::{Client, Credentials, Message, ProviderConfig, Request};
+use cogfer::oauth::xai::{XaiAuthenticator, XaiOAuth};
+use cogfer::{Client, Credentials, Message, ProviderConfig, Request};
 
 #[path = "support/token_file.rs"]
 mod token_file;
@@ -21,12 +21,12 @@ fn auth_file() -> Option<PathBuf> {
     let base = std::env::var_os("XDG_CONFIG_HOME")
         .map(PathBuf::from)
         .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".config")));
-    base.map(|dir| dir.join("llmwire").join("xai.json"))
+    base.map(|dir| dir.join("cogfer").join("xai.json"))
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    llmwire::transport::install_default_crypto_provider();
+    cogfer::transport::install_default_crypto_provider();
     let export = std::env::args().any(|arg| arg == "--export");
 
     let oauth = XaiOAuth::with_default_transport()?;

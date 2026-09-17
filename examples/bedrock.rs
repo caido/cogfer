@@ -17,8 +17,8 @@
 use std::sync::Arc;
 
 use futures_util::StreamExt;
-use llmwire::aws::{AwsCredentials, SigV4Authenticator};
-use llmwire::{
+use cogfer::aws::{AwsCredentials, SigV4Authenticator};
+use cogfer::{
     Client, Credentials, Message, Provider, ProviderConfig, ReasoningConfig, ReasoningEffort,
     Request, StreamAccumulator, StreamEvent, ToolDefinition, ToolResultPart,
 };
@@ -55,7 +55,7 @@ fn provider(client: &Client, region: &str) -> Result<Provider, Box<dyn std::erro
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    llmwire::transport::install_default_crypto_provider();
+    cogfer::transport::install_default_crypto_provider();
     let region = std::env::var("AWS_REGION").unwrap_or_else(|_| "us-east-1".into());
     let client = Client::builder().build()?;
     let model = provider(&client, &region)?.language_model(MODEL);

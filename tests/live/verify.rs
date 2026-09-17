@@ -2,8 +2,8 @@
 use std::sync::Arc;
 
 #[cfg(feature = "aws")]
-use llmwire::aws::{AwsCredentials, SigV4Authenticator};
-use llmwire::{Credentials, ErrorKind, ProviderConfig};
+use cogfer::aws::{AwsCredentials, SigV4Authenticator};
+use cogfer::{Credentials, ErrorKind, ProviderConfig};
 
 #[cfg(feature = "aws")]
 use crate::common::{

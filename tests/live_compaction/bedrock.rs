@@ -5,7 +5,7 @@
 //! Bedrock rejects a `trigger.value` below 50000, so the history has to be
 //! large enough to cross that floor: 10 turns bills ~47k tokens, 14 clears it.
 
-use llmwire::{Compaction, Message, Provider, Request};
+use cogfer::{Compaction, Message, Provider, Request};
 
 use super::support::{SYSTEM, compaction_parts, oversized_history, print_cost};
 use crate::live::bedrock::{MODEL, bearer_provider, sigv4_provider};

@@ -1,8 +1,9 @@
-# llmwire
+# Cogfer
 
 A library for calling LLMs through one typed request model, stream contract, and error taxonomy.
 
 Supports:
+
 - OpenAI (Responses and Chat Completions)
 - ChatGPT subscriptions
 - SpaceXAI
@@ -20,16 +21,16 @@ vendors (which would need the Converse API) are out of scope for now.
 
 ```toml
 [dependencies]
-llmwire = { git = "https://github.com/caido/llmwire" }
+cogfer = { git = "https://github.com/caido/cogfer" }
 ```
 
 ```rust
-use llmwire::{Client, Credentials, Message, ProviderConfig, Request};
+use cogfer::{Client, Credentials, Message, ProviderConfig, Request};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Once per process, unless the host already installed a Rustls provider.
-    llmwire::transport::install_default_crypto_provider();
+    cogfer::transport::install_default_crypto_provider();
 
     let client = Client::builder().build()?;
     let provider = client.provider(ProviderConfig::openai_responses(
@@ -52,7 +53,7 @@ use futures_util::StreamExt;
 
 let mut stream = model.stream(request).await?;
 while let Some(event) = stream.next().await {
-    if let llmwire::StreamEvent::TextDelta { delta, .. } = event {
+    if let cogfer::StreamEvent::TextDelta { delta, .. } = event {
         print!("{delta}");
     }
 }

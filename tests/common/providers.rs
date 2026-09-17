@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
-use llmwire::transport::mock::MockTransport;
-use llmwire::{Client, Credentials, Provider, ProviderConfig};
+use cogfer::transport::mock::MockTransport;
+use cogfer::{Client, Credentials, Provider, ProviderConfig};
 
 pub(crate) fn client_with(mock: &Arc<MockTransport>) -> Client {
     Client::builder()
-        .http_transport(mock.clone() as Arc<dyn llmwire::transport::HttpTransport>)
+        .http_transport(mock.clone() as Arc<dyn cogfer::transport::HttpTransport>)
         .build()
         .expect("client builds")
 }

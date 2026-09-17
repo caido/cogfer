@@ -389,7 +389,7 @@ fn lower_sampling(
         if thinking_enabled && present {
             warnings.push(Warning::unsupported_setting(
                 setting,
-                format!("llmwire omits `{setting}` when thinking is enabled"),
+                format!("cogfer omits `{setting}` when thinking is enabled"),
             ));
         }
     }

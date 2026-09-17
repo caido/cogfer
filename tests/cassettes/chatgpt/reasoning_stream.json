@@ -10,9 +10,9 @@
           "authorization": "<redacted>",
           "chatgpt-account-id": "<redacted>",
           "content-type": "application/json",
-          "originator": "llmwire",
+          "originator": "cogfer",
           "session_id": "<redacted>",
-          "user-agent": "llmwire/0.1.0"
+          "user-agent": "cogfer/0.1.0"
         },
         "body": {
           "json": {

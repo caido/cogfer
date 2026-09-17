@@ -1,6 +1,6 @@
 use std::sync::Mutex;
 
-use llmwire::{Error, ErrorKind, TokenStore};
+use cogfer::{Error, ErrorKind, TokenStore};
 
 pub(crate) fn now() -> i64 {
     std::time::SystemTime::now()
@@ -38,7 +38,7 @@ impl<T: Clone> RecordingTokenStore<T> {
 
 #[async_trait::async_trait]
 impl<T: Clone + Send + Sync> TokenStore<T> for RecordingTokenStore<T> {
-    async fn save(&self, tokens: &T) -> llmwire::Result<()> {
+    async fn save(&self, tokens: &T) -> cogfer::Result<()> {
         if self.fail {
             return Err(Error::new(ErrorKind::Provider, "token store failed"));
         }

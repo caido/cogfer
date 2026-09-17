@@ -1,6 +1,6 @@
-use llmwire::transport::mock::MockTransport;
-use llmwire::transport::{HeaderName, HeaderValue};
-use llmwire::{Credentials, Message, ProviderConfig, Request};
+use cogfer::transport::mock::MockTransport;
+use cogfer::transport::{HeaderName, HeaderValue};
+use cogfer::{Credentials, Message, ProviderConfig, Request};
 use serde_json::json;
 
 use crate::common::{header, provider_with};

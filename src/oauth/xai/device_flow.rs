@@ -146,7 +146,7 @@ impl XaiOAuth {
         if let Some(scope) = self.client_config.scope() {
             form.push(("scope", scope));
         }
-        form.push(("referrer", "llmwire"));
+        form.push(("referrer", "cogfer"));
         let response = self.post_form("oauth2/device/code", &form).await?;
         let issued_at = Instant::now();
         if !(200..300).contains(&response.status) {

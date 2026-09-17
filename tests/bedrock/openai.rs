@@ -4,9 +4,9 @@
 
 use std::sync::Arc;
 
-use llmwire::transport::HttpRequest;
-use llmwire::transport::mock::MockTransport;
-use llmwire::{
+use cogfer::transport::HttpRequest;
+use cogfer::transport::mock::MockTransport;
+use cogfer::{
     ApiProfile, Credentials, ErrorKind, Message, Provider, ProviderConfig, ReasoningConfig,
     ReasoningEffort, Request,
 };
@@ -204,7 +204,7 @@ async fn function_calls_complete_despite_the_item_id_spelling() {
 
     assert_terminal_contract(&events);
     let result = collect(&events).expect("stream succeeds");
-    assert_eq!(result.finish.reason, llmwire::FinishReason::ToolCalls);
+    assert_eq!(result.finish.reason, cogfer::FinishReason::ToolCalls);
     let call = result.tool_calls().next().expect("one tool call");
     assert_eq!(call.call_id, "call_1");
     assert_eq!(call.item_id.as_deref(), Some("fc_1"));

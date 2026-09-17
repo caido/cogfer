@@ -3,9 +3,9 @@
 
 use std::sync::Arc;
 
-use llmwire::transport::mock::MockTransport;
-use llmwire::transport::{HeaderName, HeaderValue, HttpRequest, Method};
-use llmwire::{Credentials, ErrorKind, Provider, ProviderConfig};
+use cogfer::transport::mock::MockTransport;
+use cogfer::transport::{HeaderName, HeaderValue, HttpRequest, Method};
+use cogfer::{Credentials, ErrorKind, Provider, ProviderConfig};
 use serde_json::json;
 use url::Url;
 

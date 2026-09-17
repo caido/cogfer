@@ -5,11 +5,11 @@
 //! GOOGLE_API_KEY=... cargo run --example generate
 //! ```
 
-use llmwire::{Client, Credentials, Message, ProviderConfig, Request};
+use cogfer::{Client, Credentials, Message, ProviderConfig, Request};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    llmwire::transport::install_default_crypto_provider();
+    cogfer::transport::install_default_crypto_provider();
     let client = Client::builder().build()?;
     let provider = client.provider(ProviderConfig::gemini(Credentials::api_key(std::env::var(
         "GOOGLE_API_KEY",

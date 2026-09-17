@@ -16,9 +16,9 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use bytes::Bytes;
-use llmwire::ApiProfile;
-use llmwire::transport::mock::MockTransport;
-use llmwire::transport::{HeaderMap, HeaderName, HeaderValue};
+use cogfer::ApiProfile;
+use cogfer::transport::mock::MockTransport;
+use cogfer::transport::{HeaderMap, HeaderName, HeaderValue};
 use serde::{Deserialize, Serialize};
 
 /// A recorded scenario: every exchange the scenario performed, in order.
@@ -184,8 +184,8 @@ pub(crate) fn scrub_json(value: &mut serde_json::Value) {
 
 mod tests {
     use futures_util::StreamExt;
-    use llmwire::transport::HttpTransport;
-    use llmwire::transport::mock::MockTransport;
+    use cogfer::transport::HttpTransport;
+    use cogfer::transport::mock::MockTransport;
     use url::Url;
 
     use super::*;
@@ -230,8 +230,8 @@ mod tests {
 
         let mock = MockTransport::new();
         loaded.queue(&mock);
-        let request = llmwire::transport::HttpRequest {
-            method: llmwire::transport::Method::POST,
+        let request = cogfer::transport::HttpRequest {
+            method: cogfer::transport::Method::POST,
             url: Url::parse("https://example.test/v1/responses").unwrap(),
             headers: HeaderMap::new(),
             body: None,

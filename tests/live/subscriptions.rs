@@ -1,4 +1,4 @@
-use llmwire::{FinishReason, Message, ProviderConfig, Request};
+use cogfer::{FinishReason, Message, ProviderConfig, Request};
 
 use crate::common::{
     agentic_loop, assert_terminal_contract, chatgpt_provider_on, drain, live_client, loop_request,

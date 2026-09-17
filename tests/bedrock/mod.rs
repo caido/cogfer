@@ -7,10 +7,10 @@ use std::sync::Arc;
 
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD;
-use llmwire::aws::{AwsCredentials, SigV4Authenticator};
-use llmwire::transport::HttpRequest;
-use llmwire::transport::mock::MockTransport;
-use llmwire::{
+use cogfer::aws::{AwsCredentials, SigV4Authenticator};
+use cogfer::transport::HttpRequest;
+use cogfer::transport::mock::MockTransport;
+use cogfer::{
     Credentials, ErrorKind, FinishReason, Message, Provider, ProviderConfig, ReasoningConfig,
     ReasoningEffort, Request, StreamEvent, WarningKind,
 };
@@ -248,7 +248,7 @@ async fn native_compaction_opts_in_through_the_body() {
     mock.push_json(200, &message("ok"));
     let request = Request::builder()
         .message(Message::user("hi"))
-        .compaction(llmwire::Compaction::enabled())
+        .compaction(cogfer::Compaction::enabled())
         .build();
 
     bedrock(&mock)
@@ -277,8 +277,8 @@ async fn replayed_compaction_history_is_sent() {
     let request = Request::builder()
         .message(Message::user("hi"))
         .message(Message::Assistant {
-            content: vec![llmwire::AssistantPart::Compaction(
-                llmwire::CompactionPart {
+            content: vec![cogfer::AssistantPart::Compaction(
+                cogfer::CompactionPart {
                     id: None,
                     content: Some("summary".into()),
                     encrypted_content: None,
@@ -311,8 +311,8 @@ async fn foreign_opaque_compaction_is_still_rejected() {
     let request = Request::builder()
         .message(Message::user("hi"))
         .message(Message::Assistant {
-            content: vec![llmwire::AssistantPart::Compaction(
-                llmwire::CompactionPart {
+            content: vec![cogfer::AssistantPart::Compaction(
+                cogfer::CompactionPart {
                     id: None,
                     content: None,
                     encrypted_content: Some("opaque".into()),
@@ -366,14 +366,14 @@ async fn buffered_responses_decode_like_anthropic() {
 mod sigv4 {
     use std::sync::Arc;
 
-    use llmwire::aws::{AwsCredentials, SigV4Authenticator};
-    use llmwire::transport::mock::MockTransport;
-    use llmwire::{Credentials, ErrorKind, ProviderConfig};
+    use cogfer::aws::{AwsCredentials, SigV4Authenticator};
+    use cogfer::transport::mock::MockTransport;
+    use cogfer::{Credentials, ErrorKind, ProviderConfig};
 
     use super::{MODEL, message};
     use crate::common::{header, headers, provider_with, text_request};
 
-    fn signed_provider(mock: &Arc<MockTransport>) -> llmwire::Provider {
+    fn signed_provider(mock: &Arc<MockTransport>) -> cogfer::Provider {
         let credentials = AwsCredentials::new(
             "AKIDEXAMPLE",
             "secret",
@@ -444,13 +444,13 @@ mod sigv4 {
     #[derive(Debug)]
     struct Rotating(std::sync::atomic::AtomicU32);
 
-    impl llmwire::aws::ProvideCredentials for Rotating {
-        fn provide_credentials<'a>(&'a self) -> llmwire::aws::future::ProvideCredentials<'a>
+    impl cogfer::aws::ProvideCredentials for Rotating {
+        fn provide_credentials<'a>(&'a self) -> cogfer::aws::future::ProvideCredentials<'a>
         where
             Self: 'a,
         {
             let generation = self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
-            llmwire::aws::future::ProvideCredentials::ready(Ok(AwsCredentials::new(
+            cogfer::aws::future::ProvideCredentials::ready(Ok(AwsCredentials::new(
                 format!("AKID{generation}"),
                 "secret",
                 None,
@@ -547,7 +547,7 @@ async fn verify_lists_async_invokes_with_the_api_key() {
     bedrock(&mock).verify().await.expect("a valid key verifies");
 
     let http: &HttpRequest = &mock.requests()[0];
-    assert_eq!(http.method, llmwire::transport::Method::GET);
+    assert_eq!(http.method, cogfer::transport::Method::GET);
     assert_eq!(
         http.url.as_str(),
         "https://bedrock-runtime.eu-west-1.amazonaws.com/async-invoke?maxResults=1"

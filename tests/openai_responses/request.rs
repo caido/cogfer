@@ -278,7 +278,7 @@ fn opaque_turn(origin: ProviderMetadata) -> (ToolCall, Message) {
 }
 
 fn origin(profile: &str) -> ProviderMetadata {
-    ProviderMetadata::with("llmwire", json!({"profile": profile}))
+    ProviderMetadata::with("cogfer", json!({"profile": profile}))
 }
 
 #[tokio::test]
