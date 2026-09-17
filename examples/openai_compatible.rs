@@ -9,9 +9,9 @@
 //!     cargo run --example openai_compatible
 //! ```
 
-use futures_util::StreamExt;
 use cogfer::transport::{HeaderName, HeaderValue};
 use cogfer::{Client, Credentials, Message, ProviderConfig, Request, StreamEvent};
+use futures_util::StreamExt;
 use url::Url;
 
 #[tokio::main]

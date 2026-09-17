@@ -4,11 +4,11 @@
 //! OPENAI_API_KEY=sk-... cargo run --example agentic_loop
 //! ```
 
-use futures_util::StreamExt;
 use cogfer::{
     Client, Credentials, Message, ProviderConfig, ReasoningConfig, ReasoningEffort, Request,
     StreamAccumulator, StreamEvent, ToolDefinition, ToolResultPart,
 };
+use futures_util::StreamExt;
 use serde_json::json;
 
 #[tokio::main]

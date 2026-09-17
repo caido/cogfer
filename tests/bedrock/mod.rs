@@ -277,13 +277,11 @@ async fn replayed_compaction_history_is_sent() {
     let request = Request::builder()
         .message(Message::user("hi"))
         .message(Message::Assistant {
-            content: vec![cogfer::AssistantPart::Compaction(
-                cogfer::CompactionPart {
-                    id: None,
-                    content: Some("summary".into()),
-                    encrypted_content: None,
-                },
-            )],
+            content: vec![cogfer::AssistantPart::Compaction(cogfer::CompactionPart {
+                id: None,
+                content: Some("summary".into()),
+                encrypted_content: None,
+            })],
             provider_metadata: Default::default(),
         })
         .message(Message::user("continue"))
@@ -311,13 +309,11 @@ async fn foreign_opaque_compaction_is_still_rejected() {
     let request = Request::builder()
         .message(Message::user("hi"))
         .message(Message::Assistant {
-            content: vec![cogfer::AssistantPart::Compaction(
-                cogfer::CompactionPart {
-                    id: None,
-                    content: None,
-                    encrypted_content: Some("opaque".into()),
-                },
-            )],
+            content: vec![cogfer::AssistantPart::Compaction(cogfer::CompactionPart {
+                id: None,
+                content: None,
+                encrypted_content: Some("opaque".into()),
+            })],
             provider_metadata: Default::default(),
         })
         .build();

@@ -183,9 +183,9 @@ pub(crate) fn scrub_json(value: &mut serde_json::Value) {
 }
 
 mod tests {
-    use futures_util::StreamExt;
     use cogfer::transport::HttpTransport;
     use cogfer::transport::mock::MockTransport;
+    use futures_util::StreamExt;
     use url::Url;
 
     use super::*;

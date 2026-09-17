@@ -14,11 +14,11 @@ use std::ops::Range;
 use std::sync::{Arc, Mutex};
 
 use bytes::Bytes;
-use futures_util::StreamExt;
 use cogfer::transport::{
     HeaderMap, HttpByteStream, HttpRequest, HttpResponse, HttpTransport, header,
 };
 use cogfer::{ApiProfile, Result};
+use futures_util::StreamExt;
 
 use super::cassette::{
     Body, Cassette, Chunk, Exchange, Headers, RecordedRequest, RecordedResponse,

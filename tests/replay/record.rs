@@ -5,9 +5,9 @@ use std::future::Future;
 use std::panic::AssertUnwindSafe;
 use std::sync::Arc;
 
-use futures_util::FutureExt;
 use cogfer::transport::ReqwestTransport;
 use cogfer::{Client, Provider};
+use futures_util::FutureExt;
 
 use crate::common::RecordingTransport;
 

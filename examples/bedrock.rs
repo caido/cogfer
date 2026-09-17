@@ -16,12 +16,12 @@
 
 use std::sync::Arc;
 
-use futures_util::StreamExt;
 use cogfer::aws::{AwsCredentials, SigV4Authenticator};
 use cogfer::{
     Client, Credentials, Message, Provider, ProviderConfig, ReasoningConfig, ReasoningEffort,
     Request, StreamAccumulator, StreamEvent, ToolDefinition, ToolResultPart,
 };
+use futures_util::StreamExt;
 use serde_json::json;
 
 /// Bedrock serves Anthropic models through cross-region inference profiles, so

@@ -144,13 +144,11 @@ async fn foreign_opaque_compaction_is_rejected() {
     let request = Request::builder()
         .message(Message::user("hi"))
         .message(Message::Assistant {
-            content: vec![cogfer::AssistantPart::Compaction(
-                cogfer::CompactionPart {
-                    id: Some("cmp_1".into()),
-                    content: None,
-                    encrypted_content: Some("OPAQUE".into()),
-                },
-            )],
+            content: vec![cogfer::AssistantPart::Compaction(cogfer::CompactionPart {
+                id: Some("cmp_1".into()),
+                content: None,
+                encrypted_content: Some("OPAQUE".into()),
+            })],
             provider_metadata: cogfer::ProviderMetadata::default(),
         })
         .message(Message::user("next"))

@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
-use futures_util::StreamExt;
 use cogfer::{EventStream, FinishReason, GenerateResult, StreamAccumulator, StreamEvent};
+use futures_util::StreamExt;
 
 pub(crate) async fn drain(stream: EventStream) -> Vec<StreamEvent> {
     stream.collect::<Vec<_>>().await
